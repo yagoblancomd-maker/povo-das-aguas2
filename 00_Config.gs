@@ -36,7 +36,7 @@ const SCHEMA = Object.freeze({
   ],
   Historico:['entidade','registroId','antes','depois','operacao'],
   Configuracoes:['chave','valor'],
-  Usuarios:['email','perfil','ativo'],
+  Usuarios:['email','perfil','ativo','nome','funcao','permissoes'],
   Distribuicao:['atendimentoId','processoId','numero','juizo','data','responsavel','protocoloId'],
   Processos:['pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes'],
   Operacoes:['hash','resultado']
@@ -89,6 +89,41 @@ const ROLES={
   JURIDICO:['consulta','cadastro','retificacao','conferencia','minuta'],
   ADMIN:['consulta','cadastro','retificacao','conferencia','minuta','administracao']
 };
+
+const PERMISSIONS=Object.freeze({
+  consulta:{
+    label:'Consulta',
+    descricao:'Visualizar painel, pessoas, fichas, documentos e processos sem alterar registros.'
+  },
+  cadastro:{
+    label:'Cadastro',
+    descricao:'Cadastrar pessoas, documentos e atendimentos e gerar documentos vinculados ao cadastro.'
+  },
+  retificacao:{
+    label:'Retificação',
+    descricao:'Editar dados já gravados, corrigir cadastros e excluir documentos quando permitido.'
+  },
+  conferencia:{
+    label:'Conferência',
+    descricao:'Conferir documentos, registrar validações e concluir a conferência dos atendimentos.'
+  },
+  minuta:{
+    label:'Minutas jurídicas',
+    descricao:'Acessar o módulo de minutas, gerar novas versões e registrar revisão jurídica.'
+  },
+  administracao:{
+    label:'Administração',
+    descricao:'Gerenciar usuários, perfis, APIs, configurações e o modelo oficial da petição.'
+  }
+});
+
+const ROLE_DESCRIPTIONS=Object.freeze({
+  CONSULTA:'Acesso somente para consulta das informações já registradas.',
+  CADASTRO:'Consulta e inclusão de pessoas, documentos e atendimentos.',
+  CONFERENCIA:'Cadastro, retificação e conferência documental e dos atendimentos.',
+  JURIDICO:'Conferência e atividades jurídicas, incluindo geração e revisão de minutas.',
+  ADMIN:'Acesso integral ao sistema e às configurações administrativas.'
+});
 
 function props_(){
   return PropertiesService.getScriptProperties();
