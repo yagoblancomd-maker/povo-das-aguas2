@@ -99,23 +99,15 @@ n.className='status '+(error?'error':'ok');
       [.90,'Concluindo']
     ]
   },
-  atendimentoSalvar:{
-    seconds:5,
-    title:'Salvando atendimento',
+  minutaInicialGerar:{
+    seconds:14,
+    title:'Gerando petição inicial',
     phases:[
-      [0,'Validando os dados'],
-      [.40,'Atualizando o atendimento'],
-      [.82,'Concluindo']
-    ]
-  },
-  minutaGerar:{
-    seconds:13,
-    title:'Gerando minuta',
-    phases:[
-      [0,'Validando a documentação'],
-      [.25,'Preenchendo o modelo'],
-      [.58,'Gerando o PDF'],
-      [.82,'Registrando a nova versão']
+      [0,'Validando cadastro e documentos'],
+      [.25,'Preenchendo o modelo da petição'],
+      [.56,'Gerando o PDF'],
+      [.80,'Salvando na pasta individual'],
+      [.92,'Atualizando os documentos da pessoa']
     ]
   },
   modeloUpload:{
@@ -903,11 +895,6 @@ f.insertBefore(file,f.firstChild);
         label:'Consultar Defeso 2025'
       }
     ]
-  );
-
-  appendDirect(
-    'ATEND',
-    'Atendimentos'
   );
 
   appendGroup(
