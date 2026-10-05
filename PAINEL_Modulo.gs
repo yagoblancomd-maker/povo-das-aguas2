@@ -164,6 +164,26 @@ function dashboard_(){
       0
     );
 
+  const currentEmail=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const minhasTarefas=
+    all_('Tarefas')
+      .filter(t=>
+        t.tipo===
+          DISTRIBUTION_TASK_TYPE&&
+        t.situacao!==
+          DISTRIBUTION_TASK_DONE&&
+        String(
+          t.responsavel||
+          ''
+        ).toLowerCase()===
+          currentEmail
+      ).length;
+
   const ultimosCadastros=
     pessoas
       .slice()
@@ -256,6 +276,7 @@ function dashboard_(){
     iniciais:iniciais.length,
     relatorios:relatorios.length,
     acoesTramitacao:processos.length,
+    minhasTarefas,
     valorCausas,
     valorCausasTramitacao,
     jurisdicoes,
