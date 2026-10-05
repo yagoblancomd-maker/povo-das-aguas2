@@ -461,6 +461,7 @@ function api(action,q){
     seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_],
+    usuarioAprovarProfessorResidente:['administracao',userApproveProfessorResident_],
     usuarioExcluir:['administracao',userDelete_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
     autocadastroGatewaySalvar:['administracao',autoCadastroGatewaySave_],
