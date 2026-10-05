@@ -2,6 +2,7 @@ const PORTAL_TRANSPARENCIA_API_KEY_PROPERTY='PORTAL_TRANSPARENCIA_API_KEY';
 const SEGURO_DEFESO_API_URL='https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo';
 const SEGURO_DEFESO_PERIODO_INICIO='2025-01-01';
 const SEGURO_DEFESO_PERIODO_FIM='2025-12-31';
+const SEGURO_DEFESO_REPORT_DOCUMENT_CATEGORY='RELATORIO_SEGURO_DEFESO_2025';
 
 function portalTransparenciaStatus_(){
   return {
@@ -915,6 +916,52 @@ function seguroDefesoRelatorioGerar_(ctx,q){
     }
   }
 
+  /*
+   * O PDF final também integra o acervo documental da pessoa.
+   * Usa um ID estável para que novas gerações atualizem o mesmo registro
+   * em vez de multiplicar linhas na ficha.
+   */
+  const reportDocumentId=
+    id_(
+      'DOC',
+      'SEGDEF2025:'+p.id
+    );
+
+  const previousReportDocument=
+    all_('Documentos')
+      .find(d=>d.id===reportDocumentId);
+
+  const reportDocument=
+    change_(
+      ctx,
+      'Documentos',
+      reportDocumentId,
+      {
+        atendimentoId:personOwnerKey_(p.id),
+        categoria:SEGURO_DEFESO_REPORT_DOCUMENT_CATEGORY,
+        fileId:pdfFile.getId(),
+        url:pdfFile.getUrl(),
+        nome:baseName+'.pdf',
+        hash:driveFileDigest_(pdfFile),
+        mime:MimeType.PDF,
+        substituiId:'',
+        vigente:true,
+        vencimento:'',
+        terceiro:false,
+        conferido:true,
+        declaracaoTerceiro:false,
+        processoCompleto:false,
+        anexoPresente:true,
+        rogo:false,
+        testemunhas:false,
+        observacoes:
+          'Relatório Seguro-Defeso 2025 gerado automaticamente a partir da API oficial do Portal da Transparência.'
+      },
+      previousReportDocument
+        ?previousReportDocument.versao
+        :undefined
+    );
+
   return Object.assign(
     {},
     consulta,
@@ -924,7 +971,8 @@ function seguroDefesoRelatorioGerar_(ctx,q){
         fileId:docFile.getId(),
         url:docFile.getUrl(),
         pdfFileId:pdfFile.getId(),
-        pdfUrl:pdfFile.getUrl()
+        pdfUrl:pdfFile.getUrl(),
+        documentoId:reportDocument.id
       }
     }
   );
