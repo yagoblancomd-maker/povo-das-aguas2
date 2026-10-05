@@ -97,7 +97,7 @@ const PERMISSIONS=Object.freeze({
   },
   cadastro:{
     label:'Cadastro',
-    descricao:'Criar novas pessoas e novos atendimentos, anexar documentos durante a inclusão e concluir novos cadastros. Não é necessária para editar registros já existentes.'
+    descricao:'Criar novas pessoas, anexar documentos durante a inclusão e concluir novos cadastros. Não é necessária para editar registros já existentes.'
   },
   retificacao:{
     label:'Retificação',
@@ -119,7 +119,7 @@ const PERMISSIONS=Object.freeze({
 
 const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
-  CADASTRO:'Consulta e inclusão de pessoas, documentos e atendimentos.',
+  CADASTRO:'Consulta e inclusão de pessoas e documentos.',
   CONFERENCIA:'Cadastro, retificação e conferência documental e dos atendimentos.',
   JURIDICO:'Conferência e atividades jurídicas, incluindo geração e revisão de minutas.',
   ADMIN:'Acesso integral ao sistema e às configurações administrativas.'
