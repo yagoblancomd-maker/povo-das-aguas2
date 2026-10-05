@@ -24,6 +24,7 @@ const MODULE_PERMISSION=Object.freeze({
 
 const PROFILE_HOME=Object.freeze({
   CONSULTA:'PAINEL',
+  NOVO_USUARIO:'PAINEL',
   CADASTRO:'PAINEL',
   CONFERENCIA:'PAINEL',
   JURIDICO:'PAINEL',
@@ -108,7 +109,7 @@ function accessErrorPage_(email,message){
       '<p>Conta Google utilizada nesta execução:</p>'+
       '<div class="account">'+safeEmail+'</div>'+
       '<div class="error">'+safeMessage+'</div>'+
-      '<p class="hint">Confirme se esta é exatamente a conta cadastrada em Administração → Usuários e permissões. Em navegadores com várias contas Google abertas, o Apps Script pode usar outra conta da sessão.</p>'+
+      '<p class="hint">Confirme se esta é exatamente a conta Google que você pretende utilizar no projeto.</p>'+
       '</main></body></html>'
     )
     .setTitle(
@@ -120,11 +121,210 @@ function accessErrorPage_(email,message){
     );
 }
 
-function doGet(){
+function selfRegistrationLandingPage_(email,reason){
+  const template=
+    HtmlService.createTemplateFromFile(
+      'CadastroUsuario'
+    );
+
+  const returnUrl=
+    ScriptApp
+      .getService()
+      .getUrl()||
+    '';
+
+  const gateway=
+    selfRegistrationGatewayUrl_();
+
+  template.email=
+    String(email||'')
+      .trim()
+      .toLowerCase();
+
+  template.gatewayUrl=
+    gateway;
+
+  template.returnUrl=
+    returnUrl;
+
+  template.registrationToken=
+    email&&gateway
+      ?selfRegistrationToken_(
+          email,
+          returnUrl
+        )
+      :'';
+
+  template.reason=
+    String(reason||'');
+
+  template.gatewayConfigured=
+    !!(
+      gateway&&
+      selfRegistrationStatus_().configurada
+    );
+
+  return template
+    .evaluate()
+    .setTitle(
+      'Povo das Águas — Primeiro acesso'
+    )
+    .addMetaTag(
+      'viewport',
+      'width=device-width, initial-scale=1'
+    );
+}
+
+function selfRegistrationSuccessPage_(result){
+  const safeName=String(
+    result.nome||
+    ''
+  ).replace(/[&<>"']/g,ch=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[ch]);
+
+  const safeEmail=String(
+    result.email||
+    ''
+  ).replace(/[&<>"']/g,ch=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[ch]);
+
+  const returnUrl=String(
+    result.returnUrl||
+    ''
+  );
+
+  const safeReturn=
+    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(
+      returnUrl
+    )
+      ?returnUrl
+      :'';
+
+  return HtmlService
+    .createHtmlOutput(
+      '<!doctype html><html lang="pt-BR"><head>'+
+      '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+      '<title>Povo das Águas — Acesso criado</title>'+
+      '<style>'+
+      '*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#143c50;background:radial-gradient(circle at 10% 10%,rgba(57,167,178,.18),transparent 28%),linear-gradient(145deg,#062f43,#0b6874 58%,#0b8590)}'+
+      '.card{width:min(650px,100%);padding:30px;border:1px solid rgba(255,255,255,.36);border-radius:22px;background:rgba(255,255,255,.96);box-shadow:0 28px 80px rgba(2,25,36,.32);text-align:center}'+
+      '.check{display:grid;place-items:center;width:72px;height:72px;margin:0 auto 16px;border-radius:50%;color:#fff;background:linear-gradient(145deg,#0a7d89,#1494a0);font-size:34px;box-shadow:0 12px 30px rgba(10,125,137,.25)}'+
+      'h1{margin:0 0 8px;font-size:28px;letter-spacing:-.03em}p{line-height:1.5;color:#5b7480}.user{margin:18px 0;padding:14px;border-radius:13px;background:#eef7f8}.user strong{display:block;color:#123f52}.button{display:inline-block;margin-top:8px;padding:11px 18px;border-radius:11px;color:#fff;text-decoration:none;font-weight:750;background:linear-gradient(145deg,#0a7d89,#086572);box-shadow:0 8px 18px rgba(8,101,114,.22)}'+
+      '</style></head><body><main class="card">'+
+      '<div class="check">✓</div>'+
+      '<h1>Acesso criado com sucesso</h1>'+
+      '<p>Seu perfil inicial foi criado automaticamente com permissões de <strong>Consulta</strong> e <strong>Cadastro</strong>.</p>'+
+      '<div class="user"><strong>'+safeName+'</strong><span>'+safeEmail+'</span></div>'+
+      '<p>Você já pode entrar no sistema e iniciar novos cadastros. Outras permissões somente podem ser concedidas posteriormente pela Administração.</p>'+
+      (
+        safeReturn
+          ?'<a class="button" href="'+safeReturn+'">Entrar no Povo das Águas</a>'
+          :'<p>Volte à aba original do Povo das Águas e atualize a página.</p>'
+      )+
+      '</main></body></html>'
+    );
+}
+
+function selfRegistrationFailurePage_(message,returnUrl){
+  const safeMessage=String(
+    message||
+    'Não foi possível concluir o autocadastro.'
+  ).replace(/[&<>"']/g,ch=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[ch]);
+
+  const safeReturn=
+    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(
+      String(returnUrl||'')
+    )
+      ?String(returnUrl)
+      :'';
+
+  return HtmlService
+    .createHtmlOutput(
+      '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'+
+      '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+      '<title>Povo das Águas — Autocadastro</title>'+
+      '<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#163f52;background:#eef6f7}.card{width:min(650px,100%);padding:28px;border:1px solid #c6dce1;border-radius:18px;background:#fff;box-shadow:0 20px 60px rgba(15,48,70,.16)}h1{margin:0 0 10px}.error{padding:12px 14px;border-left:4px solid #bb483e;border-radius:8px;background:#fff1ef;color:#7c3029}.button{display:inline-block;margin-top:14px;padding:10px 15px;border-radius:9px;color:#fff;text-decoration:none;font-weight:700;background:#0b7480}</style>'+
+      '</head><body><main class="card"><h1>Não foi possível concluir o acesso</h1><div class="error">'+safeMessage+'</div>'+
+      (
+        safeReturn
+          ?'<a class="button" href="'+safeReturn+'">Voltar ao primeiro acesso</a>'
+          :''
+      )+
+      '</main></body></html>'
+    );
+}
+
+function doGet(e){
+  const params=
+    e&&e.parameter
+      ?e.parameter
+      :{};
+
+  if(
+    String(
+      params.mode||
+      ''
+    )==='activate'
+  ){
+    let returnUrl='';
+
+    try{
+      const signed=
+        selfRegistrationTokenRead_(
+          params.token
+        );
+
+      returnUrl=
+        signed.returnUrl;
+
+      const result=
+        selfRegisterUser_(
+          params.token,
+          params.nome,
+          params.funcao
+        );
+
+      return selfRegistrationSuccessPage_(
+        result
+      );
+
+    }catch(error){
+      return selfRegistrationFailurePage_(
+        error.message||String(error),
+        returnUrl
+      );
+    }
+  }
+
   const email=String(
     Session.getActiveUser().getEmail()||
     ''
-  ).trim();
+  )
+    .trim()
+    .toLowerCase();
+
+  if(!email){
+    return selfRegistrationLandingPage_(
+      '',
+      'O Google ainda não disponibilizou a identidade desta sessão.'
+    );
+  }
 
   try{
     authorize_('consulta');
@@ -138,10 +338,14 @@ function doGet(){
         'width=device-width, initial-scale=1'
       );
 
-  }catch(e){
-    return accessErrorPage_(
+  }catch(error){
+    /*
+     * Uma conta ainda não cadastrada pode não ter qualquer acesso ao Drive.
+     * Por isso a página de primeiro acesso não depende da planilha principal.
+     */
+    return selfRegistrationLandingPage_(
       email,
-      e.message||String(e)
+      error.message||String(error)
     );
   }
 }
@@ -237,7 +441,8 @@ function api(action,q){
       ),
       modelo:templateStatus_(),
       portalTransparencia:portalTransparenciaStatus_(),
-      deepseek:deepseekStatus_()
+      deepseek:deepseekStatus_(),
+      autocadastro:selfRegistrationStatus_()
     }),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
     cepConsultar:()=>cepConsultaViaCep_(q),
@@ -261,6 +466,7 @@ function api(action,q){
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
+    autocadastroGatewaySalvar:['administracao',autoCadastroGatewaySave_],
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
