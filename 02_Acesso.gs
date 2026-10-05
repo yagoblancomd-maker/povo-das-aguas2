@@ -130,6 +130,8 @@ function googleResourceAccessLevel_(user){
       'retificacao',
       'conferencia',
       'minuta',
+      'distribuicao',
+      'gestao_distribuicao',
       'administracao'
     ].some(permission=>
       permissions.includes(
