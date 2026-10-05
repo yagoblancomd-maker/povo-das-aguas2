@@ -149,13 +149,29 @@ function deepseekPdfOcrText_(file,label){
       fail_('Não foi possível iniciar o OCR do PDF.');
     }
 
-    Utilities.sleep(350);
+    let text='';
 
-    const text=DocumentApp
-      .openById(tempId)
-      .getBody()
-      .getText()
-      .trim();
+    for(let attempt=1;attempt<=5;attempt++){
+      Utilities.sleep(
+        attempt===1
+          ?300
+          :500
+      );
+
+      try{
+        text=DocumentApp
+          .openById(tempId)
+          .getBody()
+          .getText()
+          .trim();
+      }catch(e){
+        text='';
+      }
+
+      if(text){
+        break;
+      }
+    }
 
     if(!text){
       fail_(
@@ -699,6 +715,11 @@ function deepseekRequest_(parts){
         :'';
 
     if(!content.trim()){
+      if(attempt<2){
+        Utilities.sleep(650);
+        continue;
+      }
+
       fail_('A API DeepSeek não retornou dados para os documentos.');
     }
 
