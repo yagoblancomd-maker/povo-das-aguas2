@@ -302,27 +302,30 @@ function findSeguroDefesoReportFile_(folder,marker,mime){
   return null;
 }
 
-function seguroDefesoReportRows_(consulta){
-  return consulta.registros.map(r=>[
-    r.id,
-    r.cpfFormatado,
-    r.nis,
-    r.nome,
-    r.codigoIBGE,
-    r.nomeIBGE,
-    r.codigoRegiao,
-    r.nomeRegiao,
-    r.pais,
-    r.ufSigla,
-    r.ufNome,
-    r.portaria,
-    reportDateBR_(r.dataMesReferencia),
-    reportDateBR_(r.dataSaque),
-    reportDateBR_(r.dataEmissaoParcela),
-    r.situacao,
-    r.rgp,
-    r.parcela,
-    reportMoneyBR_(r.valor)
+function seguroDefesoRecordRows_(r){
+  return [
+    ['ID',r.id],
+    ['CPF',r.cpfFormatado],
+    ['NIS',r.nis],
+    ['Nome',r.nome],
+    ['Código IBGE',r.codigoIBGE],
+    ['Município',r.nomeIBGE],
+    ['Código da região',r.codigoRegiao],
+    ['Região',r.nomeRegiao],
+    ['País',r.pais],
+    ['UF',r.ufSigla],
+    ['Nome da UF',r.ufNome],
+    ['Portaria',r.portaria],
+    ['Mês de referência',reportDateBR_(r.dataMesReferencia)],
+    ['Data do saque',reportDateBR_(r.dataSaque)],
+    ['Data de emissão da parcela',reportDateBR_(r.dataEmissaoParcela)],
+    ['Situação',r.situacao],
+    ['RGP',r.rgp],
+    ['Parcela',r.parcela],
+    ['Valor',reportMoneyBR_(r.valor)]
+  ].map(row=>[
+    String(row[0]||''),
+    String(row[1]||'—')
   ]);
 }
 
@@ -392,42 +395,36 @@ function renderSeguroDefesoReport_(doc,p,consulta){
     );
 
   }else{
-    const headers=[
-      'ID',
-      'CPF',
-      'NIS',
-      'Nome',
-      'Código IBGE',
-      'Município',
-      'Código Região',
-      'Região',
-      'País',
-      'UF',
-      'Nome UF',
-      'Portaria',
-      'Mês de referência',
-      'Data do saque',
-      'Data de emissão da parcela',
-      'Situação',
-      'RGP',
-      'Parcela',
-      'Valor'
-    ];
+    consulta.registros.forEach((r,index)=>{
+      body.appendParagraph(
+        (
+          r.parcela
+            ?'Parcela '+r.parcela
+            :'Registro '+(index+1)
+        )+
+        ' — '+
+        (
+          reportDateBR_(r.dataMesReferencia)||
+          'sem mês de referência'
+        )+
+        ' — '+
+        reportMoneyBR_(r.valor)
+      ).setHeading(
+        DocumentApp.ParagraphHeading.HEADING2
+      );
 
-    const table=body.appendTable(
-      [headers].concat(
-        seguroDefesoReportRows_(consulta)
-      )
-    );
+      const table=body.appendTable(
+        seguroDefesoRecordRows_(r)
+      );
 
-    const headerRow=table.getRow(0);
-
-    for(let i=0;i<headerRow.getNumCells();i++){
-      headerRow
-        .getCell(i)
-        .editAsText()
-        .setBold(true);
-    }
+      for(let i=0;i<table.getNumRows();i++){
+        table
+          .getRow(i)
+          .getCell(0)
+          .editAsText()
+          .setBold(true);
+      }
+    });
   }
 
   body.appendParagraph(
@@ -458,8 +455,11 @@ function seguroDefesoRelatorioGerar_(ctx,q){
       baseName+' - EM GERAÇÃO'
     );
 
+    const createdId=doc.getId();
+    doc.saveAndClose();
+
     docFile=DriveApp.getFileById(
-      doc.getId()
+      createdId
     );
 
     docFile.moveTo(folder);
