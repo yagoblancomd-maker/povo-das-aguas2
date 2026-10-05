@@ -1,1 +1,23 @@
-<style>#pess-root { min-height: 300px; }</style>
+<style>
+#pess-root{min-height:300px}
+.pess-api-dialog{
+  width:min(980px,94vw);
+  max-height:88vh;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:22px;
+  color:var(--navy);
+  background:#fff;
+}
+.pess-api-dialog::backdrop{
+  background:rgba(16,46,67,.55);
+}
+.pess-api-dialog details{
+  margin:10px 0;
+}
+.pess-api-dialog pre{
+  font-size:13px;
+  line-height:1.55;
+}
+</style>
