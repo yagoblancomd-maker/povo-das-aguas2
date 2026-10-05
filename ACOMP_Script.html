@@ -9,6 +9,7 @@ window.PDA_MODULES.ACOMP = (()=>{
     RG_CPF:'Documento de identidade e CPF',
     RESIDENCIA:'Comprovante de residência',
     IDENTIDADE_TITULAR_RESIDENCIA:'Carteira de identidade do titular da residência',
+    RELATORIO_SEGURO_DEFESO_2025:'Relatório Seguro-Defeso 2025',
     PROCESSO_ADMINISTRATIVO:'Processo administrativo',
     PESCA:'Documentos de pesca',
     PROCURACAO:'Procuração',
@@ -894,7 +895,12 @@ window.PDA_MODULES.ACOMP = (()=>{
             }
 
             status(
-              'Relatório do Seguro-Defeso 2025 gerado para '+p.nome+'.'
+              'Relatório do Seguro-Defeso 2025 gerado e adicionado aos documentos de '+p.nome+'.'
+            );
+
+            await go(
+              'ACOMP',
+              p.id
             );
 
           }catch(e){
