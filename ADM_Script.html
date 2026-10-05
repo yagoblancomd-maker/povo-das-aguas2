@@ -848,7 +848,7 @@ window.PDA_MODULES.ADM = (()=>{
                   window.confirm(
                     'Aprovar as permissões operacionais padrão para '+
                     (user.nome||user.email)+
-                    '?\n\nSerão concedidas Consulta, Cadastro, Retificação, Conferência, Minutas e Gerenciar distribuição. Administração e Distribuir processos permanecerão desmarcadas.'
+                    '?\n\nSerão concedidas Consulta, Cadastro, Retificação, Conferência, Minutas e Gerenciar distribuição. Administração e Distribuir processos não serão concedidas por esta aprovação; se já tiverem sido autorizadas separadamente, serão preservadas.'
                   );
 
                 if(!confirmed){
