@@ -2,17 +2,17 @@
 
 Todas as entidades usam `id`, `versao`, `criadoEm`, `alteradoEm` e `usuario`. O ID é estável e independe da linha. As datas de auditoria usam ISO 8601; as datas de nascimento e vencimento usam DD/MM/AAAA. A versão aumenta a cada alteração. Os campos são gravados como texto explícito na API Sheets, evitando conversão de CPF, zeros iniciais ou interpretação de fórmulas. Booleanos são representados por `true` e `false`.
 
-Pessoas se relaciona com Atendimentos por pessoaId. Documentos, Pendencias e Minutas se relacionam com Atendimentos por atendimentoId. Processos prevê pessoaId e atendimentoId. Não é permitido substituir o vínculo pessoal de um atendimento existente. A identidade pessoal usa CPF único; a identidade da demanda usa pessoa, tipo e referência informada. Número da linha nunca identifica uma entidade.
+Pessoas se relaciona com Atendimentos por pessoaId. Documentos específicos de atendimento, Pendencias e Minutas se relacionam com Atendimentos por atendimentoId. Documentos gerais da pessoa usam a chave interna `PESSOA:<pessoaId>` no campo `Documentos.atendimentoId` e podem ser reutilizados nos atendimentos. Processos prevê pessoaId e atendimentoId. Não é permitido substituir o vínculo pessoal de um atendimento existente. A identidade pessoal usa CPF único; a identidade da demanda usa pessoa, tipo e referência informada. Número da linha nunca identifica uma entidade.
 
 ## Pessoas
 
 Cadastro único da pessoa. Nome e CPF obrigatórios em qualquer política; demais campos exigidos para encaminhar.
 
-Campos específicos: `nome`, `cpf`, `nascimento`, `telefone`, `tipoVia`, `via`, `numero`, `complemento`, `bairro`, `cidade`, `uf`, `entidade`, `outraEntidade`, `analfabeto`.
+Campos específicos: `nome`, `cpf`, `nascimento`, `telefone`, `tipoVia`, `via`, `numero`, `complemento`, `bairro`, `cidade`, `uf`, `entidade`, `outraEntidade`, `analfabeto`, `parcelasNaoRecebidas`. O último campo aceita apenas 1, 2, 3 ou 4 e alimenta o cálculo automático do valor da causa do Seguro-Defeso 2025.
 
 ## Atendimentos
 
-Demanda, opções de parcelas, responsáveis, preparação, conferência e dados da minuta. revisao é um contador de invalidação; conferencia registra quem concluiu.
+Demanda, opções de parcelas, responsáveis, preparação, conferência e dados da minuta. `revisao` é um contador de invalidação; `conferencia` registra quem concluiu. Para Seguro-Defeso 2025, `valorCausa` é recalculado no servidor como `Pessoas.parcelasNaoRecebidas × R$ 1.518,00`; valores enviados pelo navegador não são utilizados como fonte de verdade.
 
 Campos específicos: `pessoaId`, `demanda`, `referencia`, `parcelas`, `outrosCasos`, `observacoes`, `responsavel`, `situacao`, `folderId`, `revisao`, `conferencia`, `enderecamento`, `secaoJudiciaria`, `valorCausa`, `localData`.
 
