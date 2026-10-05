@@ -107,6 +107,7 @@ return d;
 }
  async function go(code,pessoaId){if(busy)return;
 if(pessoaId)selection=pessoaId;
+else if(code==='ACOMP')selection=null;
 current=code;
 const token=++epoch;
 status('Carregando…');
