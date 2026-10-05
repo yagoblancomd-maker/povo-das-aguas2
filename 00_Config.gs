@@ -38,6 +38,10 @@ const SCHEMA = Object.freeze({
   Configuracoes:['chave','valor'],
   Usuarios:['email','perfil','ativo','nome','funcao','permissoes'],
   Distribuicao:['atendimentoId','processoId','numero','juizo','data','responsavel','protocoloId'],
+  Tarefas:[
+    'tipo','pessoaId','responsavel','situacao','jurisdicao','valorCausa',
+    'atribuidaEm','concluidaEm','processoId','observacoes'
+  ],
   Processos:['pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes'],
   Operacoes:['hash','resultado']
 });
@@ -79,15 +83,29 @@ const DEFAULTS={
   municipios:Object.values(JURISDICOES).flat().sort((a,b)=>a.localeCompare(b,'pt-BR')),
   demandas:['Seguro-Defeso 2025'],
   categorias:['RG_CPF','RESIDENCIA','PROCESSO_ADMINISTRATIVO','PESCA','PROCURACAO','HIPOSSUFICIENCIA'],
-  situacoes:['EM_PREPARACAO','ENCAMINHADO','CONFERIDO']
+  situacoes:['EM_PREPARACAO','ENCAMINHADO','CONFERIDO'],
+  advogadosDistribuicao:[
+    'JOSÉ RICARDO CAETANO COSTA — OAB/RS 028.912',
+    'THELMO DE CARVALHO TEIXEIRA BRANCO FILHO — OAB/RS 132.839B',
+    'GUILHERME HOMMERDING ALT — OAB/RS 053.288',
+    'PATRÍCIA DE ALMEIDA OLIVEIRA — OAB/RS 127.669',
+    'LUIZE LIMA DA ROSA — OAB/RS 104.145',
+    'YAGO FREITAS BLANCO — OAB/RS 137.930',
+    'JOÃO PEDRO DE OLIVEIRA SIMÕES LOPES GASTAL — OAB/RS 129.245'
+  ]
 };
 
 const ROLES={
   CONSULTA:['consulta'],
   CADASTRO:['consulta','cadastro'],
   CONFERENCIA:['consulta','cadastro','retificacao','conferencia'],
-  JURIDICO:['consulta','cadastro','retificacao','conferencia','minuta'],
-  ADMIN:['consulta','cadastro','retificacao','conferencia','minuta','administracao']
+  JURIDICO:[
+    'consulta','cadastro','retificacao','conferencia','minuta','distribuicao'
+  ],
+  ADMIN:[
+    'consulta','cadastro','retificacao','conferencia','minuta',
+    'distribuicao','gestao_distribuicao','administracao'
+  ]
 };
 
 const PERMISSIONS=Object.freeze({
@@ -111,6 +129,14 @@ const PERMISSIONS=Object.freeze({
     label:'Minutas jurídicas',
     descricao:'Acessar o módulo de minutas, gerar novas versões e registrar revisão jurídica.'
   },
+  distribuicao:{
+    label:'Distribuir processos',
+    descricao:'Receber tarefas individuais de distribuição, acessar os documentos da pessoa e concluir a tarefa informando o número do processo no TRF4.'
+  },
+  gestao_distribuicao:{
+    label:'Gerenciar distribuição',
+    descricao:'Atribuir e reatribuir tarefas de distribuição entre usuários autorizados e acompanhar a fila de trabalho.'
+  },
   administracao:{
     label:'Administração',
     descricao:'Gerenciar usuários, perfis, APIs, configurações e o modelo oficial da petição.'
@@ -121,8 +147,8 @@ const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
   CONFERENCIA:'Cadastro, retificação e conferência documental.',
-  JURIDICO:'Conferência e atividades jurídicas, incluindo geração e revisão de minutas.',
-  ADMIN:'Acesso integral ao sistema e às configurações administrativas.'
+  JURIDICO:'Conferência e atividades jurídicas, incluindo minutas e execução de tarefas de distribuição.',
+  ADMIN:'Acesso integral ao sistema, gestão da distribuição e configurações administrativas.'
 });
 
 function props_(){
