@@ -17,7 +17,7 @@ const SCHEMA = Object.freeze({
   Pessoas:[
     'nome','cpf','nascimento','telefone','tipoVia','via','numero','complemento',
     'bairro','cidade','uf','entidade','outraEntidade','analfabeto',
-    'parcelasNaoRecebidas','jurisdicao','cep','email'
+    'parcelasNaoRecebidas','jurisdicao','cep','email','criadoPor'
   ],
   Atendimentos:[
     'pessoaId','demanda','referencia','parcelas','outrosCasos','observacoes',
@@ -98,6 +98,15 @@ const DEFAULTS={
 const ROLES={
   CONSULTA:['consulta'],
   NOVO_USUARIO:['consulta','cadastro'],
+  PROFESSOR_RESIDENTE:[
+    'consulta','cadastro','retificacao','conferencia','minuta','gestao_distribuicao'
+  ],
+  COLABORADOR:[
+    'consulta','cadastro','retificacao_propria'
+  ],
+  ALUNO:[
+    'consulta','distribuicao'
+  ],
   CADASTRO:['consulta','cadastro'],
   CONFERENCIA:['consulta','cadastro','retificacao','conferencia'],
   JURIDICO:[
@@ -121,6 +130,10 @@ const PERMISSIONS=Object.freeze({
   retificacao:{
     label:'Retificação',
     descricao:'Editar pessoas já gravadas, corrigir dados existentes e excluir documentos quando permitido. Funciona independentemente da permissão Cadastro.'
+  },
+  retificacao_propria:{
+    label:'Retificação dos próprios cadastros',
+    descricao:'Editar e corrigir somente pessoas que foram cadastradas pelo próprio usuário. Não autoriza alterações em cadastros criados por outras pessoas.'
   },
   conferencia:{
     label:'Conferência',
@@ -146,7 +159,10 @@ const PERMISSIONS=Object.freeze({
 
 const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
-  NOVO_USUARIO:'Perfil criado automaticamente no primeiro acesso. Permite somente consulta e novos cadastros, sem retificação, conferência, minutas, distribuição ou administração.',
+  NOVO_USUARIO:'Perfil legado de primeiro acesso com Consulta e Cadastro.',
+  PROFESSOR_RESIDENTE:'Professor ou Residente. Após aprovação funcional, recebe todas as permissões operacionais, exceto Administração e Distribuir processos. No autocadastro inicia somente com Consulta e Cadastro.',
+  COLABORADOR:'Consulta, Cadastro e Retificação limitada aos cadastros criados pelo próprio colaborador.',
+  ALUNO:'Consulta e Distribuir processos, para receber e concluir tarefas de distribuição atribuídas ao aluno.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
   CONFERENCIA:'Cadastro, retificação e conferência documental.',
   JURIDICO:'Conferência e atividades jurídicas, incluindo minutas e execução de tarefas de distribuição.',
