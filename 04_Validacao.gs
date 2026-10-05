@@ -14,6 +14,24 @@ function cpf_(input){
   return s;
 }
 
+function cep_(input){
+  const s=String(input||'').replace(/\\D/g,'');
+
+  if(!/^\\d{8}$/.test(s)){
+    fail_('CEP inválido. Use o formato 00000-000.');
+  }
+
+  return s;
+}
+
+function cepDisplay_(input){
+  const s=String(input||'').replace(/\\D/g,'');
+
+  return /^\\d{8}$/.test(s)
+    ?s.replace(/(\\d{5})(\\d{3})/,'$1-$2')
+    :String(input||'').trim();
+}
+
 function date_(s){
   if(!/^\d{2}\/\d{2}\/\d{4}$/.test(s||''))fail_('Data deve usar DD/MM/AAAA.');
 
@@ -68,12 +86,16 @@ function validatePerson_(input,c,complete){
   if(complete){
     [
       'nascimento','telefone','tipoVia','via','numero','bairro','cidade','uf',
-      'entidade','analfabeto','parcelasNaoRecebidas'
+      'cep','entidade','analfabeto','parcelasNaoRecebidas'
     ].forEach(k=>required_(p[k],k));
   }
 
   if(p.parcelasNaoRecebidas!==''){
     p.parcelasNaoRecebidas=String(parcelasDefeso_(p.parcelasNaoRecebidas));
+  }
+
+  if(p.cep!==''){
+    p.cep=cep_(p.cep);
   }
 
   if(p.nascimento&&date_(p.nascimento)>today_())fail_('Nascimento não pode estar no futuro.');
@@ -130,7 +152,8 @@ function validateAtend_(input,c){
 
 function address_(p){
   const via=[p.tipoVia,p.via].filter(Boolean).join(' ');
-  return [via,p.numero,p.complemento,p.bairro].filter(Boolean).join(', ');
+  const cep=p.cep?'CEP '+cepDisplay_(p.cep):'';
+  return [via,p.numero,p.complemento,p.bairro,cep].filter(Boolean).join(', ');
 }
 
 function eligibility_(a,manual){
