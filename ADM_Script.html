@@ -366,79 +366,456 @@ window.PDA_MODULES.ADM = (()=>{
 
     const users=
       card(
-        'Usuários'
+        'Usuários e permissões'
       );
+
+    users.classList.add(
+      'adm-users-card'
+    );
 
     root.append(
       users
     );
 
-    const uf=[
+    users.append(
+      el(
+        'p',
+        'Cadastre a pessoa responsável pelo acesso, informe sua função no projeto, a conta Google usada para entrar no sistema, escolha um perfil-base e, se necessário, personalize permissões específicas. O perfil sugere um conjunto padrão; as permissões marcadas definem o acesso efetivo daquele usuário.',
+        'hint'
+      )
+    );
+
+    const profileGuide=
+      el(
+        'div',
+        undefined,
+        'adm-profile-guide'
+      );
+
+    d.perfis.forEach(perfil=>{
+      const info=
+        d.perfisDetalhes[perfil]||{
+          descricao:'',
+          permissoes:[]
+        };
+
+      const box=
+        el(
+          'div',
+          undefined,
+          'adm-profile-card'
+        );
+
+      box.append(
+        el(
+          'strong',
+          perfil
+        ),
+        el(
+          'span',
+          info.descricao||
+          '',
+          'hint'
+        ),
+        el(
+          'small',
+          'Padrão: '+
+          info.permissoes
+            .map(key=>{
+              const permission=
+                d.permissoes.find(
+                  item=>item.key===key
+                );
+
+              return permission
+                ?permission.label
+                :key;
+            })
+            .join(', '),
+          'adm-profile-defaults'
+        )
+      );
+
+      profileGuide.append(
+        box
+      );
+    });
+
+    users.append(
+      profileGuide
+    );
+
+    const permissionFields=
+      d.permissoes.map(permission=>({
+        key:'perm_'+permission.key,
+        label:
+          permission.label+
+          ' — '+
+          permission.descricao,
+        type:'checkbox'
+      }));
+
+    const userFields=[
+      {
+        key:'nome',
+        label:'Nome completo',
+        required:true,
+        placeholder:'Nome da pessoa'
+      },
+      {
+        key:'funcao',
+        label:'Função no projeto',
+        required:true,
+        placeholder:'Ex.: residente, professor, advogado, coordenação'
+      },
       {
         key:'email',
-        label:'E-mail Google',
+        label:'Usuário Google',
         type:'email',
-        required:true
+        required:true,
+        placeholder:'nome@gmail.com'
       },
       {
         key:'perfil',
-        label:'Perfil',
-        options:d.perfis,
+        label:'Perfil-base',
+        options:d.perfis.map(perfil=>({
+          value:perfil,
+          label:
+            perfil+
+            ' — '+
+            (
+              d.perfisDetalhes[perfil]&&
+              d.perfisDetalhes[perfil].descricao
+                ?d.perfisDetalhes[perfil].descricao
+                :''
+            )
+        })),
         required:true
       },
       {
         key:'ativo',
         label:'Acesso ativo',
         type:'checkbox'
-      }
+      },
+      ...permissionFields
     ];
 
-    d.usuarios.forEach(u=>{
-      const box=
-        details(
-          users,
-          u.email+
-          ' · '+
-          u.perfil
+    const buildUserForm_=(parent,user,isNew=false)=>{
+      const profile=
+        user.perfil||
+        'CONSULTA';
+
+      const defaults=
+        (
+          d.perfisDetalhes[profile]&&
+          d.perfisDetalhes[profile].permissoes
+        )||
+        ['consulta'];
+
+      const effective=
+        Array.isArray(user.permissoesEfetivas)
+          ?user.permissoesEfetivas
+          :defaults;
+
+      const data=
+        Object.assign(
+          {},
+          user,
+          {
+            perfil:profile,
+            ativo:
+              user.ativo===undefined
+                ?true
+                :(
+                  user.ativo===true||
+                  user.ativo==='true'
+                )
+          }
         );
 
-      form(
-        box,
-        uf,
-        u,
-        async q=>{
-          await call(
-            'usuarioSalvar',
-            q,
-            true
+      d.permissoes.forEach(permission=>{
+        data['perm_'+permission.key]=
+          effective.includes(
+            permission.key
           );
+      });
 
-          await go('ADM');
+      const wrapper=
+        el(
+          'div',
+          undefined,
+          'adm-user-editor'
+        );
+
+      parent.append(
+        wrapper
+      );
+
+      wrapper.append(
+        el(
+          'p',
+          'Consulta é a permissão mínima obrigatória. Ao trocar o perfil-base, o sistema atualiza as permissões para o padrão desse perfil; depois você pode marcar ou desmarcar permissões específicas.',
+          'adm-permission-help'
+        )
+      );
+
+      const userForm=
+        form(
+          wrapper,
+          userFields,
+          data,
+          async q=>{
+            const permissions=
+              d.permissoes
+                .filter(permission=>
+                  !!q[
+                    'perm_'+
+                    permission.key
+                  ]
+                )
+                .map(permission=>
+                  permission.key
+                );
+
+            d.permissoes.forEach(permission=>{
+              delete q[
+                'perm_'+
+                permission.key
+              ];
+            });
+
+            q.permissoes=
+              permissions;
+
+            await call(
+              'usuarioSalvar',
+              q,
+              true
+            );
+
+            App.state.boot=
+              await call(
+                'bootstrap'
+              );
+
+            await go(
+              'ADM'
+            );
+
+            status(
+              isNew
+                ?'Usuário autorizado com sucesso.'
+                :'Usuário e permissões atualizados.'
+            );
+          },
+          isNew
+            ?'Autorizar usuário'
+            :'Salvar usuário e permissões'
+        );
+
+      userForm.classList.add(
+        'adm-user-form'
+      );
+
+      const emailInput=
+        userForm.elements.namedItem(
+          'email'
+        );
+
+      if(
+        emailInput&&
+        !isNew
+      ){
+        emailInput.readOnly=true;
+        emailInput.title=
+          'O usuário Google identifica o registro. Para trocar o e-mail, desative este usuário e cadastre outro.';
+      }
+
+      const consulta=
+        userForm.elements.namedItem(
+          'perm_consulta'
+        );
+
+      if(consulta){
+        consulta.checked=true;
+        consulta.disabled=true;
+        consulta.title=
+          'Consulta é obrigatória para qualquer usuário ativo.';
+      }
+
+      const perfilSelect=
+        userForm.elements.namedItem(
+          'perfil'
+        );
+
+      const profileInfo=
+        el(
+          'div',
+          undefined,
+          'adm-selected-profile'
+        );
+
+      wrapper.insertBefore(
+        profileInfo,
+        userForm
+      );
+
+      const syncProfileInfo_=()=>{
+        const selected=
+          perfilSelect
+            ?perfilSelect.value
+            :profile;
+
+        const info=
+          d.perfisDetalhes[selected]||{
+            descricao:'',
+            permissoes:[]
+          };
+
+        profileInfo.textContent=
+          selected+
+          ': '+
+          info.descricao;
+      };
+
+      const applyProfileDefaults_=()=>{
+        const selected=
+          perfilSelect.value;
+
+        const defaultsNow=
+          (
+            d.perfisDetalhes[selected]&&
+            d.perfisDetalhes[selected].permissoes
+          )||
+          ['consulta'];
+
+        d.permissoes.forEach(permission=>{
+          const control=
+            userForm.elements.namedItem(
+              'perm_'+
+              permission.key
+            );
+
+          if(!control)return;
+
+          control.checked=
+            defaultsNow.includes(
+              permission.key
+            );
+        });
+
+        if(consulta){
+          consulta.checked=true;
         }
+
+        syncProfileInfo_();
+      };
+
+      if(perfilSelect){
+        perfilSelect.addEventListener(
+          'change',
+          applyProfileDefaults_
+        );
+      }
+
+      syncProfileInfo_();
+
+      return userForm;
+    };
+
+    const userList=
+      el(
+        'div',
+        undefined,
+        'adm-user-list'
+      );
+
+    users.append(
+      userList
+    );
+
+    d.usuarios.forEach(u=>{
+      const custom=
+        JSON.stringify(
+          (u.permissoesEfetivas||[]).slice().sort()
+        )!==
+        JSON.stringify(
+          (
+            d.perfisDetalhes[u.perfil]
+              ?d.perfisDetalhes[u.perfil].permissoes
+              :[]
+          ).slice().sort()
+        );
+
+      const title=[
+        u.nome||u.email,
+        u.funcao||'função não informada',
+        u.perfil,
+        u.ativo==='true'
+          ?'ATIVO'
+          :'INATIVO'
+      ].join(' · ');
+
+      const box=
+        details(
+          userList,
+          title
+        );
+
+      box.classList.add(
+        'adm-user-box'
+      );
+
+      if(custom){
+        box.append(
+          el(
+            'p',
+            'Permissões personalizadas em relação ao perfil-base.',
+            'badge'
+          )
+        );
+      }
+
+      buildUserForm_(
+        box,
+        u,
+        false
       );
     });
 
     const add=
       details(
         users,
-        'Autorizar usuário'
+        'Cadastrar e autorizar novo usuário'
       );
 
-    form(
-      add,
-      uf,
-      {
-        ativo:true
-      },
-      async q=>{
-        await call(
-          'usuarioSalvar',
-          q,
-          true
-        );
+    add.classList.add(
+      'adm-user-box',
+      'adm-user-add'
+    );
 
-        await go('ADM');
-      }
+    add.append(
+      el(
+        'p',
+        'Informe quem é a pessoa, qual função exerce e qual conta Google ela utilizará. Depois escolha o perfil-base e ajuste as permissões somente quando houver uma necessidade específica.',
+        'hint'
+      )
+    );
+
+    buildUserForm_(
+      add,
+      {
+        nome:'',
+        funcao:'',
+        email:'',
+        perfil:'CONSULTA',
+        ativo:true,
+        permissoesEfetivas:
+          d.perfisDetalhes.CONSULTA
+            ?d.perfisDetalhes.CONSULTA.permissoes
+            :['consulta']
+      },
+      true
     );
   };
 })();
