@@ -8,6 +8,7 @@ window.PDA_MODULES.ACOMP = (()=>{
   const DOC_LABELS={
     RG_CPF:'Documento de identidade e CPF',
     RESIDENCIA:'Comprovante de residência',
+    IDENTIDADE_TITULAR_RESIDENCIA:'Carteira de identidade do titular da residência',
     PROCESSO_ADMINISTRATIVO:'Processo administrativo',
     PESCA:'Documentos de pesca',
     PROCURACAO:'Procuração',
@@ -54,22 +55,26 @@ window.PDA_MODULES.ACOMP = (()=>{
           key:'vencimento',
           label:'Vencimento do comprovante',
           placeholder:'DD/MM/AAAA',
-          required:true
+          required:true,
+          mask:'date',
+          maxLength:10,
+          inputMode:'numeric',
+          dateBR:true
         },
         {
           key:'terceiro',
           label:'Comprovante em nome de terceiro',
+          type:'checkbox'
+        },
+        {
+          key:'declaracaoTerceiro',
+          label:'Há declaração de residência no documento?',
           type:'checkbox'
         }
       ]:[]),
       {
         key:'conferido',
         label:'Conteúdo documental conferido',
-        type:'checkbox'
-      },
-      {
-        key:'declaracaoTerceiro',
-        label:'Declaração na própria fatura verificada',
         type:'checkbox'
       },
       {
@@ -246,7 +251,9 @@ window.PDA_MODULES.ACOMP = (()=>{
         category.required=true;
         category.append(new Option('Selecione',''));
 
-        App.state.boot.config.categorias.forEach(value=>{
+        App.state.boot.config.categorias
+          .concat(['IDENTIDADE_TITULAR_RESIDENCIA'])
+          .forEach(value=>{
           category.append(
             new Option(
               DOC_LABELS[value]||value,
@@ -274,24 +281,74 @@ window.PDA_MODULES.ACOMP = (()=>{
         thirdLabel.append(third);
         thirdLabel.hidden=true;
 
+        const declarationLabel=el('label',undefined,'field');
+        declarationLabel.append(
+          el(
+            'span',
+            'Há declaração de residência no documento? *'
+          )
+        );
+
+        const declaration=el('input');
+        declaration.type='checkbox';
+        declarationLabel.append(declaration);
+        declarationLabel.hidden=true;
+
+        const holderIdentityLabel=el('label',undefined,'field');
+        holderIdentityLabel.append(
+          el(
+            'span',
+            'Carteira de identidade do titular da residência *'
+          )
+        );
+
+        const holderIdentity=el('input');
+        holderIdentity.type='file';
+        holderIdentity.accept='.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+        holderIdentityLabel.append(holderIdentity);
+        holderIdentityLabel.hidden=true;
+
         const syncResidence=()=>{
           const isResidence=category.value==='RESIDENCIA';
+          const isThird=
+            isResidence&&
+            third.checked;
 
           residenceDateLabel.hidden=!isResidence;
           thirdLabel.hidden=!isResidence;
+          declarationLabel.hidden=!isThird;
+          holderIdentityLabel.hidden=!isThird;
+
           residenceDate.required=isResidence;
+          declaration.required=isThird;
+          holderIdentity.required=isThird;
 
           if(!isResidence){
             residenceDate.value='';
             third.checked=false;
           }
 
+          if(!isThird){
+            declaration.checked=false;
+            holderIdentity.value='';
+          }
+
           const ready=
             !!category.value&&
             (
               !isResidence||
-              /^\d{2}\/\d{2}\/\d{4}$/.test(
-                String(residenceDate.value||'')
+              (
+                App.isValidDateBR(
+                  String(residenceDate.value||'')
+                )&&
+                (
+                  !isThird||
+                  (
+                    declaration.checked&&
+                    holderIdentity.files&&
+                    holderIdentity.files.length>0
+                  )
+                )
               )
             );
 
@@ -310,10 +367,15 @@ window.PDA_MODULES.ACOMP = (()=>{
 
           if(ready){
             box.open=false;
+          }else if(category.value){
+            box.open=true;
           }
         };
 
         category.addEventListener('change',syncResidence);
+        third.addEventListener('change',syncResidence);
+        declaration.addEventListener('change',syncResidence);
+        holderIdentity.addEventListener('change',syncResidence);
 
         residenceDate.maxLength=10;
         residenceDate.inputMode='numeric';
@@ -333,6 +395,13 @@ window.PDA_MODULES.ACOMP = (()=>{
               d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4);
           }
 
+          residenceDate.setCustomValidity(
+            !residenceDate.value||
+            App.isValidDateBR(residenceDate.value)
+              ?''
+              :'Informe uma data válida no formato DD/MM/AAAA.'
+          );
+
           syncResidence();
         });
 
@@ -341,7 +410,9 @@ window.PDA_MODULES.ACOMP = (()=>{
         grid.append(
           categoryLabel,
           residenceDateLabel,
-          thirdLabel
+          thirdLabel,
+          declarationLabel,
+          holderIdentityLabel
         );
 
         box.append(grid);
@@ -351,7 +422,9 @@ window.PDA_MODULES.ACOMP = (()=>{
           file,
           category,
           residenceDate,
-          third
+          third,
+          declaration,
+          holderIdentity
         });
       });
 
@@ -371,12 +444,31 @@ window.PDA_MODULES.ACOMP = (()=>{
             const invalidResidence=rows.find(
               row=>
                 row.category.value==='RESIDENCIA'&&
-                !String(row.residenceDate.value||'').trim()
+                !App.isValidDateBR(
+                  String(row.residenceDate.value||'')
+                )
             );
 
             if(invalidResidence){
               throw new Error(
-                'Informe o vencimento de cada comprovante de residência.'
+                'Informe uma data válida no formato DD/MM/AAAA para cada comprovante de residência.'
+              );
+            }
+
+            const invalidThirdParty=rows.find(
+              row=>
+                row.category.value==='RESIDENCIA'&&
+                row.third.checked&&
+                (
+                  !row.declaration.checked||
+                  !row.holderIdentity.files||
+                  !row.holderIdentity.files.length
+                )
+            );
+
+            if(invalidThirdParty){
+              throw new Error(
+                'Comprovante em nome de terceiro exige a identidade do titular da residência e a confirmação de que há declaração de residência no documento.'
               );
             }
 
@@ -411,12 +503,69 @@ window.PDA_MODULES.ACOMP = (()=>{
                     terceiro:
                       row.category.value==='RESIDENCIA'
                         ?!!row.third.checked
+                        :false,
+                    declaracaoTerceiro:
+                      row.category.value==='RESIDENCIA'
+                        ?!!row.declaration.checked
                         :false
                   },
                   true
                 );
 
                 enviados.push(row.file.name);
+
+                if(
+                  row.category.value==='RESIDENCIA'&&
+                  row.third.checked
+                ){
+                  const holderFile=
+                    row.holderIdentity.files[0];
+
+                  if(holderFile.size>5*1024*1024){
+                    throw new Error(
+                      'A identidade do titular é maior que 5 MB.'
+                    );
+                  }
+
+                  const holderMime=
+                    mime_(holderFile);
+
+                  if(
+                    ![
+                      'application/pdf',
+                      'image/jpeg',
+                      'image/png'
+                    ].includes(holderMime)
+                  ){
+                    throw new Error(
+                      'Formato não permitido para a identidade do titular. Use PDF, JPEG ou PNG.'
+                    );
+                  }
+
+                  const holderBase64=
+                    await readFile_(
+                      holderFile
+                    );
+
+                  await call(
+                    'pessoaUpload',
+                    {
+                      pessoaId:p.id,
+                      categoria:'IDENTIDADE_TITULAR_RESIDENCIA',
+                      base64:holderBase64,
+                      mime:holderMime,
+                      vencimento:'',
+                      terceiro:false,
+                      declaracaoTerceiro:false
+                    },
+                    true
+                  );
+
+                  enviados.push(
+                    'IDENTIDADE.TITULAR.RESIDÊNCIA — '+
+                    holderFile.name
+                  );
+                }
 
               }catch(e){
                 erros.push(
