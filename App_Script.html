@@ -882,19 +882,25 @@ f.insertBefore(file,f.firstChild);
 
   /*
    * Estrutura principal:
-   * Pessoas -> Pessoas + Cadastros
-   * Distribuição -> Distribuição + Processos + Minutas
+   * Novo Cadastro -> inclusão de pessoas, sem submenu
+   * Consultas -> cadastros existentes + consulta avulsa do Defeso 2025
+   * Distribuição -> distribuição + processos + minutas
    */
+  appendDirect(
+    'PESS',
+    'Novo Cadastro'
+  );
+
   appendGroup(
-    'Pessoas',
+    'Consultas',
     [
       {
-        code:'PESS',
-        label:'Pessoas'
+        code:'ACOMP',
+        label:'Consultar Cadastros'
       },
       {
-        code:'ACOMP',
-        label:'Cadastros'
+        code:'DEFESO',
+        label:'Consultar Defeso 2025'
       }
     ]
   );
