@@ -149,6 +149,59 @@ window.PDA_MODULES.ADM = (()=>{
       modelActions
     );
 
+    const portal=card('API do Portal da Transparência');
+    root.append(portal);
+
+    portal.append(
+      el(
+        'p',
+        d.portalTransparencia&&d.portalTransparencia.configurada
+          ?'Chave da API configurada.'
+          :'Chave da API ainda não configurada.',
+        d.portalTransparencia&&d.portalTransparencia.configurada
+          ?'badge'
+          :'warn'
+      )
+    );
+
+    portal.append(
+      el(
+        'p',
+        'A chave é usada somente no servidor para consultar a API oficial do Portal da Transparência. Ela não é devolvida ao navegador nem exibida depois de salva.',
+        'hint'
+      )
+    );
+
+    form(
+      portal,
+      [
+        {
+          key:'chave',
+          label:'Chave da API',
+          type:'password',
+          required:true,
+          placeholder:'Cole aqui a chave fornecida pelo Portal da Transparência'
+        }
+      ],
+      {},
+      async q=>{
+        const result=await call(
+          'portalApiKeySalvar',
+          q,
+          true
+        );
+
+        App.state.boot=
+          await call('bootstrap');
+
+        await go('ADM');
+        status(result.mensagem||'Chave da API salva.');
+      },
+      d.portalTransparencia&&d.portalTransparencia.configurada
+        ?'Substituir chave da API'
+        :'Salvar chave da API'
+    );
+
     const labels={
       rascunhos:
         'Salvar dados pessoais incompletos',
