@@ -161,4 +161,26 @@
     width:100%
   }
 }
+
+.adm-autocadastro-steps{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  margin:9px 0 11px
+}
+.adm-autocadastro-step{
+  padding:8px 9px;
+  border:1px solid #d2e2e6;
+  border-radius:8px;
+  color:#486775;
+  background:#f7fbfc;
+  font-size:9.2px;
+  line-height:1.35
+}
+@media(max-width:680px){
+  .adm-autocadastro-steps{
+    grid-template-columns:1fr
+  }
+}
+
 </style>
