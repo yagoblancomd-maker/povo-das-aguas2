@@ -2,7 +2,7 @@
 window.PDA_MODULES.ACOMP = (()=>{
   const {
     el,card,details,form,table,link,button,call,go,alive,
-    personFields,atendFields,searchUI,guidance,uploadForm,status,can
+    personFields,searchUI,guidance,status,can
   }=App;
 
   const DOC_LABELS={
@@ -884,12 +884,6 @@ window.PDA_MODULES.ACOMP = (()=>{
         true
       );
 
-    const newAttendance=
-      button(
-        'Novo atendimento',
-        ()=>go('ATEND',p.id)
-      );
-
     /*
      * Menu único para documentos produzidos pelo próprio sistema.
      * Os dois documentos são gerados para a pessoa atualmente aberta e,
@@ -1068,7 +1062,6 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     if(can('cadastro')){
       actions.append(
-        newAttendance,
         generateMenu
       );
     }
@@ -1273,256 +1266,6 @@ window.PDA_MODULES.ACOMP = (()=>{
       p,
       true
     );
-
-    data.atendimentos.forEach(a=>{
-      const area=card(
-        a.demanda+
-        ' · '+
-        a.referencia
-      );
-
-      area.append(
-        el(
-          'p',
-          a.id+
-          ' · '+
-          a.situacao,
-          'badge'
-        )
-      );
-
-      area.append(
-        el(
-          'p',
-          'Responsável: '+
-          (a.responsavel||'não atribuído')
-        )
-      );
-
-      area.append(
-        el(
-          'p',
-          'Valor da causa calculado: R$ '+
-          (a.valorCausa||'—')
-        )
-      );
-
-      if(a.folderId){
-        area.append(
-          link(
-            'https://drive.google.com/drive/folders/'+
-            a.folderId,
-            'Abrir pasta do atendimento'
-          )
-        );
-      }
-
-      const blockers=
-        data.aptidao
-          .find(x=>x.id===a.id)
-          .pendencias;
-
-      area.append(
-        el(
-          'p',
-          blockers.length
-            ?'Conferência pendente:\n'+
-              blockers.join('\n')
-            :'Requisitos documentais conferidos.',
-          'warn'
-        )
-      );
-
-      if(can('retificacao')){
-        const edit=details(
-          area,
-          'Retificar dados do atendimento'
-        );
-
-        form(
-          edit,
-          atendFields(),
-          a,
-          async v=>{
-            await call(
-              'atendimentoRetificar',
-              v,
-              true
-            );
-
-            await go('ACOMP',p.id);
-          }
-        );
-      }
-
-      const adocs=
-        data.documentos.filter(
-          d=>
-            d.atendimentoId===a.id&&
-            d.vigente==='true'
-        );
-
-      if(can('cadastro')){
-        uploadForm(
-          area,
-          a,
-          adocs
-        );
-      }
-
-      const docs=details(
-        area,
-        'Documentos específicos do atendimento ('+
-        adocs.length+
-        ')'
-      );
-
-      docsTable_(
-        docs,
-        adocs,
-        a,
-        p,
-        false
-      );
-
-      if(can('retificacao')){
-        const pend=details(
-          area,
-          'Pendências e responsáveis'
-        );
-  
-        const fields=[
-          {
-            key:'descricao',
-            label:'Descrição',
-            type:'textarea',
-            required:true
-          },
-          {
-            key:'responsavel',
-            label:'E-mail do responsável'
-          },
-          {
-            key:'situacao',
-            label:'Situação',
-            options:[
-              'ABERTA',
-              'RESOLVIDA'
-            ],
-            required:true
-          }
-        ];
-  
-        data.pendencias
-          .filter(
-            x=>x.atendimentoId===a.id
-          )
-          .forEach(x=>{
-            const box=details(
-              pend,
-              x.situacao+
-              ' — '+
-              x.descricao
-            );
-  
-            form(
-              box,
-              fields,
-              {
-                ...x,
-                atendimentoVersao:a.versao
-              },
-              async v=>{
-                await call(
-                  'pendenciaSalvar',
-                  v,
-                  true
-                );
-  
-                await go('ACOMP',p.id);
-              }
-            );
-          });
-  
-        form(
-          pend,
-          fields,
-          {
-            atendimentoId:a.id,
-            atendimentoVersao:a.versao,
-            situacao:'ABERTA'
-          },
-          async v=>{
-            await call(
-              'pendenciaSalvar',
-              v,
-              true
-            );
-  
-            await go('ACOMP',p.id);
-          },
-          'Registrar pendência'
-        );
-  
-  
-      }
-
-      const acts=el('div',undefined,'actions');
-
-      if(can('cadastro')){
-        acts.append(
-          button(
-            'Encaminhar para conferência',
-            async()=>{
-              await call(
-                'encaminhar',
-                {
-                  id:a.id,
-                  versao:a.versao
-                },
-                true
-              );
-
-              await go('ACOMP',p.id);
-            }
-          )
-        );
-      }
-
-      if(can('conferencia')){
-        acts.append(
-          button(
-            'Concluir conferência',
-            async()=>{
-              await call(
-                'atendimentoConferir',
-                {
-                  id:a.id,
-                  versao:a.versao
-                },
-                true
-              );
-
-              await go('ACOMP',p.id);
-            }
-          )
-        );
-      }
-
-      if(can('minuta')){
-        acts.append(
-          button(
-            'Minutas',
-            ()=>go('MIN',p.id)
-          )
-        );
-      }
-
-      if(acts.children.length){
-        area.append(acts);
-      }
-      root.append(area);
-    });
 
     const history=details(
       root,
