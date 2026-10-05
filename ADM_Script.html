@@ -259,6 +259,103 @@ window.PDA_MODULES.ADM = (()=>{
         :'Salvar chave DeepSeek'
     );
 
+    const selfRegistration=
+      card(
+        'Primeiro acesso e autocadastro'
+      );
+
+    root.append(
+      selfRegistration
+    );
+
+    selfRegistration.append(
+      el(
+        'p',
+        d.autocadastro&&
+        d.autocadastro.configurada
+          ?'Autocadastro ativo. Novas pessoas podem criar o próprio usuário sem aprovação manual.'
+          :'Autocadastro ainda não concluído.',
+        d.autocadastro&&
+        d.autocadastro.configurada
+          ?'badge'
+          :'warn'
+      )
+    );
+
+    selfRegistration.append(
+      el(
+        'p',
+        'O primeiro acesso identifica a Conta Google, solicita somente nome e função no projeto (Professor, Residente, Colaborador ou Aluno) e cria automaticamente o perfil NOVO_USUARIO com apenas Consulta e Cadastro. Para preservar a segurança do banco, a ativação utiliza uma segunda implantação do mesmo Apps Script executada como proprietário.',
+        'hint'
+      )
+    );
+
+    const setupSteps=
+      el(
+        'div',
+        undefined,
+        'adm-autocadastro-steps'
+      );
+
+    [
+      '1. Em Implantar → Gerenciar implantações, crie uma nova implantação do tipo Aplicativo da Web.',
+      '2. Configure essa implantação para executar como você/proprietário do sistema.',
+      '3. Permita o acesso necessário para que o link de ativação possa ser aberto.',
+      '4. Copie a URL /exec dessa implantação e salve abaixo. Esta configuração é feita uma única vez.'
+    ].forEach(text=>{
+      setupSteps.append(
+        el(
+          'div',
+          text,
+          'adm-autocadastro-step'
+        )
+      );
+    });
+
+    selfRegistration.append(
+      setupSteps
+    );
+
+    form(
+      selfRegistration,
+      [
+        {
+          key:'url',
+          label:'URL /exec da implantação de autocadastro',
+          required:true,
+          placeholder:'https://script.google.com/macros/s/.../exec'
+        }
+      ],
+      {
+        url:
+          d.autocadastro&&
+          d.autocadastro.url
+            ?d.autocadastro.url
+            :''
+      },
+      async q=>{
+        const result=
+          await call(
+            'autocadastroGatewaySalvar',
+            q,
+            true
+          );
+
+        await go(
+          'ADM'
+        );
+
+        status(
+          result.mensagem||
+          'Gateway de autocadastro configurado.'
+        );
+      },
+      d.autocadastro&&
+      d.autocadastro.configurada
+        ?'Atualizar gateway de autocadastro'
+        :'Ativar gateway de autocadastro'
+    );
+
     const labels={
       rascunhos:
         'Salvar dados pessoais incompletos',
