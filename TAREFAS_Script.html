@@ -183,6 +183,193 @@ window.PDA_MODULES.TAREFAS = (()=>{
     return item;
   }
 
+  function openProcessDialog_(root,detail,parentDialog,refresh){
+    const existing=
+      root.querySelector(
+        '.task-process-dialog'
+      );
+
+    if(existing){
+      existing.remove();
+    }
+
+    const dialog=
+      el(
+        'dialog',
+        undefined,
+        'task-process-dialog'
+      );
+
+    const shell=
+      el(
+        'div',
+        undefined,
+        'task-process-shell'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'task-process-head'
+      );
+
+    head.append(
+      el(
+        'div'
+      ),
+      button(
+        'Fechar',
+        ()=>dialog.close(),
+        true
+      )
+    );
+
+    head.firstChild.append(
+      el(
+        'h3',
+        'Informar processo do TRF4'
+      ),
+      el(
+        'p',
+        detail.pessoa.nome
+      )
+    );
+
+    const body=
+      el(
+        'div',
+        undefined,
+        'task-process-body'
+      );
+
+    body.append(
+      el(
+        'p',
+        'A distribuição somente será concluída depois que o número processual for confirmado. O processo ficará vinculado permanentemente a este cadastro.',
+        'hint'
+      )
+    );
+
+    const field=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    field.append(
+      el(
+        'span',
+        'Número do processo no TRF4'
+      )
+    );
+
+    const input=
+      el(
+        'input'
+      );
+
+    input.type='text';
+    input.placeholder=
+      '5001234-56.2026.4.04.7100';
+    input.maxLength=25;
+    input.inputMode='numeric';
+    input.autocomplete='off';
+
+    input.addEventListener(
+      'input',
+      ()=>{
+        input.value=
+          processMask_(
+            input.value
+          );
+      }
+    );
+
+    field.append(input);
+    body.append(field);
+
+    body.append(
+      el(
+        'small',
+        'Formato esperado: NNNNNNN-DD.AAAA.4.04.JJJJ',
+        'hint'
+      )
+    );
+
+    const actions=
+      el(
+        'div',
+        undefined,
+        'actions task-process-actions'
+      );
+
+    actions.append(
+      button(
+        'Cancelar',
+        ()=>dialog.close(),
+        true
+      ),
+      button(
+        'Confirmar e concluir',
+        async()=>{
+          const numero=
+            String(
+              input.value||
+              ''
+            ).trim();
+
+          if(!numero){
+            throw new Error(
+              'Informe o número do processo no TRF4.'
+            );
+          }
+
+          const result=
+            await call(
+              'tarefaDistribuicaoConcluir',
+              {
+                id:detail.tarefa.id,
+                numeroProcesso:numero
+              },
+              true
+            );
+
+          status(
+            result.mensagem||
+            'Distribuição concluída.'
+          );
+
+          dialog.close();
+
+          if(parentDialog.open){
+            parentDialog.close();
+          }
+
+          await refresh();
+        }
+      )
+    );
+
+    body.append(actions);
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
+    dialog.showModal();
+
+    requestAnimationFrame(
+      ()=>input.focus()
+    );
+  }
+
   function openDialog_(root,detail,refresh){
     const existing=
       root.querySelector(
@@ -452,131 +639,26 @@ window.PDA_MODULES.TAREFAS = (()=>{
     }else if(
       detail.tarefa.situacao!=='CONCLUIDA'
     ){
-      const complete=
+      const actions=
         el(
           'div',
           undefined,
-          'task-complete-box'
+          'task-dialog-actions'
         );
 
-      complete.append(
-        el(
-          'h4',
-          'Concluir distribuição'
-        ),
-        el(
-          'p',
-          'Somente conclua depois de efetivamente distribuir a ação no TRF4. O número informado será vinculado permanentemente ao cadastro da pessoa.',
-          'hint'
+      actions.append(
+        button(
+          'Concluir distribuição',
+          ()=>openProcessDialog_(
+            root,
+            detail,
+            dialog,
+            refresh
+          )
         )
       );
 
-      const row=
-        el(
-          'div',
-          undefined,
-          'task-complete-row'
-        );
-
-      const field=
-        el(
-          'label',
-          undefined,
-          'field'
-        );
-
-      field.append(
-        el(
-          'span',
-          'Número do processo no TRF4'
-        )
-      );
-
-      const input=
-        el(
-          'input'
-        );
-
-      input.type='text';
-      input.placeholder=
-        '5001234-56.2026.4.04.7100';
-      input.maxLength=25;
-      input.inputMode='numeric';
-
-      input.addEventListener(
-        'input',
-        ()=>{
-          input.value=
-            processMask_(
-              input.value
-            );
-        }
-      );
-
-      field.append(input);
-
-      const save=
-        button(
-          'Confirmar conclusão',
-          async()=>{
-            const numero=
-              String(
-                input.value||
-                ''
-              ).trim();
-
-            if(!numero){
-              throw new Error(
-                'Informe o número do processo no TRF4.'
-              );
-            }
-
-            if(
-              !window.confirm(
-                'Confirmar a conclusão da distribuição e vincular o processo '+numero+' a '+detail.pessoa.nome+'?'
-              )
-            ){
-              return;
-            }
-
-            const result=
-              await call(
-                'tarefaDistribuicaoConcluir',
-                {
-                  id:detail.tarefa.id,
-                  numeroProcesso:numero
-                },
-                true
-              );
-
-            status(
-              result.mensagem||
-              'Distribuição concluída.'
-            );
-
-            dialog.close();
-
-            await refresh();
-          }
-        );
-
-      const cancel=
-        button(
-          'Cancelar',
-          ()=>{
-            input.value='';
-          },
-          true
-        );
-
-      row.append(
-        field,
-        cancel,
-        save
-      );
-
-      complete.append(row);
-      body.append(complete);
+      body.append(actions);
     }
 
     shell.append(
