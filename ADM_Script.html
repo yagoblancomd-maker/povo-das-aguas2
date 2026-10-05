@@ -385,6 +385,68 @@ window.PDA_MODULES.ADM = (()=>{
       )
     );
 
+    const accessNotice=
+      el(
+        'div',
+        undefined,
+        'adm-google-access'
+      );
+
+    accessNotice.append(
+      el(
+        'strong',
+        'Acesso Google Drive'
+      ),
+      el(
+        'p',
+        'O cadastro de usuário e a permissão dos arquivos Google são sincronizados. Usuários somente de Consulta recebem leitura; usuários com qualquer permissão de alteração recebem edição. Use o botão abaixo para corrigir usuários já cadastrados antes desta regra.',
+        'hint'
+      )
+    );
+
+    const syncAccessButton=
+      button(
+        'Sincronizar acessos Google',
+        async()=>{
+          syncAccessButton.disabled=true;
+          syncAccessButton.textContent=
+            'Sincronizando acessos...';
+
+          try{
+            const result=
+              await call(
+                'usuariosAcessosGoogleSincronizar',
+                {},
+                true
+              );
+
+            status(
+              result.mensagem||
+              'Acessos Google sincronizados.'
+            );
+
+          }catch(e){
+            status(
+              e.message||String(e),
+              true
+            );
+
+          }finally{
+            syncAccessButton.disabled=false;
+            syncAccessButton.textContent=
+              'Sincronizar acessos Google';
+          }
+        }
+      );
+
+    accessNotice.append(
+      syncAccessButton
+    );
+
+    users.append(
+      accessNotice
+    );
+
     const profileGuide=
       el(
         'div',
