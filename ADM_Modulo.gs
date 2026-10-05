@@ -163,29 +163,111 @@ function modelUpload_(ctx,q){
 }
 
 function userSave_(ctx,q){
-  const email=String(q.email||'').trim().toLowerCase();
+  const nome=String(
+    q.nome||''
+  ).trim();
 
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!ROLES[q.perfil]){
-    fail_('E-mail ou perfil inválido.');
+  const funcao=String(
+    q.funcao||''
+  ).trim();
+
+  const email=String(
+    q.email||''
+  )
+    .trim()
+    .toLowerCase();
+
+  const perfil=String(
+    q.perfil||''
+  )
+    .trim()
+    .toUpperCase();
+
+  required_(nome,'nome da pessoa');
+  required_(funcao,'função da pessoa');
+
+  if(
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
+    !ROLES[perfil]
+  ){
+    fail_(
+      'E-mail Google ou perfil inválido.'
+    );
   }
 
-  const old=all_('Usuarios').find(u=>u.email===email);
+  let permissions=
+    Array.isArray(q.permissoes)
+      ?q.permissoes
+      :rolePermissions_(perfil);
 
-  if(q.id&&get_('Usuarios',q.id).email!==email){
-    fail_('O e-mail identifica o usuário e não pode ser alterado. Desative o antigo e cadastre outro.');
+  permissions=[
+    ...new Set(
+      permissions
+        .map(v=>String(v||'').trim())
+        .filter(v=>
+          Object.prototype.hasOwnProperty.call(
+            PERMISSIONS,
+            v
+          )
+        )
+    )
+  ];
+
+  if(!permissions.includes('consulta')){
+    permissions.unshift('consulta');
   }
 
-  if(old&&old.id!==q.id)fail_('Abra o usuário existente.');
+  const old=all_('Usuarios')
+    .find(u=>u.email===email);
 
-  if(old&&old.email===ctx.email&&(!bool_(q.ativo)||q.perfil!=='ADMIN')){
-    fail_('Não remova seu próprio acesso administrativo.');
+  if(
+    q.id&&
+    get_('Usuarios',q.id).email!==email
+  ){
+    fail_(
+      'O e-mail Google identifica o usuário e não pode ser alterado. Desative o antigo e cadastre outro.'
+    );
+  }
+
+  if(
+    old&&
+    old.id!==q.id
+  ){
+    fail_(
+      'Abra o usuário existente.'
+    );
+  }
+
+  if(
+    old&&
+    old.email===ctx.email&&
+    (
+      !bool_(q.ativo)||
+      perfil!=='ADMIN'||
+      !permissions.includes('administracao')
+    )
+  ){
+    fail_(
+      'Não remova seu próprio acesso administrativo.'
+    );
   }
 
   return change_(
     ctx,
     'Usuarios',
-    old?old.id:id_('USR',email),
-    {email,perfil:q.perfil,ativo:bool_(q.ativo)},
+    old
+      ?old.id
+      :id_('USR',email),
+    {
+      email,
+      perfil,
+      ativo:bool_(q.ativo),
+      nome,
+      funcao,
+      permissoes:JSON.stringify(
+        permissions
+      )
+    },
     q.versao
   );
 }
