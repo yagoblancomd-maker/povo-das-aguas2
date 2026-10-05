@@ -40,12 +40,15 @@ return b;
 if(title)n.append(el('h3',title));
 return n;
 };
+ function optionData_(value){if(value&&typeof value==='object'){return {value:String(value.value??''),label:String(value.label??value.value??'')};}
+return {value:String(value),label:String(value)};
+}
  function field(f,value){const wrap=el('label',undefined,'field');
 wrap.append(el('span',f.label));
 const n=el(f.options?'select':f.type==='textarea'?'textarea':'input');
 n.name=f.key;
 if(f.options){n.append(new Option('Selecione',''));
-f.options.forEach(v=>n.append(new Option(v,v)));
+f.options.forEach(v=>{const o=optionData_(v);n.append(new Option(o.label,o.value));});
 }else n.type=f.type||'text';
 if(f.type==='checkbox')n.checked=value===true||value==='true';
 else n.value=value===undefined?'':value;
@@ -124,8 +127,8 @@ await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
 }finally{if(token===epoch)root.setAttribute('aria-busy','false');
 }}
  const alive=ctx=>ctx.token===epoch;
- const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true},{key:'nascimento',label:'Nascimento',placeholder:'DD/MM/AAAA'},{key:'telefone',label:'Telefone',placeholder:'(53) 99632-1234'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua'},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Condição de analfabeto no documento de identidade',options:['SIM','NAO']}];
- const atendFields=()=>[{key:'demanda',label:'Demanda',options:boot.config.demandas,required:true},{key:'referencia',label:'Referência que identifica a demanda',required:true,hint:'Ex.: Defeso 2025 — requerimento 123. Nova referência somente para demanda distinta.'},{key:'parcelas',label:'Parcelas não recebidas',options:['Todas de 2025','Somente a última de 2025','Outros casos'],required:true},{key:'outrosCasos',label:'Descrição de outros casos',type:'textarea'},{key:'responsavel',label:'E-mail do responsável'},{key:'observacoes',label:'Observações',type:'textarea'},{key:'enderecamento',label:'Endereçamento completo',placeholder:'AO JUÍZO DA …'},{key:'secaoJudiciaria',label:'Seção judiciária',placeholder:'SEÇÃO JUDICIÁRIA DO ESTADO …'},{key:'valorCausa',label:'Valor da causa, sem R$',placeholder:'6.518,00'},{key:'localData',label:'Local e data da petição',placeholder:'Rio Grande, data da distribuição'}];
+ const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true},{key:'nascimento',label:'Nascimento',placeholder:'DD/MM/AAAA'},{key:'telefone',label:'Telefone',placeholder:'(53) 99632-1234'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua'},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
+ const atendFields=()=>[{key:'demanda',label:'Demanda',options:boot.config.demandas,required:true},{key:'referencia',label:'Referência que identifica a demanda',required:true,hint:'Ex.: Defeso 2025 — requerimento 123. Nova referência somente para demanda distinta.'},{key:'parcelas',label:'Parcelas não recebidas no atendimento',options:['Todas de 2025','Somente a última de 2025','Outros casos'],required:true},{key:'outrosCasos',label:'Descrição de outros casos',type:'textarea'},{key:'responsavel',label:'E-mail do responsável'},{key:'observacoes',label:'Observações',type:'textarea'},{key:'enderecamento',label:'Endereçamento completo',placeholder:'AO JUÍZO DA …'},{key:'secaoJudiciaria',label:'Seção judiciária',placeholder:'SEÇÃO JUDICIÁRIA DO ESTADO …'},{key:'localData',label:'Local e data da petição',placeholder:'Rio Grande, data da distribuição'}];
  async function searchUI(parent,onSelect){const f=el('form'),input=el('input');
 input.placeholder='Pesquisar por nome ou CPF';
 input.setAttribute('aria-label','Nome ou CPF');
@@ -148,7 +151,8 @@ table(results,[{key:'nome',label:'Nome'},{key:'cpf',label:'CPF'},{key:'cidade',l
  async function uploadForm(parent,a,docs){const d=details(parent,'Anexar ou substituir documentos');
 guidance(d);
 d.append(el('p','PDF, JPEG ou PNG; até 5 MB por arquivo. Podem ser anexados vários arquivos por categoria. Para substituir, selecione um único arquivo e informe o ID da versão vigente.','hint'));
-const fields=[{key:'categoria',label:'Categoria',options:boot.config.categorias,required:true},{key:'vencimento',label:'Vencimento do comprovante',placeholder:'DD/MM/AAAA'},{key:'terceiro',label:'Comprovante em nome de terceiro',type:'checkbox'},{key:'substituiId',label:'ID do documento a substituir (opcional)'}];
+const documentLabels={RG_CPF:'Documento de identidade e CPF',RESIDENCIA:'Comprovante de residência',PROCESSO_ADMINISTRATIVO:'Processo administrativo',PESCA:'Documentos de pesca',PROCURACAO:'Procuração',HIPOSSUFICIENCIA:'Declaração de hipossuficiência'};
+const fields=[{key:'categoria',label:'Categoria',options:boot.config.categorias.map(v=>({value:v,label:documentLabels[v]||v})),required:true},{key:'vencimento',label:'Vencimento do comprovante',placeholder:'DD/MM/AAAA'},{key:'terceiro',label:'Comprovante em nome de terceiro',type:'checkbox'},{key:'substituiId',label:'ID do documento a substituir (opcional)'}];
 const f=form(d,fields,{},async values=>{const files=Array.from(file.files);
 if(!files.length)throw Error('Selecione os arquivos.');
 if(values.substituiId&&files.length!==1)throw Error('Substitua um arquivo por vez.');
