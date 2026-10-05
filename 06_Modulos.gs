@@ -65,7 +65,8 @@ function api(action,q){
       portalTransparencia:portalTransparenciaStatus_()
     }),
     aptidao:()=>eligibility_(get_('Atendimentos',q.id),true),
-    seguroDefesoConsultar:()=>seguroDefesoConsultar_(q)
+    seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
+    cepConsultar:()=>cepConsultaViaCep_(q)
   };
 
   const mutations={
