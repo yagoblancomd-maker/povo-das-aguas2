@@ -752,6 +752,197 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     root.append(actions);
 
+    /*
+     * Relatório oficial do Seguro-Defeso 2025.
+     * O bloco permanece retraído por padrão e sempre usa o CPF da pessoa
+     * atualmente aberta na Ficha e conferência.
+     */
+    const defesoReport=details(
+      root,
+      'Relatório Seguro-Defeso 2025'
+    );
+
+    defesoReport.classList.add(
+      'acomp-defeso-report'
+    );
+
+    defesoReport.open=false;
+
+    const cpfDigits=
+      String(p.cpf||'')
+        .replace(/\D/g,'');
+
+    const cpfDisplay=
+      cpfDigits.length===11
+        ?cpfDigits.replace(
+            /(\d{3})(\d{3})(\d{3})(\d{2})/,
+            '$1.$2.$3-$4'
+          )
+        :String(p.cpf||'');
+
+    defesoReport.append(
+      el(
+        'p',
+        'A consulta será realizada pelo CPF '+cpfDisplay+' da pessoa atualmente aberta nesta ficha, considerando os registros de referência de 2025.',
+        'hint'
+      )
+    );
+
+    const defesoReportResult=
+      el(
+        'div',
+        undefined,
+        'acomp-defeso-report-result'
+      );
+
+    const defesoReportActions=
+      el(
+        'div',
+        undefined,
+        'actions'
+      );
+
+    const generateDefesoReport=
+      button(
+        'Gerar relatório do Seguro-Defeso 2025',
+        async()=>{
+          generateDefesoReport.disabled=true;
+          generateDefesoReport.textContent=
+            'Gerando relatório...';
+
+          defesoReportResult.replaceChildren(
+            el(
+              'p',
+              'Consultando o Portal da Transparência e preparando o relatório...',
+              'hint'
+            )
+          );
+
+          try{
+            const result=
+              await call(
+                'seguroDefesoRelatorioGerar',
+                {
+                  pessoaId:p.id
+                },
+                true
+              );
+
+            const report=
+              result.relatorio||{};
+
+            defesoReportResult.replaceChildren();
+
+            const summary=
+              el(
+                'div',
+                undefined,
+                'acomp-defeso-report-summary'
+              );
+
+            summary.append(
+              el(
+                'strong',
+                String(result.quantidade||0)
+              ),
+              el(
+                'span',
+                ' registro(s) de 2025 · R$ '+
+                Number(result.valorTotal||0).toLocaleString(
+                  'pt-BR',
+                  {
+                    minimumFractionDigits:2,
+                    maximumFractionDigits:2
+                  }
+                )
+              )
+            );
+
+            defesoReportResult.append(
+              summary
+            );
+
+            const reportLinks=
+              el(
+                'div',
+                undefined,
+                'actions'
+              );
+
+            if(report.url){
+              reportLinks.append(
+                link(
+                  report.url,
+                  'Abrir Google Docs'
+                )
+              );
+            }
+
+            if(report.pdfUrl){
+              reportLinks.append(
+                link(
+                  report.pdfUrl,
+                  'Abrir PDF'
+                )
+              );
+            }
+
+            if(reportLinks.children.length){
+              defesoReportResult.append(
+                reportLinks
+              );
+            }
+
+            status(
+              'Relatório do Seguro-Defeso 2025 gerado para '+p.nome+'.'
+            );
+
+          }catch(e){
+            defesoReportResult.replaceChildren(
+              el(
+                'p',
+                e.message||String(e),
+                'warn'
+              )
+            );
+
+            status(
+              e.message||String(e),
+              true
+            );
+
+          }finally{
+            generateDefesoReport.disabled=false;
+            generateDefesoReport.textContent=
+              'Gerar relatório do Seguro-Defeso 2025';
+          }
+        }
+      );
+
+    if(
+      !App.state.boot.portalTransparencia||
+      !App.state.boot.portalTransparencia.configurada
+    ){
+      generateDefesoReport.disabled=true;
+
+      defesoReport.append(
+        el(
+          'p',
+          'A API do Portal da Transparência não está configurada. Cadastre a chave em Administração antes de gerar o relatório.',
+          'warn'
+        )
+      );
+    }
+
+    defesoReportActions.append(
+      generateDefesoReport
+    );
+
+    defesoReport.append(
+      defesoReportActions,
+      defesoReportResult
+    );
+
     const person=details(
       root,
       'Dados pessoais — consultar e retificar'
