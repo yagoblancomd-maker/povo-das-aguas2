@@ -1,5 +1,5 @@
 const MODULES={
-  PAINEL:'Painel',
+  PAINEL:'Início',
   PESS:'Novo Cadastro',
   ACOMP:'Consultar Cadastros',
   DEFESO:'Consultar Defeso 2025',
@@ -22,9 +22,9 @@ const MODULE_PERMISSION=Object.freeze({
 
 const PROFILE_HOME=Object.freeze({
   CONSULTA:'PAINEL',
-  CADASTRO:'PESS',
-  CONFERENCIA:'ACOMP',
-  JURIDICO:'MIN',
+  CADASTRO:'PAINEL',
+  CONFERENCIA:'PAINEL',
+  JURIDICO:'PAINEL',
   ADMIN:'PAINEL'
 });
 
