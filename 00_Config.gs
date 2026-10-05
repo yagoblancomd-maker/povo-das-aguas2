@@ -49,16 +49,33 @@ const JURISDICOES = Object.freeze({
  'RIO GRANDE':['Chuí','Rio Grande','Santa Vitória do Palmar','São José do Norte'],
  'CAPÃO DA CANOA':['Arroio do Sal','Balneário Pinhal','Capão da Canoa','Caraá','Cidreira','Dom Pedro de Alcântara','Imbé','Itati','Mampituba','Maquiné','Morrinhos do Sul','Osório','Terra de Areia','Torres','Tramandaí','Três Cachoeiras','Três Forquilhas','Xangri-lá']
 });
+const LEGACY_ENTIDADES_PADRAO=Object.freeze([
+  'COPAPEL — COLÔNIA DOS PESCADORES E AQUICULTORES PROFISSIONAIS ARTESANAIS DE PELOTAS',
+  'COLÔNIA Z-1',
+  'COLÔNIA Z-2',
+  'COLÔNIA Z-3',
+  'COLÔNIA Z-11',
+  'Outro'
+]);
+
+const ENTIDADES_PADRAO=Object.freeze([
+  'COPAPEL',
+  'RIG - COLÔNIA Z-1',
+  'SJN - COLÔNIA Z-2',
+  'PEL - COLÔNIA Z-3',
+  'SLS - COLÔNIA Z-8',
+  'TAV - COLÔNIA Z-11',
+  'AGR - COLÔNIA Z-24',
+  'Outro'
+]);
+
 const DEFAULTS={
   rascunhos:'PENDENTE',
   vencimentoFuturo:'PENDENTE',
   anexoOrientacao:'',
   templateId:'',
   templateAprovado:false,
-  entidades:[
-    'COPAPEL — COLÔNIA DOS PESCADORES E AQUICULTORES PROFISSIONAIS ARTESANAIS DE PELOTAS',
-    'COLÔNIA Z-1','COLÔNIA Z-2','COLÔNIA Z-3','COLÔNIA Z-11','Outro'
-  ],
+  entidades:Array.from(ENTIDADES_PADRAO),
   municipios:Object.values(JURISDICOES).flat().sort((a,b)=>a.localeCompare(b,'pt-BR')),
   demandas:['Seguro-Defeso 2025'],
   categorias:['RG_CPF','RESIDENCIA','PROCESSO_ADMINISTRATIVO','PESCA','PROCURACAO','HIPOSSUFICIENCIA'],
@@ -115,9 +132,18 @@ function clone_(v){
 
 function cfg_(){
   const c=clone_(DEFAULTS);
+
   all_('Configuracoes').forEach(r=>{
     c[r.chave]=JSON.parse(r.valor);
   });
+
+  if(
+    JSON.stringify(c.entidades)===
+    JSON.stringify(Array.from(LEGACY_ENTIDADES_PADRAO))
+  ){
+    c.entidades=Array.from(ENTIDADES_PADRAO);
+  }
+
   c.municipios=municipiosComJurisdicao_(c.municipios);
   return c;
 }
