@@ -32,6 +32,36 @@ function cepDisplay_(input){
     :String(input||'').trim();
 }
 
+function phone_(input){
+  const digits=String(input||'').replace(/\D/g,'');
+
+  if(!/^\d{11}$/.test(digits)){
+    fail_('Telefone deve usar o formato (DDD) XXXXX-XXXX.');
+  }
+
+  return digits;
+}
+
+function phoneDisplay_(input){
+  const digits=String(input||'').replace(/\D/g,'');
+
+  return /^\d{11}$/.test(digits)
+    ?digits.replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3')
+    :String(input||'').trim();
+}
+
+function email_(input){
+  const value=String(input||'').trim();
+
+  if(!value)return '';
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)){
+    fail_('E-mail inválido.');
+  }
+
+  return value.toLowerCase();
+}
+
 function date_(s){
   if(!/^\d{2}\/\d{2}\/\d{4}$/.test(s||''))fail_('Data deve usar DD/MM/AAAA.');
 
@@ -98,10 +128,28 @@ function validatePerson_(input,c,complete){
     p.cep=cep_(p.cep);
   }
 
-  if(p.nascimento&&date_(p.nascimento)>today_())fail_('Nascimento não pode estar no futuro.');
+  if(p.nascimento){
+    const nascimento=date_(p.nascimento);
+    const minimo=date_('01/01/1910');
+    const hoje=today_();
 
-  if(p.telefone&&!/^\d{10,11}$/.test(p.telefone.replace(/\D/g,''))){
-    fail_('Telefone deve conter DDD e 10 ou 11 dígitos.');
+    if(nascimento<minimo){
+      fail_('Nascimento não pode ser anterior a 01/01/1910.');
+    }
+
+    if(nascimento>hoje){
+      fail_('Nascimento não pode estar no futuro.');
+    }
+  }
+
+  if(p.telefone){
+    p.telefone=phoneDisplay_(phone_(p.telefone));
+  }
+
+  if(p.email){
+    p.email=email_(p.email);
+  }else{
+    p.email='';
   }
 
   if(p.uf&&!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(p.uf)){
