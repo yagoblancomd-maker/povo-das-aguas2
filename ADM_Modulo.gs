@@ -260,7 +260,8 @@ function userSave_(ctx,q){
     funcao,
     permissoes:JSON.stringify(
       permissions
-    )
+    ),
+    permissoesVersao:2
   };
 
   /*
