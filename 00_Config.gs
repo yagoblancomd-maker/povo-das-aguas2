@@ -17,7 +17,7 @@ const SCHEMA = Object.freeze({
   Pessoas:[
     'nome','cpf','nascimento','telefone','tipoVia','via','numero','complemento',
     'bairro','cidade','uf','entidade','outraEntidade','analfabeto',
-    'parcelasNaoRecebidas','jurisdicao','cep'
+    'parcelasNaoRecebidas','jurisdicao','cep','email'
   ],
   Atendimentos:[
     'pessoaId','demanda','referencia','parcelas','outrosCasos','observacoes',
