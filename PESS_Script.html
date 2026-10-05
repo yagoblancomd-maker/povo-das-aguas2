@@ -59,11 +59,12 @@ window.PDA_MODULES.PESS = (()=>{
     const box=card(DOCUMENT_LABELS[categoria]||categoria);
     const label=el('label',undefined,'field');
 
-    label.append(el('span','Selecionar arquivo(s)'));
+    label.append(el('span','Selecionar arquivo(s) *'));
 
     const input=el('input');
     input.type='file';
     input.multiple=true;
+    input.required=true;
     input.accept='.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
     label.append(input);
@@ -101,6 +102,39 @@ window.PDA_MODULES.PESS = (()=>{
 
         if(!Number.isInteger(qtd)||qtd<1||qtd>4){
           throw new Error('Informe quantas parcelas do seguro-defeso não foram recebidas.');
+        }
+
+        if(
+          !App.state.boot.modelo||
+          !App.state.boot.modelo.configurado
+        ){
+          throw new Error(
+            'O modelo da petição inicial não está configurado. Envie e ative o DOCX em Administração antes de cadastrar a pessoa.'
+          );
+        }
+
+        const faltantes=
+          Object.entries(uploads)
+            .filter(([,input])=>!input.files||!input.files.length)
+            .map(([categoria])=>DOCUMENT_LABELS[categoria]||categoria);
+
+        if(faltantes.length){
+          throw new Error(
+            'Anexe todos os documentos obrigatórios antes de salvar: '+
+            faltantes.join(', ')+'.'
+          );
+        }
+
+        if(
+          !String(
+            residenceDate&&
+            residenceDate.value||
+            ''
+          ).trim()
+        ){
+          throw new Error(
+            'Informe o vencimento do comprovante de residência.'
+          );
         }
 
         const saved=await call('pessoaSalvar',p,true);
@@ -204,7 +238,7 @@ window.PDA_MODULES.PESS = (()=>{
         await go('ACOMP',saved.id);
         status('Cadastro, documentos e minuta concluídos com sucesso.');
       },
-      'Salvar cadastro e documentos'
+      'Salvar cadastro, documentos e gerar minuta'
     );
 
     const entidade=personForm.elements.namedItem('entidade');
@@ -287,7 +321,7 @@ window.PDA_MODULES.PESS = (()=>{
 
     documents.append(el(
       'p',
-      'Formatos permitidos: PDF, JPEG e PNG. Limite de 5 MB por arquivo.',
+      'Todos os seis grupos documentais abaixo são obrigatórios para o cadastro inicial. Formatos permitidos: PDF, JPEG e PNG. Limite de 5 MB por arquivo.',
       'hint'
     ));
 
@@ -304,6 +338,7 @@ window.PDA_MODULES.PESS = (()=>{
         residenceDate=el('input');
         residenceDate.type='text';
         residenceDate.placeholder='DD/MM/AAAA';
+        residenceDate.required=true;
 
         dateLabel.append(residenceDate);
 
@@ -330,7 +365,7 @@ window.PDA_MODULES.PESS = (()=>{
 
     documents.append(el(
       'p',
-      'A minuta somente é gerada depois que o cadastro e todos os arquivos selecionados terminarem de ser gravados sem falhas.',
+      'O botão Salvar somente prossegue quando todos os documentos obrigatórios e o vencimento do comprovante de residência estiverem informados. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
       'hint'
     ));
 
