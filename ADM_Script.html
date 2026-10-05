@@ -790,6 +790,119 @@ window.PDA_MODULES.ADM = (()=>{
           'O usuário Google identifica o registro. Para trocar o e-mail, desative este usuário e cadastre outro.';
       }
 
+      if(!isNew){
+        const danger=
+          el(
+            'div',
+            undefined,
+            'adm-user-danger'
+          );
+
+        const dangerCopy=
+          el(
+            'div',
+            undefined,
+            'adm-user-danger-copy'
+          );
+
+        dangerCopy.append(
+          el(
+            'strong',
+            'Excluir usuário'
+          ),
+          el(
+            'span',
+            'Remove definitivamente o usuário do cadastro e revoga o acesso ao Google Drive. O histórico das operações já realizadas permanece preservado.'
+          )
+        );
+
+        const deleteButton=
+          button(
+            'Excluir definitivamente',
+            async()=>{
+              const label=
+                user.nome||
+                user.email;
+
+              const firstConfirm=
+                window.confirm(
+                  'Excluir definitivamente o usuário "'+
+                  label+
+                  '"?\n\nEsta ação removerá o cadastro do usuário e revogará o acesso aos recursos do Povo das Águas.'
+                );
+
+              if(!firstConfirm){
+                return;
+              }
+
+              const typed=
+                window.prompt(
+                  'Para confirmar, digite exatamente o e-mail do usuário:\n'+
+                  user.email
+                );
+
+              if(
+                String(
+                  typed||
+                  ''
+                )
+                  .trim()
+                  .toLowerCase()!==
+                String(
+                  user.email||
+                  ''
+                )
+                  .trim()
+                  .toLowerCase()
+              ){
+                status(
+                  'Exclusão cancelada: o e-mail de confirmação não confere.',
+                  true
+                );
+                return;
+              }
+
+              const result=
+                await call(
+                  'usuarioExcluir',
+                  {
+                    id:user.id,
+                    versao:user.versao
+                  },
+                  true
+                );
+
+              App.state.boot=
+                await call(
+                  'bootstrap'
+                );
+
+              await go(
+                'ADM'
+              );
+
+              status(
+                result.mensagem||
+                'Usuário excluído definitivamente.'
+              );
+            },
+            true
+          );
+
+        deleteButton.classList.add(
+          'adm-user-delete-button'
+        );
+
+        danger.append(
+          dangerCopy,
+          deleteButton
+        );
+
+        wrapper.append(
+          danger
+        );
+      }
+
       const consulta=
         userForm.elements.namedItem(
           'perm_consulta'
