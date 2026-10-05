@@ -285,7 +285,7 @@ window.PDA_MODULES.ADM = (()=>{
     selfRegistration.append(
       el(
         'p',
-        'O primeiro acesso identifica a Conta Google, solicita somente nome e função no projeto (Professor, Residente, Colaborador ou Aluno) e cria automaticamente o perfil NOVO_USUARIO com apenas Consulta e Cadastro. Para preservar a segurança do banco, a ativação utiliza uma segunda implantação do mesmo Apps Script executada como proprietário.',
+        'O primeiro acesso identifica a Conta Google e solicita nome e função. Professor e Residente iniciam com Consulta e Cadastro e aguardam aprovação administrativa para receber as demais permissões operacionais do perfil; Administração e Distribuir processos continuam dependentes de concessão específica. Colaborador recebe Consulta, Cadastro e Retificação somente dos próprios cadastros. Aluno recebe Consulta e Distribuir processos. Para preservar a segurança do banco, a ativação utiliza uma segunda implantação do mesmo Apps Script executada como proprietário.',
         'hint'
       )
     );
@@ -775,6 +775,118 @@ window.PDA_MODULES.ADM = (()=>{
       userForm.classList.add(
         'adm-user-form'
       );
+
+      const normalizedFunction=
+        String(
+          user.funcao||
+          ''
+        )
+          .trim()
+          .toLowerCase();
+
+      const isProfessorResident=
+        normalizedFunction==='professor'||
+        normalizedFunction==='residente';
+
+      if(
+        !isNew&&
+        isProfessorResident
+      ){
+        const professorResidentDefaults=
+          (
+            d.perfisDetalhes.PROFESSOR_RESIDENTE&&
+            d.perfisDetalhes.PROFESSOR_RESIDENTE.permissoes
+          )||
+          [];
+
+        const approved=
+          professorResidentDefaults.every(permission=>
+            effective.includes(
+              permission
+            )
+          );
+
+        const approvalBox=
+          el(
+            'div',
+            undefined,
+            approved
+              ?'adm-function-approval approved'
+              :'adm-function-approval pending'
+          );
+
+        const approvalCopy=
+          el(
+            'div'
+          );
+
+        approvalCopy.append(
+          el(
+            'strong',
+            approved
+              ?'Poderes funcionais aprovados'
+              :'Aprovação funcional pendente'
+          ),
+          el(
+            'span',
+            approved
+              ?'Professor/Residente com o conjunto operacional padrão aprovado. Administração e Distribuir processos não fazem parte desse conjunto.'
+              :'No primeiro acesso, Professor/Residente possui somente Consulta e Cadastro. O administrador pode liberar o conjunto operacional padrão com um clique.'
+          )
+        );
+
+        approvalBox.append(
+          approvalCopy
+        );
+
+        if(!approved){
+          approvalBox.append(
+            button(
+              'Aprovar poderes de Professor/Residente',
+              async()=>{
+                const confirmed=
+                  window.confirm(
+                    'Aprovar as permissões operacionais padrão para '+
+                    (user.nome||user.email)+
+                    '?\n\nSerão concedidas Consulta, Cadastro, Retificação, Conferência, Minutas e Gerenciar distribuição. Administração e Distribuir processos permanecerão desmarcadas.'
+                  );
+
+                if(!confirmed){
+                  return;
+                }
+
+                await call(
+                  'usuarioAprovarProfessorResidente',
+                  {
+                    id:user.id,
+                    versao:user.versao
+                  },
+                  true
+                );
+
+                App.state.boot=
+                  await call(
+                    'bootstrap'
+                  );
+
+                await go(
+                  'ADM'
+                );
+
+                status(
+                  'Poderes funcionais de Professor/Residente aprovados.'
+                );
+              },
+              true
+            )
+          );
+        }
+
+        wrapper.insertBefore(
+          approvalBox,
+          userForm
+        );
+      }
 
       const emailInput=
         userForm.elements.namedItem(
