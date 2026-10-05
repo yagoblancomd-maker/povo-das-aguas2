@@ -1,0 +1,818 @@
+<script>
+window.PDA_MODULES.TAREFAS = (()=>{
+  const {
+    el,button,call,link,alive,status
+  }=App;
+
+  function money_(value){
+    return Number(value||0).toLocaleString(
+      'pt-BR',
+      {
+        style:'currency',
+        currency:'BRL'
+      }
+    );
+  }
+
+  function cpf_(value){
+    const d=String(value||'')
+      .replace(/\D/g,'');
+
+    return d.length===11
+      ?d.replace(
+          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+          '$1.$2.$3-$4'
+        )
+      :String(value||'');
+  }
+
+  function processMask_(value){
+    const d=String(value||'')
+      .replace(/\D/g,'')
+      .slice(0,20);
+
+    let out=d.slice(0,7);
+
+    if(d.length>7){
+      out+='-'+d.slice(7,9);
+    }
+
+    if(d.length>9){
+      out+='.'+d.slice(9,13);
+    }
+
+    if(d.length>13){
+      out+='.'+d.slice(13,14);
+    }
+
+    if(d.length>14){
+      out+='.'+d.slice(14,16);
+    }
+
+    if(d.length>16){
+      out+='.'+d.slice(16,20);
+    }
+
+    return out;
+  }
+
+  function taskCard_(task,onOpen){
+    const card=
+      el(
+        'article',
+        undefined,
+        'task-card'+
+        (
+          task.situacao==='CONCLUIDA'
+            ?' done'
+            :''
+        )
+      );
+
+    const top=
+      el(
+        'div',
+        undefined,
+        'task-card-top'
+      );
+
+    top.append(
+      el(
+        'strong',
+        task.pessoa
+      ),
+      el(
+        'span',
+        task.situacao==='CONCLUIDA'
+          ?'CONCLUÍDA'
+          :'PARA DISTRIBUIR',
+        'task-status'+
+        (
+          task.situacao==='CONCLUIDA'
+            ?' done'
+            :''
+        )
+      )
+    );
+
+    const meta=
+      el(
+        'div',
+        undefined,
+        'task-card-meta'
+      );
+
+    [
+      [
+        'CPF',
+        cpf_(task.cpf)
+      ],
+      [
+        'Jurisdição',
+        task.jurisdicao||'—'
+      ],
+      [
+        'Valor da causa',
+        money_(task.valorCausa)
+      ],
+      [
+        'Município',
+        task.cidade||'—'
+      ]
+    ].forEach(([label,value])=>{
+      const item=
+        el(
+          'span',
+          label
+        );
+
+      item.append(
+        el(
+          'b',
+          value
+        )
+      );
+
+      meta.append(item);
+    });
+
+    const actions=
+      el(
+        'div',
+        undefined,
+        'actions'
+      );
+
+    actions.append(
+      button(
+        task.situacao==='CONCLUIDA'
+          ?'Ver distribuição'
+          :'Abrir tarefa',
+        ()=>onOpen(task)
+      )
+    );
+
+    card.append(
+      top,
+      meta,
+      actions
+    );
+
+    return card;
+  }
+
+  function detailItem_(label,value){
+    const item=
+      el(
+        'div',
+        undefined,
+        'task-detail-item'
+      );
+
+    item.append(
+      el(
+        'span',
+        label
+      ),
+      el(
+        'strong',
+        value||'—'
+      )
+    );
+
+    return item;
+  }
+
+  function openDialog_(root,detail,refresh){
+    const existing=
+      root.querySelector(
+        '.task-dialog'
+      );
+
+    if(existing){
+      existing.remove();
+    }
+
+    const dialog=
+      el(
+        'dialog',
+        undefined,
+        'task-dialog'
+      );
+
+    const shell=
+      el(
+        'div',
+        undefined,
+        'task-dialog-shell'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'task-dialog-head'
+      );
+
+    const headCopy=
+      el(
+        'div'
+      );
+
+    headCopy.append(
+      el(
+        'h3',
+        detail.pessoa.nome
+      ),
+      el(
+        'p',
+        'Tarefa de distribuição processual'
+      )
+    );
+
+    const close=
+      button(
+        'Fechar',
+        ()=>dialog.close(),
+        true
+      );
+
+    head.append(
+      headCopy,
+      close
+    );
+
+    const body=
+      el(
+        'div',
+        undefined,
+        'task-dialog-body'
+      );
+
+    const banner=
+      el(
+        'div',
+        undefined,
+        'task-distribution-banner'
+      );
+
+    [
+      [
+        'Jurisdição para distribuição',
+        detail.pessoa.jurisdicao
+      ],
+      [
+        'Valor da causa',
+        money_(detail.pessoa.valorCausa)
+      ],
+      [
+        'Parcelas não recebidas',
+        String(
+          detail.pessoa.parcelasNaoRecebidas||
+          '—'
+        )
+      ]
+    ].forEach(([label,value])=>{
+      const item=el('div');
+
+      item.append(
+        el(
+          'span',
+          label
+        ),
+        el(
+          'strong',
+          value
+        )
+      );
+
+      banner.append(item);
+    });
+
+    body.append(banner);
+
+    const grid=
+      el(
+        'div',
+        undefined,
+        'task-detail-grid'
+      );
+
+    [
+      ['Nome',detail.pessoa.nome],
+      ['CPF',cpf_(detail.pessoa.cpf)],
+      ['Nascimento',detail.pessoa.nascimento],
+      ['Telefone',detail.pessoa.telefone],
+      ['E-mail',detail.pessoa.email],
+      ['Endereço',detail.pessoa.endereco],
+      ['Município/UF',(detail.pessoa.cidade||'')+'/'+(detail.pessoa.uf||'')],
+      ['Entidade',detail.pessoa.entidade]
+    ].forEach(([label,value])=>
+      grid.append(
+        detailItem_(
+          label,
+          value
+        )
+      )
+    );
+
+    body.append(grid);
+
+    const lawyers=
+      el(
+        'section',
+        undefined,
+        'task-dialog-section'
+      );
+
+    lawyers.append(
+      el(
+        'h4',
+        'Advogados para a distribuição'
+      )
+    );
+
+    const lawyerGrid=
+      el(
+        'div',
+        undefined,
+        'task-lawyers'
+      );
+
+    (detail.advogados||[])
+      .forEach(item=>
+        lawyerGrid.append(
+          el(
+            'div',
+            item,
+            'task-lawyer'
+          )
+        )
+      );
+
+    lawyers.append(lawyerGrid);
+    body.append(lawyers);
+
+    const docs=
+      el(
+        'section',
+        undefined,
+        'task-dialog-section'
+      );
+
+    docs.append(
+      el(
+        'h4',
+        'Documentos da pessoa'
+      )
+    );
+
+    const docGrid=
+      el(
+        'div',
+        undefined,
+        'task-docs'
+      );
+
+    (detail.documentos||[])
+      .forEach(doc=>{
+        const row=
+          el(
+            'div',
+            undefined,
+            'task-doc'
+          );
+
+        const copy=el('div');
+
+        copy.append(
+          el(
+            'strong',
+            doc.label
+          ),
+          el(
+            'small',
+            doc.nome
+          )
+        );
+
+        row.append(
+          copy,
+          link(
+            doc.url,
+            'Abrir'
+          )
+        );
+
+        docGrid.append(row);
+      });
+
+    if(
+      !detail.documentos||
+      !detail.documentos.length
+    ){
+      docGrid.append(
+        el(
+          'p',
+          'Nenhum documento vigente localizado.',
+          'warn'
+        )
+      );
+    }
+
+    docs.append(docGrid);
+    body.append(docs);
+
+    if(
+      detail.processo&&
+      detail.processo.numero
+    ){
+      const completed=
+        el(
+          'div',
+          undefined,
+          'task-complete-box'
+        );
+
+      completed.append(
+        el(
+          'h4',
+          'Distribuição concluída'
+        ),
+        el(
+          'p',
+          'Processo TRF4: '+
+          detail.processo.numero,
+          'badge'
+        )
+      );
+
+      body.append(completed);
+
+    }else if(
+      detail.tarefa.situacao!=='CONCLUIDA'
+    ){
+      const complete=
+        el(
+          'div',
+          undefined,
+          'task-complete-box'
+        );
+
+      complete.append(
+        el(
+          'h4',
+          'Concluir distribuição'
+        ),
+        el(
+          'p',
+          'Somente conclua depois de efetivamente distribuir a ação no TRF4. O número informado será vinculado permanentemente ao cadastro da pessoa.',
+          'hint'
+        )
+      );
+
+      const row=
+        el(
+          'div',
+          undefined,
+          'task-complete-row'
+        );
+
+      const field=
+        el(
+          'label',
+          undefined,
+          'field'
+        );
+
+      field.append(
+        el(
+          'span',
+          'Número do processo no TRF4'
+        )
+      );
+
+      const input=
+        el(
+          'input'
+        );
+
+      input.type='text';
+      input.placeholder=
+        '5001234-56.2026.4.04.7100';
+      input.maxLength=25;
+      input.inputMode='numeric';
+
+      input.addEventListener(
+        'input',
+        ()=>{
+          input.value=
+            processMask_(
+              input.value
+            );
+        }
+      );
+
+      field.append(input);
+
+      const save=
+        button(
+          'Confirmar conclusão',
+          async()=>{
+            const numero=
+              String(
+                input.value||
+                ''
+              ).trim();
+
+            if(!numero){
+              throw new Error(
+                'Informe o número do processo no TRF4.'
+              );
+            }
+
+            if(
+              !window.confirm(
+                'Confirmar a conclusão da distribuição e vincular o processo '+numero+' a '+detail.pessoa.nome+'?'
+              )
+            ){
+              return;
+            }
+
+            const result=
+              await call(
+                'tarefaDistribuicaoConcluir',
+                {
+                  id:detail.tarefa.id,
+                  numeroProcesso:numero
+                },
+                true
+              );
+
+            status(
+              result.mensagem||
+              'Distribuição concluída.'
+            );
+
+            dialog.close();
+
+            await refresh();
+          }
+        );
+
+      const cancel=
+        button(
+          'Cancelar',
+          ()=>{
+            input.value='';
+          },
+          true
+        );
+
+      row.append(
+        field,
+        cancel,
+        save
+      );
+
+      complete.append(row);
+      body.append(complete);
+    }
+
+    shell.append(
+      head,
+      body
+    );
+
+    dialog.append(shell);
+    root.append(dialog);
+    dialog.showModal();
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    const render=async()=>{
+      root.replaceChildren();
+
+      const data=
+        await call(
+          'tarefasMinhas'
+        );
+
+      if(!alive(ctx))return;
+
+      const head=
+        el(
+          'div',
+          undefined,
+          'tasks-head'
+        );
+
+      const copy=el('div');
+
+      copy.append(
+        el(
+          'h2',
+          'Minhas tarefas'
+        ),
+        el(
+          'p',
+          'Distribuições processuais atribuídas especificamente a você.',
+          'hint'
+        )
+      );
+
+      const summary=
+        el(
+          'div',
+          undefined,
+          'tasks-summary'
+        );
+
+      const pendingCount=
+        (data.pendentes||[]).length;
+
+      const doneCount=
+        (data.concluidas||[]).length;
+
+      const pending=
+        el(
+          'span'
+        );
+
+      pending.append(
+        el(
+          'strong',
+          String(pendingCount)
+        ),
+        document.createTextNode(
+          ' para distribuir'
+        )
+      );
+
+      const done=
+        el(
+          'span'
+        );
+
+      done.append(
+        el(
+          'strong',
+          String(doneCount)
+        ),
+        document.createTextNode(
+          ' concluídas'
+        )
+      );
+
+      summary.append(
+        pending,
+        done
+      );
+
+      head.append(
+        copy,
+        summary
+      );
+
+      root.append(head);
+
+      const openTask=async task=>{
+        const detail=
+          await call(
+            'tarefaDistribuicaoDetalhe',
+            {
+              id:task.id
+            }
+          );
+
+        if(!alive(ctx))return;
+
+        openDialog_(
+          root,
+          detail,
+          render
+        );
+      };
+
+      const pendingSection=
+        el(
+          'section',
+          undefined,
+          'tasks-section'
+        );
+
+      const pendingHead=
+        el(
+          'div',
+          undefined,
+          'tasks-section-head'
+        );
+
+      pendingHead.append(
+        el(
+          'h3',
+          'Para distribuir'
+        )
+      );
+
+      pendingSection.append(
+        pendingHead
+      );
+
+      const pendingGrid=
+        el(
+          'div',
+          undefined,
+          'tasks-grid'
+        );
+
+      if(!pendingCount){
+        pendingGrid.append(
+          el(
+            'div',
+            'Você não possui nenhuma distribuição pendente.',
+            'task-empty'
+          )
+        );
+      }else{
+        data.pendentes.forEach(task=>
+          pendingGrid.append(
+            taskCard_(
+              task,
+              openTask
+            )
+          )
+        );
+      }
+
+      pendingSection.append(
+        pendingGrid
+      );
+
+      root.append(
+        pendingSection
+      );
+
+      if(doneCount){
+        const doneSection=
+          el(
+            'section',
+            undefined,
+            'tasks-section'
+          );
+
+        const doneHead=
+          el(
+            'div',
+            undefined,
+            'tasks-section-head'
+          );
+
+        doneHead.append(
+          el(
+            'h3',
+            'Concluídas'
+          )
+        );
+
+        doneSection.append(
+          doneHead
+        );
+
+        const doneGrid=
+          el(
+            'div',
+            undefined,
+            'tasks-grid'
+          );
+
+        data.concluidas
+          .slice(
+            0,
+            12
+          )
+          .forEach(task=>
+            doneGrid.append(
+              taskCard_(
+                task,
+                openTask
+              )
+            )
+          );
+
+        doneSection.append(
+          doneGrid
+        );
+
+        root.append(
+          doneSection
+        );
+      }
+    };
+
+    await render();
+  };
+})();
+</script>
