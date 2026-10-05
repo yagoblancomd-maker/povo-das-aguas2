@@ -1,36 +1,335 @@
 <script>
-window.PDA_MODULES.ADM = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
-return async function(ctx){const root=ctx.root;
-root.append(el('h2','Administração'));
-const d=await call('admin');
-if(!alive(ctx))return;
-root.append(el('p','Defina as políticas pendentes antes de encaminhar atendimentos. Mudanças no modelo exigem nova aprovação.'));
-const labels={rascunhos:'Salvar dados pessoais incompletos',vencimentoFuturo:'Faturas com vencimento futuro',anexoOrientacao:'Identificação e orientação do anexo exigido',templateId:'ID do modelo Google Docs',templateAprovado:'Modelo revisado e aprovado',entidades:'Colônias e entidades',municipios:'Municípios',demandas:'Tipos de demanda',categorias:'Categorias obrigatórias',situacoes:'Situações dos atendimentos'};
-d.configuracoes.filter(c=>labels[c.chave]).forEach(c=>{const box=details(root,labels[c.chave]);
-let value=JSON.parse(c.valor);
-const array=Array.isArray(value);
-const f={key:'valor',label:array?'Um valor por linha':labels[c.chave],type:array||c.chave==='anexoOrientacao'?'textarea':'text'};
-if(c.chave==='rascunhos')f.options=['PENDENTE','PERMITIR','PROIBIR'];
-if(c.chave==='vencimentoFuturo')f.options=['PENDENTE','ACEITAR','RECUSAR'];
-if(c.chave==='templateAprovado')f.type='checkbox';
-form(box,[f],{chave:c.chave,versao:c.versao,valor:array?value.join('\n'):value},async q=>{if(array)q.valor=q.valor.split('\n').map(s=>s.trim()).filter(Boolean);
-await call('configSalvar',q,true);
-App.state.boot=await call('App.state.bootstrap');
-await go('ADM');
-});
-});
-const users=card('Usuários');
-root.append(users);
-const uf=[{key:'email',label:'E-mail Google',type:'email',required:true},{key:'perfil',label:'Perfil',options:d.perfis,required:true},{key:'ativo',label:'Acesso ativo',type:'checkbox'}];
-d.usuarios.forEach(u=>{const box=details(users,u.email+' · '+u.perfil);
-form(box,uf,u,async q=>{await call('usuarioSalvar',q,true);
-await go('ADM');
-});
-});
-const add=details(users,'Autorizar usuário');
-form(add,uf,{ativo:true},async q=>{await call('usuarioSalvar',q,true);
-await go('ADM');
-});
-};
+window.PDA_MODULES.ADM = (()=>{
+  const {
+    el,card,details,form,link,button,call,go,alive,status
+  }=App;
+
+  function readFile_(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+
+      reader.onload=()=>{
+        const value=String(reader.result||'');
+        const parts=value.split(',');
+
+        if(parts.length<2){
+          reject(new Error('Não foi possível ler o arquivo.'));
+          return;
+        }
+
+        resolve(parts[1]);
+      };
+
+      reader.onerror=()=>reject(reader.error||new Error('Erro ao ler o arquivo.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    root.append(el('h2','Administração'));
+
+    const d=await call('admin');
+
+    if(!alive(ctx)){
+      return;
+    }
+
+    root.append(el(
+      'p',
+      'Defina as políticas pendentes e mantenha o modelo oficial da minuta. O modelo é enviado em DOCX e convertido automaticamente para Google Docs.',
+      'hint'
+    ));
+
+    const model=card('Modelo de minuta');
+    root.append(model);
+
+    if(d.modelo&&d.modelo.configurado){
+      model.append(el(
+        'p',
+        'Modelo ativo: '+d.modelo.nome,
+        'badge'
+      ));
+
+      model.append(
+        link(
+          d.modelo.url,
+          'Abrir modelo ativo'
+        )
+      );
+
+    }else{
+      model.append(el(
+        'p',
+        d.modelo&&d.modelo.mensagem
+          ?d.modelo.mensagem
+          :'Nenhum modelo ativo.',
+        'warn'
+      ));
+    }
+
+    model.append(el(
+      'p',
+      'Envie o arquivo .docx da petição-modelo. O sistema converte o arquivo, normaliza os placeholders conhecidos, valida os campos obrigatórios e ativa o novo modelo. Não é necessário informar ID do Drive.',
+      'hint'
+    ));
+
+    const modelInput=el('input');
+    modelInput.type='file';
+    modelInput.accept=
+      '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    modelInput.setAttribute(
+      'aria-label',
+      'Arquivo DOCX do modelo de minuta'
+    );
+
+    model.append(modelInput);
+
+    const modelActions=
+      el(
+        'div',
+        undefined,
+        'actions'
+      );
+
+    modelActions.append(
+      button(
+        'Enviar e ativar modelo',
+        async()=>{
+          const file=
+            modelInput.files&&
+            modelInput.files[0];
+
+          if(!file){
+            throw new Error(
+              'Selecione o arquivo DOCX do modelo.'
+            );
+          }
+
+          if(
+            file.size>
+            10*1024*1024
+          ){
+            throw new Error(
+              'O modelo DOCX deve ter no máximo 10 MB.'
+            );
+          }
+
+          const base64=
+            await readFile_(file);
+
+          const result=
+            await call(
+              'modeloUpload',
+              {
+                nome:file.name,
+                mime:
+                  file.type||
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                base64
+              },
+              true
+            );
+
+          App.state.boot=
+            await call('bootstrap');
+
+          await go('ADM');
+
+          status(
+            result.mensagem||
+            'Modelo ativado.'
+          );
+        }
+      )
+    );
+
+    model.append(
+      modelActions
+    );
+
+    const labels={
+      rascunhos:
+        'Salvar dados pessoais incompletos',
+      vencimentoFuturo:
+        'Faturas com vencimento futuro',
+      anexoOrientacao:
+        'Identificação e orientação do anexo exigido',
+      entidades:
+        'Colônias e entidades',
+      municipios:
+        'Municípios',
+      demandas:
+        'Tipos de demanda',
+      categorias:
+        'Categorias obrigatórias',
+      situacoes:
+        'Situações dos atendimentos'
+    };
+
+    d.configuracoes
+      .filter(c=>labels[c.chave])
+      .forEach(c=>{
+        const box=
+          details(
+            root,
+            labels[c.chave]
+          );
+
+        let value=
+          JSON.parse(
+            c.valor
+          );
+
+        const array=
+          Array.isArray(
+            value
+          );
+
+        const f={
+          key:'valor',
+          label:
+            array
+              ?'Um valor por linha'
+              :labels[c.chave],
+          type:
+            array||
+            c.chave==='anexoOrientacao'
+              ?'textarea'
+              :'text'
+        };
+
+        if(
+          c.chave==='rascunhos'
+        ){
+          f.options=[
+            'PENDENTE',
+            'PERMITIR',
+            'PROIBIR'
+          ];
+        }
+
+        if(
+          c.chave==='vencimentoFuturo'
+        ){
+          f.options=[
+            'PENDENTE',
+            'ACEITAR',
+            'RECUSAR'
+          ];
+        }
+
+        form(
+          box,
+          [f],
+          {
+            chave:c.chave,
+            versao:c.versao,
+            valor:
+              array
+                ?value.join('\n')
+                :value
+          },
+          async q=>{
+            if(array){
+              q.valor=
+                q.valor
+                  .split('\n')
+                  .map(s=>s.trim())
+                  .filter(Boolean);
+            }
+
+            await call(
+              'configSalvar',
+              q,
+              true
+            );
+
+            App.state.boot=
+              await call('bootstrap');
+
+            await go('ADM');
+          }
+        );
+      });
+
+    const users=
+      card(
+        'Usuários'
+      );
+
+    root.append(
+      users
+    );
+
+    const uf=[
+      {
+        key:'email',
+        label:'E-mail Google',
+        type:'email',
+        required:true
+      },
+      {
+        key:'perfil',
+        label:'Perfil',
+        options:d.perfis,
+        required:true
+      },
+      {
+        key:'ativo',
+        label:'Acesso ativo',
+        type:'checkbox'
+      }
+    ];
+
+    d.usuarios.forEach(u=>{
+      const box=
+        details(
+          users,
+          u.email+
+          ' · '+
+          u.perfil
+        );
+
+      form(
+        box,
+        uf,
+        u,
+        async q=>{
+          await call(
+            'usuarioSalvar',
+            q,
+            true
+          );
+
+          await go('ADM');
+        }
+      );
+    });
+
+    const add=
+      details(
+        users,
+        'Autorizar usuário'
+      );
+
+    form(
+      add,
+      uf,
+      {
+        ativo:true
+      },
+      async q=>{
+        await call(
+          'usuarioSalvar',
+          q,
+          true
+        );
+
+        await go('ADM');
+      }
+    );
+  };
 })();
 </script>
