@@ -255,6 +255,103 @@ input[type=file]{
   background:#e3f4ef;
   border:1px solid #b6ded2
 }
+body.processing-active{
+  overflow:hidden
+}
+.processing-overlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(10,35,49,.54);
+  backdrop-filter:blur(6px)
+}
+.processing-panel{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  gap:18px;
+  width:min(520px,calc(100vw - 32px));
+  padding:22px 24px;
+  border:1px solid rgba(178,211,217,.95);
+  border-radius:15px;
+  color:var(--navy);
+  background:
+    radial-gradient(circle at 0 0,rgba(8,121,135,.09),transparent 34%),
+    rgba(255,255,255,.98);
+  box-shadow:0 24px 70px rgba(4,27,40,.28)
+}
+.processing-visual{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:86px;
+  height:86px
+}
+.processing-spinner{
+  position:absolute;
+  inset:0;
+  border:7px solid #dcecef;
+  border-top-color:var(--teal);
+  border-right-color:#5aaab3;
+  border-radius:50%;
+  animation:pda-processing-spin .9s linear infinite
+}
+.processing-percent{
+  position:relative;
+  z-index:1;
+  color:#0a5d68;
+  font-size:20px;
+  letter-spacing:-.03em
+}
+.processing-copy{
+  min-width:0
+}
+.processing-title{
+  margin:0 0 5px;
+  color:#123e52;
+  font-size:18px;
+  line-height:1.15
+}
+.processing-message{
+  min-height:20px;
+  margin:0 0 4px;
+  color:#284f61;
+  font-size:13px;
+  font-weight:650
+}
+.processing-remaining{
+  margin:0 0 11px;
+  color:#607985;
+  font-size:11px
+}
+.processing-progress{
+  position:relative;
+  width:100%;
+  height:10px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#dfecee;
+  box-shadow:inset 0 1px 2px rgba(15,48,70,.08)
+}
+.processing-progress-bar{
+  width:0;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#0b7582,#1594a0);
+  transition:width .32s ease
+}
+.processing-note{
+  display:block;
+  margin-top:8px;
+  color:#748992;
+  font-size:9px;
+  line-height:1.25
+}
+@keyframes pda-processing-spin{
+  to{transform:rotate(360deg)}
+}
 .hint{
   color:var(--muted);
   font-size:11.5px;
@@ -382,6 +479,23 @@ footer{
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:540px){
+  .processing-panel{
+    grid-template-columns:1fr;
+    gap:10px;
+    padding:18px;
+    text-align:center
+  }
+  .processing-visual{
+    width:74px;
+    height:74px;
+    margin:0 auto
+  }
+  .processing-percent{
+    font-size:17px
+  }
+  .processing-message{
+    min-height:0
+  }
   .grid{grid-template-columns:1fr}
   .card{padding:12px}
   header img{width:46px;height:46px}
