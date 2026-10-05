@@ -1,15 +1,360 @@
 <script>
-window.PDA_MODULES.PESS = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
-return async function(ctx){const root=ctx.root;
-root.append(el('h2','Pessoas'));
-const search=card('Consultar cadastro');
-root.append(search);
-await searchUI(search,p=>go('ACOMP',p.id));
-const edit=details(root,'Cadastrar pessoa');
-edit.append(el('p','CPF e nome são sempre obrigatórios. Campos incompletos somente poderão ser gravados após autorização de rascunhos em Administração.','hint'));
-form(edit,personFields(),{uf:'RS'},async p=>{const result=await call('pessoaSalvar',p,true);
-await go('ACOMP',result.id);
-},'Cadastrar pessoa');
-};
+window.PDA_MODULES.PESS = (()=>{
+  const {
+    el,card,details,form,call,go,personFields,searchUI,status
+  }=App;
+
+  const DOCUMENT_LABELS={
+    RG_CPF:'Documento de identidade e CPF',
+    RESIDENCIA:'Comprovante de residência',
+    PROCESSO_ADMINISTRATIVO:'Processo administrativo',
+    PESCA:'Documentos de pesca',
+    PROCURACAO:'Procuração',
+    HIPOSSUFICIENCIA:'Declaração de hipossuficiência'
+  };
+
+  const SALARIO_MINIMO_2025=1518.00;
+
+  function moneyBR_(value){
+    return Number(value||0).toLocaleString('pt-BR',{
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
+  }
+
+  function readFile_(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+
+      reader.onload=()=>{
+        const result=String(reader.result||'');
+        const parts=result.split(',');
+
+        if(parts.length<2){
+          reject(new Error('Não foi possível ler o arquivo.'));
+          return;
+        }
+
+        resolve(parts[1]);
+      };
+
+      reader.onerror=()=>reject(reader.error||new Error('Erro ao ler o arquivo.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function mime_(file){
+    if(file.type)return file.type;
+
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+
+    if(ext==='pdf')return 'application/pdf';
+    if(ext==='jpg'||ext==='jpeg')return 'image/jpeg';
+    if(ext==='png')return 'image/png';
+
+    return '';
+  }
+
+  function documentBox_(categoria){
+    const box=card(DOCUMENT_LABELS[categoria]||categoria);
+    const label=el('label',undefined,'field');
+
+    label.append(el('span','Selecionar arquivo(s)'));
+
+    const input=el('input');
+    input.type='file';
+    input.multiple=true;
+    input.accept='.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+
+    label.append(input);
+    box.append(label);
+
+    return {box,input};
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+    root.append(el('h2','Pessoas'));
+
+    const search=card('Consultar cadastro');
+    root.append(search);
+    await searchUI(search,p=>go('ACOMP',p.id));
+
+    const edit=details(root,'Cadastrar pessoa');
+
+    edit.append(el(
+      'p',
+      'Preencha os dados da pessoa e anexe os documentos disponíveis. O cadastro e os arquivos são gravados primeiro; somente depois o sistema gera a minuta.',
+      'hint'
+    ));
+
+    const uploads={};
+    let residenceDate=null;
+    let residenceThird=null;
+
+    const personForm=form(
+      edit,
+      personFields(),
+      {uf:'RS'},
+      async p=>{
+        const qtd=Number(p.parcelasNaoRecebidas);
+
+        if(!Number.isInteger(qtd)||qtd<1||qtd>4){
+          throw new Error('Informe quantas parcelas do seguro-defeso não foram recebidas.');
+        }
+
+        const saved=await call('pessoaSalvar',p,true);
+        const enviados=[];
+        const erros=[];
+
+        for(const [categoria,input] of Object.entries(uploads)){
+          const files=Array.from(input.files||[]);
+
+          for(const file of files){
+            try{
+              if(file.size>5*1024*1024){
+                throw new Error('Arquivo maior que 5 MB.');
+              }
+
+              const mime=mime_(file);
+
+              if(!['application/pdf','image/jpeg','image/png'].includes(mime)){
+                throw new Error('Formato não permitido. Use PDF, JPEG ou PNG.');
+              }
+
+              if(
+                categoria==='RESIDENCIA'&&
+                !String(residenceDate&&residenceDate.value||'').trim()
+              ){
+                throw new Error('Informe o vencimento do comprovante de residência.');
+              }
+
+              const base64=await readFile_(file);
+
+              await call('pessoaUpload',{
+                pessoaId:saved.id,
+                categoria,
+                base64,
+                mime,
+                vencimento:categoria==='RESIDENCIA'
+                  ?String(residenceDate.value||'').trim()
+                  :'',
+                terceiro:categoria==='RESIDENCIA'
+                  ?!!residenceThird.checked
+                  :false
+              },true);
+
+              enviados.push(
+                (DOCUMENT_LABELS[categoria]||categoria)+
+                ' — '+
+                file.name
+              );
+
+            }catch(e){
+              erros.push(
+                (DOCUMENT_LABELS[categoria]||categoria)+
+                ' — '+
+                file.name+
+                ': '+
+                (e.message||String(e))
+              );
+            }
+          }
+        }
+
+        if(erros.length){
+          App.state.selection=saved.id;
+          await go('ACOMP',saved.id);
+
+          status(
+            'Cadastro salvo, mas existem documentos pendentes.\n\n'+
+            'Arquivos enviados com sucesso: '+
+            (enviados.length?enviados.join(', '):'nenhum')+
+            '\n\nFalhas:\n'+
+            erros.join('\n')+
+            '\n\nA minuta não foi gerada.',
+            true
+          );
+
+          return;
+        }
+
+        try{
+          await call(
+            'pessoaFinalizarCadastro',
+            {pessoaId:saved.id},
+            true
+          );
+
+        }catch(e){
+          App.state.selection=saved.id;
+          await go('ACOMP',saved.id);
+
+          status(
+            'Cadastro e documentos foram salvos corretamente.\n\n'+
+            'A minuta não foi gerada:\n'+
+            (e.message||String(e)),
+            true
+          );
+
+          return;
+        }
+
+        App.state.selection=saved.id;
+        await go('ACOMP',saved.id);
+        status('Cadastro, documentos e minuta concluídos com sucesso.');
+      },
+      'Salvar cadastro e documentos'
+    );
+
+    const entidade=personForm.elements.namedItem('entidade');
+    const outraEntidade=personForm.elements.namedItem('outraEntidade');
+
+    if(entidade&&outraEntidade){
+      const outraWrap=outraEntidade.closest('label');
+
+      const syncOutra=()=>{
+        const show=entidade.value==='Outro';
+
+        if(outraWrap){
+          outraWrap.hidden=!show;
+        }
+
+        outraEntidade.required=show;
+
+        if(!show){
+          outraEntidade.value='';
+        }
+      };
+
+      entidade.addEventListener('change',syncOutra);
+      syncOutra();
+    }
+
+    const defeso=card('Cálculo do Seguro-Defeso 2025');
+
+    defeso.append(el(
+      'p',
+      'Cada parcela corresponde a um salário mínimo de R$ 1.518,00. O valor da causa é calculado automaticamente pela quantidade informada no cadastro.',
+      'hint'
+    ));
+
+    const resumo=el('div',undefined,'grid');
+
+    const parcelaBox=card('Valor de cada parcela');
+    parcelaBox.append(el('strong','R$ 1.518,00'));
+
+    const causaBox=card('Valor da causa');
+    const causaText=el('strong','Selecione a quantidade de parcelas');
+    causaBox.append(causaText);
+
+    resumo.append(parcelaBox,causaBox);
+    defeso.append(resumo);
+
+    const parcelasSelect=
+      personForm.elements.namedItem(
+        'parcelasNaoRecebidas'
+      );
+
+    const atualizarCalculo=()=>{
+      const qtd=
+        Number(
+          parcelasSelect&&
+          parcelasSelect.value||
+          0
+        );
+
+      causaText.textContent=
+        qtd
+          ?'R$ '+moneyBR_(qtd*SALARIO_MINIMO_2025)
+          :'Selecione a quantidade de parcelas';
+    };
+
+    if(parcelasSelect){
+      parcelasSelect.addEventListener('change',atualizarCalculo);
+      atualizarCalculo();
+    }
+
+    const documents=el('section',undefined,'card');
+
+    documents.append(el('h3','Documentos da pessoa'));
+
+    documents.append(el(
+      'p',
+      'Os documentos são armazenados diretamente na pasta individual da pessoa e podem ser reutilizados nos atendimentos vinculados ao cadastro.',
+      'hint'
+    ));
+
+    documents.append(el(
+      'p',
+      'Formatos permitidos: PDF, JPEG e PNG. Limite de 5 MB por arquivo.',
+      'hint'
+    ));
+
+    App.state.boot.config.categorias.forEach(categoria=>{
+      const item=documentBox_(categoria);
+      uploads[categoria]=item.input;
+
+      if(categoria==='RESIDENCIA'){
+        const residenceGrid=el('div',undefined,'grid');
+
+        const dateLabel=el('label',undefined,'field');
+        dateLabel.append(el('span','Vencimento do comprovante'));
+
+        residenceDate=el('input');
+        residenceDate.type='text';
+        residenceDate.placeholder='DD/MM/AAAA';
+
+        dateLabel.append(residenceDate);
+
+        const thirdLabel=el('label',undefined,'field');
+        thirdLabel.append(el('span','Comprovante em nome de terceiro?'));
+
+        residenceThird=el('input');
+        residenceThird.type='checkbox';
+
+        thirdLabel.append(residenceThird);
+
+        residenceGrid.append(
+          dateLabel,
+          thirdLabel
+        );
+
+        item.box.append(
+          residenceGrid
+        );
+      }
+
+      documents.append(item.box);
+    });
+
+    documents.append(el(
+      'p',
+      'A minuta somente é gerada depois que o cadastro e todos os arquivos selecionados terminarem de ser gravados sem falhas.',
+      'hint'
+    ));
+
+    const actions=
+      personForm.querySelector(
+        '.actions'
+      );
+
+    if(actions){
+      personForm.insertBefore(
+        defeso,
+        actions
+      );
+
+      personForm.insertBefore(
+        documents,
+        actions
+      );
+    }else{
+      personForm.append(
+        defeso,
+        documents
+      );
+    }
+  };
 })();
 </script>
