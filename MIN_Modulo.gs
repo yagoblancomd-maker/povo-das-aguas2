@@ -9,6 +9,7 @@ const PERSON_TEMPLATE_PLACEHOLDERS=[
 ];
 
 const OPTIONAL_TEMPLATE_PLACEHOLDERS=['JURISDICAO'];
+const INITIAL_PETITION_DOCUMENT_CATEGORY='INICIAL_SEGURO_DEFESO_2025';
 
 const TEMPLATE_PLACEHOLDER_ALIASES={
   'JURISDIÇÃO':'JURISDICAO',
@@ -436,6 +437,71 @@ function generatePersonDraft_(ctx,p){
     finalName
   );
 
+  /*
+   * Mantém somente o PDF atual da inicial com esse nome na pasta da pessoa.
+   */
+  const samePdfs=
+    folder.getFilesByName(
+      finalName+'.pdf'
+    );
+
+  while(samePdfs.hasNext()){
+    const current=
+      samePdfs.next();
+
+    if(
+      current.getId()!==pdf.getId()&&
+      current.getMimeType()===MimeType.PDF
+    ){
+      current.setTrashed(true);
+    }
+  }
+
+  /*
+   * A petição inicial final em PDF integra o acervo "Documentos da pessoa".
+   * O ID é estável por pessoa para evitar duplicação em novas gerações.
+   */
+  const initialDocumentId=
+    id_(
+      'DOC',
+      'INICIAL2025:'+p.id
+    );
+
+  const previousInitialDocument=
+    all_('Documentos')
+      .find(d=>d.id===initialDocumentId);
+
+  const initialDocument=
+    change_(
+      ctx,
+      'Documentos',
+      initialDocumentId,
+      {
+        atendimentoId:personOwnerKey_(p.id),
+        categoria:INITIAL_PETITION_DOCUMENT_CATEGORY,
+        fileId:pdf.getId(),
+        url:pdf.getUrl(),
+        nome:pdf.getName(),
+        hash:driveFileDigest_(pdf),
+        mime:MimeType.PDF,
+        substituiId:'',
+        vigente:true,
+        vencimento:'',
+        terceiro:false,
+        conferido:true,
+        declaracaoTerceiro:false,
+        processoCompleto:false,
+        anexoPresente:true,
+        rogo:false,
+        testemunhas:false,
+        observacoes:
+          'Petição inicial do Seguro-Defeso 2025 gerada automaticamente pelo sistema.'
+      },
+      previousInitialDocument
+        ?previousInitialDocument.versao
+        :undefined
+    );
+
   return {
     fileId:file.getId(),
     url:file.getUrl(),
@@ -443,6 +509,7 @@ function generatePersonDraft_(ctx,p){
     pdfFileId:pdf.getId(),
     pdfUrl:pdf.getUrl(),
     pdfNome:pdf.getName(),
+    documentoId:initialDocument.id,
     parcelas:Number(p.parcelasNaoRecebidas),
     salarioMinimo:SEGURO_DEFESO_2025.salarioMinimo,
     valorCausa:valorCausaDefeso_(p.parcelasNaoRecebidas),
