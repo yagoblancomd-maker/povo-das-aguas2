@@ -1,10 +1,22 @@
 function personSave_(ctx,q){
   const before=q.id?get_('Pessoas',q.id):null;
 
-  if(before)authorize_('retificacao');
+  if(before){
+    authorizePersonRetification_(before);
+  }
 
   const c=cfg_();
   const p=validatePerson_(q,c,c.rascunhos!=='PERMITIR');
+
+  p.criadoPor=
+    before
+      ?(
+        before.criadoPor||
+        personCreatorEmail_(before)||
+        before.usuario||
+        ''
+      )
+      :ctx.email;
 
   const other=all_('Pessoas').find(r=>r.cpf===p.cpf&&r.id!==q.id);
   if(other)fail_('CPF já cadastrado. Abra a pessoa existente: '+other.id);
