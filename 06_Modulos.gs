@@ -3,8 +3,9 @@ const MODULES={
   PESS:'Novo Cadastro',
   ACOMP:'Consultar Cadastros',
   DEFESO:'Consultar Defeso 2025',
+  TAREFAS:'Tarefas',
   MIN:'Minutas',
-  DIST:'Distribuição',
+  DIST:'Atribuir tarefas',
   PROC:'Processos',
   ADM:'Administração'
 };
@@ -14,8 +15,9 @@ const MODULE_PERMISSION=Object.freeze({
   PESS:'cadastro',
   ACOMP:'consulta',
   DEFESO:'consulta',
+  TAREFAS:'distribuicao',
   MIN:'minuta',
-  DIST:'minuta',
+  DIST:'gestao_distribuicao',
   PROC:'consulta',
   ADM:'administracao'
 });
@@ -200,6 +202,9 @@ function api(action,q){
     pessoa:()=>get_('Pessoas',q.id),
     ficha:()=>dossier_(q),
     painel:()=>dashboard_(),
+    distribuicaoFila:()=>distributionQueue_(),
+    tarefasMinhas:()=>myDistributionTasks_(),
+    tarefaDistribuicaoDetalhe:()=>distributionTaskDetail_(q),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
       usuarios:all_('Usuarios').map(u=>
@@ -254,18 +259,25 @@ function api(action,q){
     seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_],
-    usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_]
+    usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
+    tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
+    tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
+    tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_]
   };
 
   if(reads[action]){
-    const readPermission=
-      action==='admin'
-        ?'administracao'
-        :action==='documentosImportar'
-          ?'cadastro'
-          :'consulta';
+    const readPermissions={
+      admin:'administracao',
+      documentosImportar:'cadastro',
+      distribuicaoFila:'gestao_distribuicao',
+      tarefasMinhas:'distribuicao',
+      tarefaDistribuicaoDetalhe:'distribuicao'
+    };
 
-    authorize_(readPermission);
+    authorize_(
+      readPermissions[action]||
+      'consulta'
+    );
     return lock_(()=>{
       resetData_();
       atualizarJurisdicoes_();
