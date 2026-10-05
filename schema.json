@@ -24,7 +24,8 @@
       "analfabeto",
       "parcelasNaoRecebidas",
       "jurisdicao",
-      "cep"
+      "cep",
+      "email"
     ],
     "Atendimentos": [
       "pessoaId",
