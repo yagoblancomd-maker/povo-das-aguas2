@@ -61,6 +61,23 @@ if(d.length<=2)return '('+d;
 if(d.length<=7)return '('+d.slice(0,2)+') '+d.slice(2);
 return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7);
 }
+ function isValidDateBR_(value){const s=String(value||'').trim();
+const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+if(!m)return false;
+const d=Number(m[1]),mo=Number(m[2]),y=Number(m[3]);
+const parsed=new Date(y,mo-1,d);
+parsed.setHours(0,0,0,0);
+return parsed.getFullYear()===y&&parsed.getMonth()===mo-1&&parsed.getDate()===d;
+}
+ function bindDateBRValidation_(n,message='Informe uma data válida no formato DD/MM/AAAA.'){const validate=()=>{
+const value=String(n.value||'').trim();
+n.setCustomValidity(!value||isValidDateBR_(value)?'':message);
+};
+n.addEventListener('input',validate);
+n.addEventListener('blur',validate);
+n.addEventListener('change',validate);
+validate();
+}
  function applyMask_(n,mask){if(!mask)return;
 const fn=mask==='cpf'?maskCpf_:mask==='date'?maskDate_:mask==='cep'?maskCep_:mask==='phone'?maskPhone_:null;
 if(!fn)return;
@@ -103,6 +120,7 @@ if(f.suggestions&&!f.options){
   wrap.append(datalist);
 }
 applyMask_(n,f.mask);
+if(f.dateBR)bindDateBRValidation_(n,f.dateMessage||'Informe uma data válida no formato DD/MM/AAAA.');
 if(f.birthDate){
   const validateBirth=()=>{
     const value=String(n.value||'').trim();
@@ -251,13 +269,14 @@ results.replaceChildren();
 table(results,[{key:'nome',label:'Nome'},{key:'cpf',label:'CPF'},{key:'cidade',label:'Município'}],rows,r=>[button('Abrir',()=>onSelect(r))]);
 }catch(e){}};
 }
- function guidance(parent){parent.append(el('p','Comprovante em nome de terceiro: o titular deve declarar, de próprio punho e na própria fatura, que o requerente reside no endereço. Se constar analfabetismo no documento de identidade, conferir procuração assinada por uma pessoa a rogo e duas testemunhas, com identificação das condições. O processo administrativo deve estar completo, incluindo os documentos da solicitação e o anexo exigido.','hint'));
+ function guidance(parent){parent.append(el('p','Comprovante em nome de terceiro: é obrigatória a carteira de identidade do titular da residência e deve ser conferido que há declaração de residência no próprio documento. Se constar analfabetismo no documento de identidade, conferir procuração assinada por uma pessoa a rogo e duas testemunhas, com identificação das condições. O processo administrativo deve estar completo, incluindo os documentos da solicitação e o anexo exigido.','hint'));
 }
  async function uploadForm(parent,a,docs){const d=details(parent,'Anexar ou substituir documentos');
 guidance(d);
 d.append(el('p','PDF, JPEG ou PNG; até 5 MB por arquivo. Podem ser anexados vários arquivos por categoria. Para substituir, selecione um único arquivo e informe o ID da versão vigente.','hint'));
-const documentLabels={RG_CPF:'Documento de identidade e CPF',RESIDENCIA:'Comprovante de residência',PROCESSO_ADMINISTRATIVO:'Processo administrativo',PESCA:'Documentos de pesca',PROCURACAO:'Procuração',HIPOSSUFICIENCIA:'Declaração de hipossuficiência'};
-const fields=[{key:'categoria',label:'Categoria',options:boot.config.categorias.map(v=>({value:v,label:documentLabels[v]||v})),required:true},{key:'vencimento',label:'Vencimento do comprovante',placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric'},{key:'terceiro',label:'Comprovante em nome de terceiro',type:'checkbox'},{key:'substituiId',label:'ID do documento a substituir (opcional)'}];
+const documentLabels={RG_CPF:'Documento de identidade e CPF',RESIDENCIA:'Comprovante de residência',IDENTIDADE_TITULAR_RESIDENCIA:'Carteira de identidade do titular da residência',PROCESSO_ADMINISTRATIVO:'Processo administrativo',PESCA:'Documentos de pesca',PROCURACAO:'Procuração',HIPOSSUFICIENCIA:'Declaração de hipossuficiência'};
+const uploadCategories=boot.config.categorias.concat(['IDENTIDADE_TITULAR_RESIDENCIA']);
+const fields=[{key:'categoria',label:'Categoria',options:uploadCategories.map(v=>({value:v,label:documentLabels[v]||v})),required:true},{key:'vencimento',label:'Vencimento do comprovante',placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric',dateBR:true},{key:'terceiro',label:'Comprovante em nome de terceiro',type:'checkbox'},{key:'declaracaoTerceiro',label:'Há declaração de residência no documento?',type:'checkbox'},{key:'substituiId',label:'ID do documento a substituir (opcional)'}];
 const f=form(d,fields,{},async values=>{const files=Array.from(file.files);
 if(!files.length)throw Error('Selecione os arquivos.');
 if(values.substituiId&&files.length!==1)throw Error('Substitua um arquivo por vez.');
@@ -305,7 +324,7 @@ nav.append(b);
 await go('PAINEL');
 }catch(e){status(e.message||String(e),true);
 }}
- return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,state:{get selection(){return selection;
+ return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
