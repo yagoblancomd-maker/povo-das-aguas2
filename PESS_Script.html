@@ -16,10 +16,50 @@ window.PDA_MODULES.PESS = (()=>{
   const SALARIO_MINIMO_2025=1518.00;
 
   function moneyBR_(value){
-    return Number(value||0).toLocaleString('pt-BR',{
-      minimumFractionDigits:2,
-      maximumFractionDigits:2
-    });
+    return Number(value||0).toLocaleString(
+      'pt-BR',
+      {
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      }
+    );
+  }
+
+  function dateBR_(value){
+    const s=String(value||'').slice(0,10);
+
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      return String(value||'');
+    }
+
+    return s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4);
+  }
+
+  function maskDateInput_(input){
+    const sync=()=>{
+      const d=String(input.value||'')
+        .replace(/\D/g,'')
+        .slice(0,8);
+
+      if(d.length<=2){
+        input.value=d;
+      }else if(d.length<=4){
+        input.value=
+          d.slice(0,2)+
+          '/'+
+          d.slice(2);
+      }else{
+        input.value=
+          d.slice(0,2)+
+          '/'+
+          d.slice(2,4)+
+          '/'+
+          d.slice(4);
+      }
+    };
+
+    input.addEventListener('input',sync);
+    input.addEventListener('blur',sync);
   }
 
   function readFile_(file){
@@ -38,7 +78,11 @@ window.PDA_MODULES.PESS = (()=>{
         resolve(parts[1]);
       };
 
-      reader.onerror=()=>reject(reader.error||new Error('Erro ao ler o arquivo.'));
+      reader.onerror=()=>reject(
+        reader.error||
+        new Error('Erro ao ler o arquivo.')
+      );
+
       reader.readAsDataURL(file);
     });
   }
@@ -46,7 +90,9 @@ window.PDA_MODULES.PESS = (()=>{
   function mime_(file){
     if(file.type)return file.type;
 
-    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    const ext=
+      (file.name.split('.').pop()||'')
+        .toLowerCase();
 
     if(ext==='pdf')return 'application/pdf';
     if(ext==='jpg'||ext==='jpeg')return 'image/jpeg';
@@ -56,52 +102,344 @@ window.PDA_MODULES.PESS = (()=>{
   }
 
   function documentBox_(categoria){
-    const box=card(DOCUMENT_LABELS[categoria]||categoria);
-    const label=el('label',undefined,'field');
+    const title=
+      DOCUMENT_LABELS[categoria]||
+      categoria;
 
-    label.append(el('span','Selecionar arquivo(s) *'));
+    const box=el('details');
+    box.open=true;
+
+    const summary=el(
+      'summary',
+      title+' — Pendente'
+    );
+
+    box.append(summary);
+
+    const label=el(
+      'label',
+      undefined,
+      'field'
+    );
+
+    label.append(
+      el(
+        'span',
+        'Selecionar arquivo(s) *'
+      )
+    );
 
     const input=el('input');
     input.type='file';
     input.multiple=true;
     input.required=true;
-    input.accept='.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+    input.accept=
+      '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
     label.append(input);
     box.append(label);
 
-    return {box,input};
+    let extraReady=()=>true;
+
+    const sync=()=>{
+      const count=
+        input.files
+          ?input.files.length
+          :0;
+
+      const ready=
+        count>0&&
+        extraReady();
+
+      if(!count){
+        summary.textContent=
+          title+
+          ' — Pendente';
+        return;
+      }
+
+      if(ready){
+        summary.textContent=
+          title+
+          ' — '+
+          (
+            count===1
+              ?'Documento inserido'
+              :count+' documentos inseridos'
+          );
+
+        box.open=false;
+      }else{
+        summary.textContent=
+          title+
+          ' — Documento inserido; complete os dados';
+        box.open=true;
+      }
+    };
+
+    input.addEventListener(
+      'change',
+      sync
+    );
+
+    return {
+      box,
+      input,
+      sync,
+      setExtraReady(fn){
+        extraReady=fn;
+        sync();
+      }
+    };
+  }
+
+  function apiRecordText_(r){
+    return [
+      'ID: '+(r.id||'—'),
+      'CPF: '+(r.cpfFormatado||'—'),
+      'NIS: '+(r.nis||'—'),
+      'Nome: '+(r.nome||'—'),
+      'Código IBGE: '+(r.codigoIBGE||'—'),
+      'Município: '+(r.nomeIBGE||'—'),
+      'Código da região: '+(r.codigoRegiao||'—'),
+      'Região: '+(r.nomeRegiao||'—'),
+      'País: '+(r.pais||'—'),
+      'UF: '+(r.ufSigla||'—'),
+      'Nome da UF: '+(r.ufNome||'—'),
+      'Portaria: '+(r.portaria||'—'),
+      'Mês de referência: '+(dateBR_(r.dataMesReferencia)||'—'),
+      'Data do saque: '+(dateBR_(r.dataSaque)||'—'),
+      'Data de emissão da parcela: '+(dateBR_(r.dataEmissaoParcela)||'—'),
+      'Situação: '+(r.situacao||'—'),
+      'RGP: '+(r.rgp||'—'),
+      'Parcela: '+(r.parcela||'—'),
+      'Valor: R$ '+moneyBR_(r.valor)
+    ].join('\n');
+  }
+
+  function showSeguroDefesoDialog_(consulta){
+    const dialog=el(
+      'dialog',
+      undefined,
+      'pess-api-dialog'
+    );
+
+    dialog.append(
+      el(
+        'h2',
+        'Consulta Seguro-Defeso — Portal da Transparência'
+      )
+    );
+
+    dialog.append(
+      el(
+        'p',
+        'Fonte: '+
+        consulta.fonte+
+        '. Consulta realizada por API oficial. Os dados abaixo correspondem somente aos registros cujo mês de referência está entre 01/01/2025 e 31/12/2025.',
+        'hint'
+      )
+    );
+
+    const stats=el(
+      'div',
+      undefined,
+      'stats'
+    );
+
+    const totalRegistros=el(
+      'div',
+      undefined,
+      'stat'
+    );
+
+    totalRegistros.append(
+      el(
+        'strong',
+        String(consulta.quantidade||0)
+      ),
+      el(
+        'span',
+        'registros de 2025'
+      )
+    );
+
+    const totalValor=el(
+      'div',
+      undefined,
+      'stat'
+    );
+
+    totalValor.append(
+      el(
+        'strong',
+        'R$ '+moneyBR_(consulta.valorTotal)
+      ),
+      el(
+        'span',
+        'valor total localizado'
+      )
+    );
+
+    const totalFora=el(
+      'div',
+      undefined,
+      'stat'
+    );
+
+    totalFora.append(
+      el(
+        'strong',
+        String(consulta.registrosForaPeriodo||0)
+      ),
+      el(
+        'span',
+        'registros fora de 2025 desconsiderados'
+      )
+    );
+
+    stats.append(
+      totalRegistros,
+      totalValor,
+      totalFora
+    );
+
+    dialog.append(stats);
+
+    if(!consulta.registros.length){
+      dialog.append(
+        el(
+          'p',
+          'Nenhum registro com mês de referência em 2025 foi localizado para o CPF/NIS consultado.',
+          'warn'
+        )
+      );
+    }else{
+      consulta.registros.forEach(
+        (r,index)=>{
+          const d=el('details');
+
+          d.append(
+            el(
+              'summary',
+              (
+                r.parcela
+                  ?'Parcela '+r.parcela
+                  :'Registro '+(index+1)
+              )+
+              ' — '+
+              (
+                dateBR_(r.dataMesReferencia)||
+                'sem mês de referência'
+              )+
+              ' — R$ '+
+              moneyBR_(r.valor)
+            )
+          );
+
+          d.append(
+            el(
+              'pre',
+              apiRecordText_(r)
+            )
+          );
+
+          dialog.append(d);
+        }
+      );
+    }
+
+    dialog.append(
+      el(
+        'p',
+        'Ao salvar o cadastro, uma nova consulta oficial será realizada e o relatório completo será gravado na pasta da pessoa em Google Docs e PDF.',
+        'hint'
+      )
+    );
+
+    const actions=el(
+      'div',
+      undefined,
+      'actions'
+    );
+
+    actions.append(
+      (()=> {
+        const b=el(
+          'button',
+          'Fechar'
+        );
+
+        b.type='button';
+        b.onclick=()=>dialog.close();
+
+        return b;
+      })()
+    );
+
+    dialog.append(actions);
+    document.body.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove()
+    );
+
+    dialog.showModal();
   }
 
   return async function(ctx){
     const root=ctx.root;
-    root.append(el('h2','Pessoas'));
 
-    const search=card('Consultar cadastro');
-    root.append(search);
-    await searchUI(search,p=>go('ACOMP',p.id));
+    root.append(
+      el(
+        'h2',
+        'Pessoas'
+      )
+    );
 
-    const edit=details(root,'Cadastrar pessoa');
+    /*
+     * O cadastro vem primeiro.
+     */
+    const edit=details(
+      root,
+      'Cadastrar pessoa'
+    );
 
-    edit.append(el(
-      'p',
-      'Preencha os dados da pessoa e anexe todos os documentos obrigatórios. O sistema não inicia o salvamento enquanto faltar qualquer grupo documental ou o vencimento do comprovante de residência; depois dos documentos gravados, gera automaticamente a minuta da petição inicial.',
-      'hint'
-    ));
+    edit.open=true;
+
+    edit.append(
+      el(
+        'p',
+        'Preencha os dados da pessoa e anexe todos os documentos obrigatórios. O sistema não inicia o salvamento enquanto faltar qualquer grupo documental ou o vencimento do comprovante de residência; depois dos documentos gravados, gera automaticamente a minuta da petição inicial.',
+        'hint'
+      )
+    );
 
     const uploads={};
     let residenceDate=null;
     let residenceThird=null;
+    let seguroDefesoConsulta=null;
+    let apiInfoText=null;
 
     const personForm=form(
       edit,
       personFields(),
       {uf:'RS'},
       async p=>{
-        const qtd=Number(p.parcelasNaoRecebidas);
+        const qtd=
+          Number(
+            p.parcelasNaoRecebidas
+          );
 
-        if(!Number.isInteger(qtd)||qtd<1||qtd>4){
-          throw new Error('Informe quantas parcelas do seguro-defeso não foram recebidas.');
+        if(
+          !Number.isInteger(qtd)||
+          qtd<1||
+          qtd>4
+        ){
+          throw new Error(
+            'Informe quantas parcelas do seguro-defeso não foram recebidas.'
+          );
         }
 
         if(
@@ -115,13 +453,20 @@ window.PDA_MODULES.PESS = (()=>{
 
         const faltantes=
           Object.entries(uploads)
-            .filter(([,input])=>!input.files||!input.files.length)
-            .map(([categoria])=>DOCUMENT_LABELS[categoria]||categoria);
+            .filter(([,input])=>
+              !input.files||
+              !input.files.length
+            )
+            .map(([categoria])=>
+              DOCUMENT_LABELS[categoria]||
+              categoria
+            );
 
         if(faltantes.length){
           throw new Error(
             'Anexe todos os documentos obrigatórios antes de salvar: '+
-            faltantes.join(', ')+'.'
+            faltantes.join(', ')+
+            '.'
           );
         }
 
@@ -137,73 +482,121 @@ window.PDA_MODULES.PESS = (()=>{
           );
         }
 
-        const saved=await call('pessoaSalvar',p,true);
+        const saved=
+          await call(
+            'pessoaSalvar',
+            p,
+            true
+          );
+
         const enviados=[];
         const erros=[];
 
-        for(const [categoria,input] of Object.entries(uploads)){
-          const files=Array.from(input.files||[]);
+        for(
+          const [categoria,input]
+          of Object.entries(uploads)
+        ){
+          const files=
+            Array.from(
+              input.files||
+              []
+            );
 
           for(const file of files){
             try{
-              if(file.size>5*1024*1024){
-                throw new Error('Arquivo maior que 5 MB.');
+              if(
+                file.size>
+                5*1024*1024
+              ){
+                throw new Error(
+                  'Arquivo maior que 5 MB.'
+                );
               }
 
-              const mime=mime_(file);
-
-              if(!['application/pdf','image/jpeg','image/png'].includes(mime)){
-                throw new Error('Formato não permitido. Use PDF, JPEG ou PNG.');
-              }
+              const mime=
+                mime_(file);
 
               if(
-                categoria==='RESIDENCIA'&&
-                !String(residenceDate&&residenceDate.value||'').trim()
+                ![
+                  'application/pdf',
+                  'image/jpeg',
+                  'image/png'
+                ].includes(mime)
               ){
-                throw new Error('Informe o vencimento do comprovante de residência.');
+                throw new Error(
+                  'Formato não permitido. Use PDF, JPEG ou PNG.'
+                );
               }
 
-              const base64=await readFile_(file);
+              const base64=
+                await readFile_(file);
 
-              await call('pessoaUpload',{
-                pessoaId:saved.id,
-                categoria,
-                base64,
-                mime,
-                vencimento:categoria==='RESIDENCIA'
-                  ?String(residenceDate.value||'').trim()
-                  :'',
-                terceiro:categoria==='RESIDENCIA'
-                  ?!!residenceThird.checked
-                  :false
-              },true);
+              await call(
+                'pessoaUpload',
+                {
+                  pessoaId:saved.id,
+                  categoria,
+                  base64,
+                  mime,
+                  vencimento:
+                    categoria==='RESIDENCIA'
+                      ?String(
+                          residenceDate.value||
+                          ''
+                        ).trim()
+                      :'',
+                  terceiro:
+                    categoria==='RESIDENCIA'
+                      ?!!residenceThird.checked
+                      :false
+                },
+                true
+              );
 
               enviados.push(
-                (DOCUMENT_LABELS[categoria]||categoria)+
+                (
+                  DOCUMENT_LABELS[categoria]||
+                  categoria
+                )+
                 ' — '+
                 file.name
               );
 
             }catch(e){
               erros.push(
-                (DOCUMENT_LABELS[categoria]||categoria)+
+                (
+                  DOCUMENT_LABELS[categoria]||
+                  categoria
+                )+
                 ' — '+
                 file.name+
                 ': '+
-                (e.message||String(e))
+                (
+                  e.message||
+                  String(e)
+                )
               );
             }
           }
         }
 
         if(erros.length){
-          App.state.selection=saved.id;
-          await go('ACOMP',saved.id);
+          App.state.selection=
+            saved.id;
+
+          await go(
+            'ACOMP',
+            saved.id
+          );
 
           status(
             'Cadastro salvo, mas existem documentos pendentes.\n\n'+
             'Arquivos enviados com sucesso: '+
-            (enviados.length?enviados.join(', '):'nenhum')+
+            (
+              enviados.length
+                ?enviados.join(', ')
+                :'nenhum'
+            )+
             '\n\nFalhas:\n'+
             erros.join('\n')+
             '\n\nA minuta não foi gerada.',
@@ -216,79 +609,361 @@ window.PDA_MODULES.PESS = (()=>{
         try{
           await call(
             'pessoaFinalizarCadastro',
-            {pessoaId:saved.id},
+            {
+              pessoaId:saved.id
+            },
             true
           );
 
         }catch(e){
-          App.state.selection=saved.id;
-          await go('ACOMP',saved.id);
+          App.state.selection=
+            saved.id;
+
+          await go(
+            'ACOMP',
+            saved.id
+          );
 
           status(
             'Cadastro e documentos foram salvos corretamente.\n\n'+
             'A minuta não foi gerada:\n'+
-            (e.message||String(e)),
+            (
+              e.message||
+              String(e)
+            ),
             true
           );
 
           return;
         }
 
-        App.state.selection=saved.id;
-        await go('ACOMP',saved.id);
-        status('Cadastro, documentos e minuta concluídos com sucesso.');
+        let relatorio=null;
+        let relatorioErro='';
+
+        const cpfAtual=
+          String(p.cpf||'')
+            .replace(/\D/g,'');
+
+        if(
+          seguroDefesoConsulta&&
+          seguroDefesoConsulta.codigoConsultado===
+            cpfAtual
+        ){
+          try{
+            relatorio=
+              await call(
+                'seguroDefesoRelatorioGerar',
+                {
+                  pessoaId:saved.id,
+                  generation:
+                    crypto.randomUUID()
+                },
+                true
+              );
+          }catch(e){
+            relatorioErro=
+              e.message||
+              String(e);
+          }
+        }
+
+        App.state.selection=
+          saved.id;
+
+        await go(
+          'ACOMP',
+          saved.id
+        );
+
+        if(relatorioErro){
+          status(
+            'Cadastro, documentos e minuta concluídos.\n'+
+            'O relatório do Seguro-Defeso não pôde ser gravado: '+
+            relatorioErro,
+            true
+          );
+
+        }else if(relatorio){
+          status(
+            'Cadastro, documentos, minuta e relatório oficial do Seguro-Defeso concluídos com sucesso.'
+          );
+
+        }else{
+          status(
+            'Cadastro, documentos e minuta concluídos com sucesso.'
+          );
+        }
       },
       'Salvar cadastro, documentos e gerar minuta'
     );
 
-    const entidade=personForm.elements.namedItem('entidade');
-    const outraEntidade=personForm.elements.namedItem('outraEntidade');
+    /*
+     * Outra entidade só existe visualmente quando a opção Outro estiver ativa.
+     */
+    const entidade=
+      personForm
+        .elements
+        .namedItem(
+          'entidade'
+        );
 
-    if(entidade&&outraEntidade){
-      const outraWrap=outraEntidade.closest('label');
+    const outraEntidade=
+      personForm
+        .elements
+        .namedItem(
+          'outraEntidade'
+        );
+
+    if(
+      entidade&&
+      outraEntidade
+    ){
+      const outraWrap=
+        outraEntidade
+          .closest(
+            'label'
+          );
 
       const syncOutra=()=>{
-        const show=entidade.value==='Outro';
+        const show=
+          entidade.value===
+          'Outro';
 
         if(outraWrap){
-          outraWrap.hidden=!show;
+          outraWrap.hidden=
+            !show;
         }
 
-        outraEntidade.required=show;
+        outraEntidade.required=
+          show;
 
         if(!show){
-          outraEntidade.value='';
+          outraEntidade.value=
+            '';
         }
       };
 
-      entidade.addEventListener('change',syncOutra);
+      entidade.addEventListener(
+        'change',
+        syncOutra
+      );
+
       syncOutra();
     }
 
-    const defeso=card('Cálculo do Seguro-Defeso 2025');
+    /*
+     * Consulta oficial do Seguro-Defeso.
+     */
+    const apiCard=card(
+      'Consulta Seguro-Defeso — Portal da Transparência'
+    );
 
-    defeso.append(el(
+    apiCard.append(
+      el(
+        'p',
+        'Consulta pelo CPF na API oficial do Portal da Transparência. A janela mostra os registros de mês de referência entre 01/01/2025 e 31/12/2025. Se a consulta for realizada, o relatório será gravado na pasta da pessoa quando o cadastro for salvo.',
+        'hint'
+      )
+    );
+
+    apiInfoText=el(
       'p',
-      'Cada parcela corresponde a um salário mínimo de R$ 1.518,00. O valor da causa é calculado automaticamente pela quantidade informada no cadastro.',
-      'hint'
-    ));
+      App.state.boot.portalTransparencia&&
+      App.state.boot.portalTransparencia.configurada
+        ?'API configurada e disponível.'
+        :'API não configurada. Cadastre a chave em Administração.',
+      App.state.boot.portalTransparencia&&
+      App.state.boot.portalTransparencia.configurada
+        ?'badge'
+        :'warn'
+    );
 
-    const resumo=el('div',undefined,'grid');
+    apiCard.append(
+      apiInfoText
+    );
 
-    const parcelaBox=card('Valor de cada parcela');
-    parcelaBox.append(el('strong','R$ 1.518,00'));
+    const apiActions=el(
+      'div',
+      undefined,
+      'actions'
+    );
 
-    const causaBox=card('Valor da causa');
-    const causaText=el('strong','Selecione a quantidade de parcelas');
-    causaBox.append(causaText);
+    const apiButton=el(
+      'button',
+      'Consultar API'
+    );
 
-    resumo.append(parcelaBox,causaBox);
-    defeso.append(resumo);
+    apiButton.type='button';
+
+    apiButton.disabled=
+      !(
+        App.state.boot.portalTransparencia&&
+        App.state.boot.portalTransparencia.configurada
+      );
+
+    apiButton.onclick=
+      async()=>{
+        try{
+          const cpf=
+            personForm
+              .elements
+              .namedItem(
+                'cpf'
+              );
+
+          const codigo=
+            String(
+              cpf&&cpf.value||
+              ''
+            ).replace(/\D/g,'');
+
+          if(!/^\d{11}$/.test(codigo)){
+            throw new Error(
+              'Informe um CPF completo no formato 000.000.000-00 antes de consultar.'
+            );
+          }
+
+          apiInfoText.textContent=
+            'Consultando a API oficial...';
+
+          apiInfoText.className=
+            'badge';
+
+          const result=
+            await call(
+              'seguroDefesoConsultar',
+              {
+                codigo
+              }
+            );
+
+          seguroDefesoConsulta=
+            result;
+
+          apiInfoText.textContent=
+            'Consulta concluída: '+
+            result.quantidade+
+            ' registro(s) de 2025 localizado(s).';
+
+          showSeguroDefesoDialog_(
+            result
+          );
+
+        }catch(e){
+          apiInfoText.textContent=
+            e.message||
+            String(e);
+
+          apiInfoText.className=
+            'warn';
+
+          status(
+            e.message||
+            String(e),
+            true
+          );
+        }
+      };
+
+    apiActions.append(
+      apiButton
+    );
+
+    apiCard.append(
+      apiActions
+    );
+
+    const cpfInput=
+      personForm
+        .elements
+        .namedItem(
+          'cpf'
+        );
+
+    if(cpfInput){
+      cpfInput.addEventListener(
+        'input',
+        ()=>{
+          if(
+            seguroDefesoConsulta&&
+            seguroDefesoConsulta.codigoConsultado!==
+              String(
+                cpfInput.value||
+                ''
+              ).replace(/\D/g,'')
+          ){
+            seguroDefesoConsulta=null;
+
+            apiInfoText.textContent=
+              'CPF alterado. Faça uma nova consulta à API antes de salvar o relatório.';
+
+            apiInfoText.className=
+              'warn';
+          }
+        }
+      );
+    }
+
+    /*
+     * Cálculo do Seguro-Defeso.
+     */
+    const defeso=card(
+      'Cálculo do Seguro-Defeso 2025'
+    );
+
+    defeso.append(
+      el(
+        'p',
+        'Cada parcela corresponde a um salário mínimo de R$ 1.518,00. O valor da causa é calculado automaticamente pela quantidade informada no cadastro.',
+        'hint'
+      )
+    );
+
+    const resumo=el(
+      'div',
+      undefined,
+      'grid'
+    );
+
+    const parcelaBox=card(
+      'Valor de cada parcela'
+    );
+
+    parcelaBox.append(
+      el(
+        'strong',
+        'R$ 1.518,00'
+      )
+    );
+
+    const causaBox=card(
+      'Valor da causa'
+    );
+
+    const causaText=el(
+      'strong',
+      'Selecione a quantidade de parcelas'
+    );
+
+    causaBox.append(
+      causaText
+    );
+
+    resumo.append(
+      parcelaBox,
+      causaBox
+    );
+
+    defeso.append(
+      resumo
+    );
 
     const parcelasSelect=
-      personForm.elements.namedItem(
-        'parcelasNaoRecebidas'
-      );
+      personForm
+        .elements
+        .namedItem(
+          'parcelasNaoRecebidas'
+        );
 
     const atualizarCalculo=()=>{
       const qtd=
@@ -300,74 +975,179 @@ window.PDA_MODULES.PESS = (()=>{
 
       causaText.textContent=
         qtd
-          ?'R$ '+moneyBR_(qtd*SALARIO_MINIMO_2025)
+          ?'R$ '+
+            moneyBR_(
+              qtd*
+              SALARIO_MINIMO_2025
+            )
           :'Selecione a quantidade de parcelas';
     };
 
     if(parcelasSelect){
-      parcelasSelect.addEventListener('change',atualizarCalculo);
+      parcelasSelect.addEventListener(
+        'change',
+        atualizarCalculo
+      );
+
       atualizarCalculo();
     }
 
-    const documents=el('section',undefined,'card');
+    /*
+     * Documentos obrigatórios.
+     */
+    const documents=el(
+      'section',
+      undefined,
+      'card'
+    );
 
-    documents.append(el('h3','Documentos da pessoa'));
+    documents.append(
+      el(
+        'h3',
+        'Documentos da pessoa'
+      )
+    );
 
-    documents.append(el(
-      'p',
-      'Os documentos são armazenados diretamente na pasta individual da pessoa e podem ser reutilizados nos atendimentos vinculados ao cadastro.',
-      'hint'
-    ));
+    documents.append(
+      el(
+        'p',
+        'Os documentos são armazenados diretamente na pasta individual da pessoa e podem ser reutilizados nos atendimentos vinculados ao cadastro.',
+        'hint'
+      )
+    );
 
-    documents.append(el(
-      'p',
-      'Todos os seis grupos documentais abaixo são obrigatórios para o cadastro inicial. Formatos permitidos: PDF, JPEG e PNG. Limite de 5 MB por arquivo.',
-      'hint'
-    ));
+    documents.append(
+      el(
+        'p',
+        'Todos os seis grupos documentais abaixo são obrigatórios para o cadastro inicial. Ao inserir o arquivo, o bloco é recolhido e passa a indicar “Documento inserido”. Formatos permitidos: PDF, JPEG e PNG. Limite de 5 MB por arquivo.',
+        'hint'
+      )
+    );
 
-    App.state.boot.config.categorias.forEach(categoria=>{
-      const item=documentBox_(categoria);
-      uploads[categoria]=item.input;
+    App.state.boot.config.categorias
+      .forEach(categoria=>{
+        const item=
+          documentBox_(
+            categoria
+          );
 
-      if(categoria==='RESIDENCIA'){
-        const residenceGrid=el('div',undefined,'grid');
+        uploads[categoria]=
+          item.input;
 
-        const dateLabel=el('label',undefined,'field');
-        dateLabel.append(el('span','Vencimento do comprovante'));
+        if(
+          categoria===
+          'RESIDENCIA'
+        ){
+          const residenceGrid=el(
+            'div',
+            undefined,
+            'grid'
+          );
 
-        residenceDate=el('input');
-        residenceDate.type='text';
-        residenceDate.placeholder='DD/MM/AAAA';
-        residenceDate.required=true;
+          const dateLabel=el(
+            'label',
+            undefined,
+            'field'
+          );
 
-        dateLabel.append(residenceDate);
+          dateLabel.append(
+            el(
+              'span',
+              'Vencimento do comprovante *'
+            )
+          );
 
-        const thirdLabel=el('label',undefined,'field');
-        thirdLabel.append(el('span','Comprovante em nome de terceiro?'));
+          residenceDate=
+            el('input');
 
-        residenceThird=el('input');
-        residenceThird.type='checkbox';
+          residenceDate.type=
+            'text';
 
-        thirdLabel.append(residenceThird);
+          residenceDate.placeholder=
+            'DD/MM/AAAA';
 
-        residenceGrid.append(
-          dateLabel,
-          thirdLabel
+          residenceDate.required=
+            true;
+
+          residenceDate.maxLength=
+            10;
+
+          residenceDate.inputMode=
+            'numeric';
+
+          maskDateInput_(
+            residenceDate
+          );
+
+          dateLabel.append(
+            residenceDate
+          );
+
+          const thirdLabel=el(
+            'label',
+            undefined,
+            'field'
+          );
+
+          thirdLabel.append(
+            el(
+              'span',
+              'Comprovante em nome de terceiro?'
+            )
+          );
+
+          residenceThird=
+            el('input');
+
+          residenceThird.type=
+            'checkbox';
+
+          thirdLabel.append(
+            residenceThird
+          );
+
+          residenceGrid.append(
+            dateLabel,
+            thirdLabel
+          );
+
+          item.box.append(
+            residenceGrid
+          );
+
+          item.setExtraReady(
+            ()=>
+              /^\d{2}\/\d{2}\/\d{4}$/.test(
+                String(
+                  residenceDate.value||
+                  ''
+                )
+              )
+          );
+
+          residenceDate.addEventListener(
+            'input',
+            item.sync
+          );
+
+          residenceDate.addEventListener(
+            'blur',
+            item.sync
+          );
+        }
+
+        documents.append(
+          item.box
         );
+      });
 
-        item.box.append(
-          residenceGrid
-        );
-      }
-
-      documents.append(item.box);
-    });
-
-    documents.append(el(
-      'p',
-      'O botão Salvar somente prossegue quando todos os documentos obrigatórios e o vencimento do comprovante de residência estiverem informados. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
-      'hint'
-    ));
+    documents.append(
+      el(
+        'p',
+        'O botão Salvar somente prossegue quando todos os documentos obrigatórios e o vencimento do comprovante de residência estiverem informados. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
+        'hint'
+      )
+    );
 
     const actions=
       personForm.querySelector(
@@ -375,6 +1155,11 @@ window.PDA_MODULES.PESS = (()=>{
       );
 
     if(actions){
+      personForm.insertBefore(
+        apiCard,
+        actions
+      );
+
       personForm.insertBefore(
         defeso,
         actions
@@ -384,12 +1169,33 @@ window.PDA_MODULES.PESS = (()=>{
         documents,
         actions
       );
+
     }else{
       personForm.append(
+        apiCard,
         defeso,
         documents
       );
     }
+
+    /*
+     * Consulta de cadastros fica abaixo do cadastro novo.
+     */
+    const search=card(
+      'Consultar cadastro'
+    );
+
+    root.append(
+      search
+    );
+
+    await searchUI(
+      search,
+      p=>go(
+        'ACOMP',
+        p.id
+      )
+    );
   };
 })();
 </script>
