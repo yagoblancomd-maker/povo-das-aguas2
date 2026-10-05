@@ -777,6 +777,11 @@ function personDocumentDelete_(ctx,q){
   required_(q.pessoaId,'pessoa');
 
   const p=get_('Pessoas',q.pessoaId);
+
+  authorizePersonRetification_(
+    p
+  );
+
   const d=get_('Documentos',q.id);
 
   version_(d,q.versao);
