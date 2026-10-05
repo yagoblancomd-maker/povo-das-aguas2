@@ -2,36 +2,93 @@
 #acomp-root{
   min-height:300px
 }
-.acomp-defeso-report{
-  margin:7px 0;
-  border-color:#bfd4da;
-  background:rgba(248,252,252,.96)
+.acomp-generate-menu{
+  position:relative;
+  display:inline-block;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none
 }
-.acomp-defeso-report>summary{
-  color:#123e52;
-  font-weight:700
-}
-.acomp-defeso-report .actions{
-  margin-top:6px
-}
-.acomp-defeso-report-result{
-  margin-top:6px
-}
-.acomp-defeso-report-summary{
-  display:flex;
-  align-items:baseline;
+.acomp-generate-menu>summary{
+  display:inline-flex;
+  min-height:35px;
+  align-items:center;
   gap:6px;
-  padding:7px 9px;
-  border:1px solid #c9dde1;
-  border-radius:7px;
-  color:#234957;
-  background:#f2f8f9
+  margin:0!important;
+  padding:8px 13px;
+  border:1px solid #0b7280;
+  border-radius:8px;
+  color:#fff;
+  background:linear-gradient(145deg,#0c8491,#087481);
+  box-shadow:0 3px 8px rgba(8,116,129,.18);
+  cursor:pointer;
+  font-weight:650;
+  list-style:none;
+  user-select:none
 }
-.acomp-defeso-report-summary strong{
-  color:#0c6571;
-  font-size:17px
+.acomp-generate-menu>summary::-webkit-details-marker{
+  display:none
 }
-.acomp-defeso-report-summary span{
-  font-size:11px
+.acomp-generate-menu>summary::after{
+  content:"▾";
+  margin-left:2px;
+  font-size:10px;
+  opacity:.9
+}
+.acomp-generate-menu[open]>summary::after{
+  content:"▴"
+}
+.acomp-generate-menu>summary:hover{
+  background:linear-gradient(145deg,#0d919e,#096f7a)
+}
+.acomp-generate-menu-panel{
+  position:absolute;
+  z-index:80;
+  top:calc(100% + 6px);
+  right:0;
+  width:300px;
+  padding:8px;
+  border:1px solid #bfd4da;
+  border-radius:9px;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 12px 28px rgba(15,48,70,.18);
+  backdrop-filter:blur(10px)
+}
+.acomp-generate-menu-title{
+  margin:0 0 6px;
+  padding:0 2px 5px;
+  border-bottom:1px solid #e0eaed;
+  color:#47636e;
+  font-size:10px;
+  font-weight:650
+}
+.acomp-generate-option{
+  display:block;
+  width:100%;
+  margin:0 0 5px;
+  padding:8px 9px;
+  text-align:left
+}
+.acomp-generate-menu-panel>.hint{
+  display:block;
+  margin:4px 2px 0;
+  line-height:1.25;
+  font-size:9px
+}
+@media(max-width:680px){
+  .acomp-generate-menu{
+    width:100%
+  }
+  .acomp-generate-menu>summary{
+    width:100%;
+    justify-content:center
+  }
+  .acomp-generate-menu-panel{
+    right:auto;
+    left:0;
+    width:min(300px,88vw)
+  }
 }
 </style>
