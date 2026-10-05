@@ -140,6 +140,39 @@ function personFinalize_(ctx,q){
   };
 }
 
+/**
+ * Gera ou atualiza a petição inicial diretamente a partir da Ficha e conferência.
+ * Mantém as mesmas exigências documentais usadas na finalização do cadastro.
+ */
+function personInitialGenerate_(ctx,q){
+  required_(q.pessoaId,'pessoa');
+
+  const p=get_('Pessoas',q.pessoaId);
+  parcelasDefeso_(p.parcelasNaoRecebidas);
+
+  const documentErrors=
+    personRequiredDocumentErrors_(p);
+
+  if(documentErrors.length){
+    fail_(
+      'A petição inicial não pode ser gerada enquanto houver documentos obrigatórios pendentes:\n'+
+      documentErrors.join('\n')
+    );
+  }
+
+  const folder=personFolder_(p);
+  const minuta=generatePersonDraft_(ctx,p);
+
+  return {
+    pessoaId:p.id,
+    folderId:folder.getId(),
+    folderUrl:folder.getUrl(),
+    minutaBase:minuta,
+    mensagem:'Petição inicial gerada e adicionada aos documentos da pessoa.'
+  };
+}
+
+
 function personSearch_(q){
   const term=String(q.busca||'').trim().toLowerCase();
 
