@@ -72,6 +72,24 @@ n.required=!!f.required;
 if(f.placeholder)n.placeholder=f.placeholder;
 if(f.maxLength)n.maxLength=f.maxLength;
 if(f.inputMode)n.inputMode=f.inputMode;
+if(f.suggestions&&!f.options){
+  const listId=
+    'pda-list-'+
+    f.key+'-'+
+    Math.random().toString(36).slice(2,9);
+
+  const datalist=el('datalist');
+  datalist.id=listId;
+
+  f.suggestions.forEach(v=>{
+    const option=el('option');
+    option.value=String(v);
+    datalist.append(option);
+  });
+
+  n.setAttribute('list',listId);
+  wrap.append(datalist);
+}
 applyMask_(n,f.mask);
 if(f.hint)wrap.append(el('small',f.hint,'hint'));
 wrap.append(n);
@@ -147,7 +165,7 @@ await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
 }finally{if(token===epoch)root.setAttribute('aria-busy','false');
 }}
  const alive=ctx=>ctx.token===epoch;
- const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true,placeholder:'000.000.000-00',mask:'cpf',maxLength:14,inputMode:'numeric'},{key:'nascimento',label:'Nascimento',placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric'},{key:'telefone',label:'Telefone',placeholder:'(53) 99632-1234'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua'},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
+ const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true,placeholder:'000.000.000-00',mask:'cpf',maxLength:14,inputMode:'numeric'},{key:'nascimento',label:'Nascimento',placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric'},{key:'telefone',label:'Telefone',placeholder:'(53) 99632-1234'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua',suggestions:['Rua','Avenida','Travessa','Estrada','Rodovia','Praça','Alameda','Beco','Servidão','Vila','Loteamento','Linha','Acesso']},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
  const atendFields=()=>[{key:'demanda',label:'Demanda',options:boot.config.demandas,required:true},{key:'referencia',label:'Referência que identifica a demanda',required:true,hint:'Ex.: Defeso 2025 — requerimento 123. Nova referência somente para demanda distinta.'},{key:'parcelas',label:'Parcelas não recebidas no atendimento',options:['Todas de 2025','Somente a última de 2025','Outros casos'],required:true},{key:'outrosCasos',label:'Descrição de outros casos',type:'textarea'},{key:'responsavel',label:'E-mail do responsável'},{key:'observacoes',label:'Observações',type:'textarea'},{key:'enderecamento',label:'Endereçamento completo',placeholder:'AO JUÍZO DA …'},{key:'secaoJudiciaria',label:'Seção judiciária',placeholder:'SEÇÃO JUDICIÁRIA DO ESTADO …'},{key:'localData',label:'Local e data da petição',placeholder:'Rio Grande, data da distribuição'}];
  async function searchUI(parent,onSelect){const f=el('form'),input=el('input');
 input.placeholder='Pesquisar por nome ou CPF';
