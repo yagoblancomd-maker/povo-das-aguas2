@@ -260,6 +260,7 @@ function googleResourceAccessLevel_(user){
     [
       'cadastro',
       'retificacao',
+      'retificacao_propria',
       'conferencia',
       'minuta',
       'distribuicao',
