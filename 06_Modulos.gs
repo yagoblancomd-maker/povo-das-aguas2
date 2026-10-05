@@ -312,17 +312,13 @@ function doGet(e){
     }
   }
 
-  const email=String(
-    Session.getActiveUser().getEmail()||
-    ''
-  )
-    .trim()
-    .toLowerCase();
+  const email=
+    currentGoogleEmail_();
 
   if(!email){
     return selfRegistrationLandingPage_(
       '',
-      'O Google ainda não disponibilizou a identidade desta sessão.'
+      'Não foi possível identificar a Conta Google desta execução. Verifique se a implantação principal está configurada para executar como "Usuário que acessa o app".'
     );
   }
 
