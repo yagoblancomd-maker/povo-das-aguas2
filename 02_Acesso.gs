@@ -248,6 +248,57 @@ function authorize_(permission){
   return user.email;
 }
 
+function personCreatorEmail_(p){
+  const explicit=String(p&&p.criadoPor||'').trim().toLowerCase();
+  if(explicit)return explicit;
+
+  if(Number(p&&p.versao||0)===1&&p&&p.usuario){
+    return String(p.usuario).trim().toLowerCase();
+  }
+
+  const history=all_('Historico')
+    .filter(h=>h.entidade==='Pessoas'&&h.registroId===p.id)
+    .sort((a,b)=>String(a.criadoEm||'').localeCompare(String(b.criadoEm||'')));
+
+  for(const item of history){
+    try{
+      const before=JSON.parse(item.antes||'null');
+      const after=JSON.parse(item.depois||'null');
+
+      if(!before&&after){
+        const creator=String(after.criadoPor||after.usuario||'').trim().toLowerCase();
+        if(creator)return creator;
+      }
+    }catch(e){}
+  }
+
+  return '';
+}
+
+function canRetifyPerson_(user,p){
+  if(hasPermission_(user,'retificacao')){
+    return true;
+  }
+
+  if(!hasPermission_(user,'retificacao_propria')){
+    return false;
+  }
+
+  const creator=personCreatorEmail_(p);
+
+  return !!creator&&creator===String(user.email||'').trim().toLowerCase();
+}
+
+function authorizePersonRetification_(p){
+  const user=activeUser_();
+
+  if(!canRetifyPerson_(user,p)){
+    fail_('Você somente pode retificar cadastros que tenha autorização para editar.');
+  }
+
+  return user.email;
+}
+
 function googleResourceAccessLevel_(user){
   if(!user||!bool_(user.ativo)){
     return 'NONE';
