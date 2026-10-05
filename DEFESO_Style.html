@@ -1,0 +1,77 @@
+<style>
+#defeso-root{
+  width:min(980px,100%);
+  margin:0 auto
+}
+.defeso-page-head{
+  margin-bottom:10px
+}
+.defeso-page-head h2{
+  margin-bottom:2px
+}
+.defeso-search-card{
+  display:grid;
+  grid-template-columns:76px minmax(0,1fr);
+  gap:14px;
+  align-items:center;
+  padding:16px 18px
+}
+.defeso-search-icon{
+  display:grid;
+  place-items:center;
+  width:66px;
+  height:66px;
+  border-radius:50%;
+  color:#fff;
+  background:linear-gradient(145deg,#0d6d79,#088594);
+  box-shadow:0 7px 18px rgba(8,121,135,.18)
+}
+.defeso-search-icon svg{
+  width:34px;
+  height:34px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.defeso-query-row{
+  display:grid;
+  grid-template-columns:minmax(220px,340px) auto;
+  gap:8px;
+  align-items:end;
+  margin-top:7px
+}
+.defeso-query-row button{
+  min-height:32px
+}
+.defeso-api-state{
+  display:block;
+  margin-top:5px
+}
+.defeso-result{
+  margin-top:10px
+}
+.defeso-result .stats{
+  margin-bottom:8px
+}
+.defeso-result details{
+  margin:5px 0
+}
+.defeso-result pre{
+  font-size:10.8px;
+  line-height:1.38
+}
+@media(max-width:680px){
+  .defeso-search-card{
+    grid-template-columns:1fr
+  }
+  .defeso-search-icon{
+    width:54px;
+    height:54px
+  }
+  .defeso-query-row{
+    grid-template-columns:1fr
+  }
+}
+</style>
