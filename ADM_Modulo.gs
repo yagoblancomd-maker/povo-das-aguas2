@@ -252,22 +252,34 @@ function userSave_(ctx,q){
     );
   }
 
+  const userData={
+    email,
+    perfil,
+    ativo:bool_(q.ativo),
+    nome,
+    funcao,
+    permissoes:JSON.stringify(
+      permissions
+    )
+  };
+
+  /*
+   * Antes de confirmar o cadastro, garante que a conta Google tenha acesso
+   * material aos recursos usados pelo Web App. Isso evita o erro
+   * SpreadsheetApp.openById(...) para usuários autorizados apenas na tabela.
+   */
+  syncGoogleResourcesForUser_(
+    userData,
+    ctx
+  );
+
   return change_(
     ctx,
     'Usuarios',
     old
       ?old.id
       :id_('USR',email),
-    {
-      email,
-      perfil,
-      ativo:bool_(q.ativo),
-      nome,
-      funcao,
-      permissoes:JSON.stringify(
-        permissions
-      )
-    },
+    userData,
     q.versao
   );
 }
