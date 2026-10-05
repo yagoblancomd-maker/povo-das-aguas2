@@ -379,6 +379,233 @@ window.PDA_MODULES.PESS = (()=>{
     };
   }
 
+  function splitLogradouro_(logradouro){
+    const original=String(logradouro||'').trim();
+
+    if(!original){
+      return {
+        tipoVia:'',
+        via:''
+      };
+    }
+
+    const tipos=[
+      'Loteamento',
+      'Servidão',
+      'Travessa',
+      'Avenida',
+      'Estrada',
+      'Rodovia',
+      'Alameda',
+      'Praça',
+      'Beco',
+      'Vila',
+      'Linha',
+      'Acesso',
+      'Rua'
+    ];
+
+    const normalized=
+      normalizeApiText_(
+        original
+      );
+
+    const tipo=
+      tipos.find(item=>
+        normalized===
+          normalizeApiText_(item)||
+        normalized.startsWith(
+          normalizeApiText_(item)+' '
+        )
+      );
+
+    if(!tipo){
+      return {
+        tipoVia:'',
+        via:original
+      };
+    }
+
+    return {
+      tipoVia:tipo,
+      via:original
+        .slice(tipo.length)
+        .trim()
+    };
+  }
+
+  function setInputIfEmpty_(input,value,messages,label){
+    const next=String(value||'').trim();
+
+    if(!input||!next)return false;
+
+    const current=
+      String(input.value||'')
+        .trim();
+
+    if(!current){
+      input.value=next;
+
+      input.dispatchEvent(
+        new Event(
+          'input',
+          {bubbles:true}
+        )
+      );
+
+      input.dispatchEvent(
+        new Event(
+          'change',
+          {bubbles:true}
+        )
+      );
+
+      messages.push(
+        label+
+        ' preenchido pelo CEP'
+      );
+
+      return true;
+    }
+
+    if(
+      normalizeApiText_(current)!==
+      normalizeApiText_(next)
+    ){
+      messages.push(
+        label+
+        ' retornado pelo CEP difere do valor já preenchido e não foi sobrescrito'
+      );
+    }
+
+    return false;
+  }
+
+  function fillAddressFromCep_(personForm,result){
+    const messages=[];
+    const parts=
+      splitLogradouro_(
+        result.logradouro
+      );
+
+    const tipoVia=
+      personForm.elements.namedItem(
+        'tipoVia'
+      );
+
+    const via=
+      personForm.elements.namedItem(
+        'via'
+      );
+
+    const bairro=
+      personForm.elements.namedItem(
+        'bairro'
+      );
+
+    const cidade=
+      personForm.elements.namedItem(
+        'cidade'
+      );
+
+    const uf=
+      personForm.elements.namedItem(
+        'uf'
+      );
+
+    if(parts.tipoVia){
+      setInputIfEmpty_(
+        tipoVia,
+        parts.tipoVia,
+        messages,
+        'tipo de via'
+      );
+    }
+
+    setInputIfEmpty_(
+      via,
+      parts.via||
+        result.logradouro,
+      messages,
+      'logradouro'
+    );
+
+    setInputIfEmpty_(
+      bairro,
+      result.bairro,
+      messages,
+      'bairro/localidade'
+    );
+
+    if(
+      cidade&&
+      result.cidade
+    ){
+      const current=
+        String(
+          cidade.value||
+          ''
+        ).trim();
+
+      if(!current){
+        if(
+          selectMatchingOption_(
+            cidade,
+            result.cidade
+          )
+        ){
+          messages.push(
+            'município preenchido pelo CEP'
+          );
+        }else{
+          messages.push(
+            'o município retornado pelo CEP não consta na lista de municípios cadastrados'
+          );
+        }
+      }else if(
+        normalizeApiText_(current)!==
+        normalizeApiText_(result.cidade)
+      ){
+        messages.push(
+          'o município retornado pelo CEP difere do município já selecionado e não foi sobrescrito'
+        );
+      }
+    }
+
+    if(
+      uf&&
+      result.uf
+    ){
+      const current=
+        String(
+          uf.value||
+          ''
+        ).trim();
+
+      if(!current){
+        if(
+          selectMatchingOption_(
+            uf,
+            result.uf
+          )
+        ){
+          messages.push(
+            'UF preenchida pelo CEP'
+          );
+        }
+      }else if(
+        normalizeApiText_(current)!==
+        normalizeApiText_(result.uf)
+      ){
+        messages.push(
+          'a UF retornada pelo CEP difere da UF já selecionada e não foi sobrescrita'
+        );
+      }
+    }
+
+    return messages;
+  }
+
   function apiRecordText_(r){
     return [
       'ID: '+(r.id||'—'),
@@ -1088,6 +1315,135 @@ window.PDA_MODULES.PESS = (()=>{
           }
         }
       );
+    }
+
+    /*
+     * Consulta de endereço por CEP.
+     */
+    const cepInput=
+      personForm
+        .elements
+        .namedItem(
+          'cep'
+        );
+
+    if(cepInput){
+      const cepField=
+        cepInput.closest(
+          'label'
+        );
+
+      const cepInline=
+        el(
+          'div',
+          undefined,
+          'pess-cpf-api'
+        );
+
+      const cepButton=
+        el(
+          'button',
+          'Consultar CEP'
+        );
+
+      cepButton.type=
+        'button';
+
+      const cepInfo=
+        el(
+          'small',
+          'Consulta de logradouro disponível.',
+          'hint'
+        );
+
+      cepButton.onclick=
+        async()=>{
+          try{
+            const cep=
+              String(
+                cepInput.value||
+                ''
+              ).replace(/\D/g,'');
+
+            if(!/^\d{8}$/.test(cep)){
+              throw new Error(
+                'Informe um CEP completo no formato 00000-000 antes de consultar.'
+              );
+            }
+
+            cepInfo.textContent=
+              'Consultando CEP...';
+
+            cepInfo.className=
+              'hint';
+
+            const result=
+              await call(
+                'cepConsultar',
+                {
+                  cep
+                }
+              );
+
+            if(
+              result.cep
+            ){
+              cepInput.value=
+                result.cep;
+
+              cepInput.dispatchEvent(
+                new Event(
+                  'input',
+                  {bubbles:true}
+                )
+              );
+            }
+
+            const messages=
+              fillAddressFromCep_(
+                personForm,
+                result
+              );
+
+            cepInfo.textContent=
+              'CEP localizado'+
+              (
+                result.logradouro
+                  ?': '+result.logradouro
+                  :''
+              )+
+              (
+                messages.length
+                  ?'. '+messages.join('; ')+'.'
+                  :'.'
+              );
+
+          }catch(e){
+            cepInfo.textContent=
+              e.message||
+              String(e);
+
+            cepInfo.className=
+              'warn';
+
+            status(
+              e.message||
+              String(e),
+              true
+            );
+          }
+        };
+
+      cepInline.append(
+        cepButton,
+        cepInfo
+      );
+
+      if(cepField){
+        cepField.append(
+          cepInline
+        );
+      }
     }
 
     /*
