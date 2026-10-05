@@ -116,6 +116,217 @@ function authorize_(permission){
   return user.email;
 }
 
+function googleResourceAccessLevel_(user){
+  if(!user||!bool_(user.ativo)){
+    return 'NONE';
+  }
+
+  const permissions=
+    effectivePermissions_(user);
+
+  const needsWrite=
+    [
+      'cadastro',
+      'retificacao',
+      'conferencia',
+      'minuta',
+      'administracao'
+    ].some(permission=>
+      permissions.includes(
+        permission
+      )
+    );
+
+  return needsWrite
+    ?'EDITOR'
+    :'VIEWER';
+}
+
+function removeGoogleAccess_(resource,email){
+  try{
+    resource.removeEditor(email);
+  }catch(e){}
+
+  try{
+    resource.removeViewer(email);
+  }catch(e){}
+}
+
+function setGoogleAccess_(resource,email,level){
+  if(level==='EDITOR'){
+    try{
+      resource.addEditor(email);
+      return;
+    }catch(e){
+      fail_(
+        'Não foi possível conceder acesso de edição no Google Drive para '+
+        email+
+        ': '+
+        (e.message||String(e))
+      );
+    }
+  }
+
+  if(level==='VIEWER'){
+    try{
+      try{
+        resource.removeEditor(email);
+      }catch(e){}
+
+      resource.addViewer(email);
+      return;
+    }catch(e){
+      fail_(
+        'Não foi possível conceder acesso de consulta no Google Drive para '+
+        email+
+        ': '+
+        (e.message||String(e))
+      );
+    }
+  }
+
+  removeGoogleAccess_(
+    resource,
+    email
+  );
+}
+
+/**
+ * O Web App está executando com a identidade do usuário que o acessa.
+ * Portanto, cadastrar alguém na planilha "Usuarios" não concede, por si só,
+ * acesso aos arquivos do Google Drive. Esta função mantém os dois níveis
+ * sincronizados:
+ *
+ * - somente Consulta -> leitor;
+ * - qualquer permissão de alteração -> editor;
+ * - usuário inativo -> acesso direto removido.
+ */
+function syncGoogleResourcesForUser_(user,ctx){
+  const email=String(
+    user&&user.email||''
+  )
+    .trim()
+    .toLowerCase();
+
+  required_(
+    email,
+    'e-mail Google do usuário'
+  );
+
+  const owner=String(
+    props_().getProperty(
+      'OWNER_EMAIL'
+    )||''
+  )
+    .trim()
+    .toLowerCase();
+
+  if(email===owner){
+    return {
+      email,
+      nivel:'PROPRIETARIO'
+    };
+  }
+
+  const level=
+    googleResourceAccessLevel_(
+      user
+    );
+
+  const resources=[];
+
+  try{
+    resources.push({
+      nome:'pasta principal do Povo das Águas',
+      item:DriveApp.getFolderById(
+        PDA.parent
+      )
+    });
+  }catch(e){
+    fail_(
+      'Não foi possível localizar a pasta principal do Povo das Águas para sincronizar o acesso Google.'
+    );
+  }
+
+  const sid=String(
+    props_().getProperty(
+      'SPREADSHEET_ID'
+    )||''
+  ).trim();
+
+  if(!sid){
+    fail_(
+      'SPREADSHEET_ID não está configurado.'
+    );
+  }
+
+  try{
+    resources.push({
+      nome:'banco de dados do Povo das Águas',
+      item:DriveApp.getFileById(
+        sid
+      )
+    });
+  }catch(e){
+    fail_(
+      'Não foi possível localizar a planilha do Povo das Águas para sincronizar o acesso Google.'
+    );
+  }
+
+  resources.forEach(resource=>{
+    setGoogleAccess_(
+      resource.item,
+      email,
+      level
+    );
+
+    if(
+      ctx&&
+      Array.isArray(ctx.effects)
+    ){
+      ctx.effects.push(
+        (
+          level==='NONE'
+            ?'Acesso Google removido'
+            :'Acesso Google '+level+' concedido'
+        )+
+        ': '+
+        resource.nome+
+        ' — '+
+        email
+      );
+    }
+  });
+
+  return {
+    email,
+    nivel:level
+  };
+}
+
+function syncAllGoogleResources_(ctx){
+  const results=[];
+
+  all_('Usuarios')
+    .forEach(user=>{
+      results.push(
+        syncGoogleResourcesForUser_(
+          user,
+          ctx
+        )
+      );
+    });
+
+  return {
+    quantidade:results.length,
+    usuarios:results,
+    mensagem:
+      'Acessos Google sincronizados para '+
+      results.length+
+      ' usuário(s).'
+  };
+}
+
 function lock_(fn){
   const lock=LockService.getScriptLock();
 
