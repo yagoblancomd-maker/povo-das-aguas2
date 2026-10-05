@@ -584,4 +584,303 @@ footer{
   header h1{font-size:19px}
   table{min-width:620px}
 }
+
+/* =========================================================
+   CABEÇALHO INSTITUCIONAL — MARCA CENTRALIZADA
+   ========================================================= */
+.app-header{
+  min-height:126px;
+  padding:0;
+  color:#fff;
+  background:
+    radial-gradient(circle at 50% -110%,rgba(131,221,225,.34),transparent 46%),
+    radial-gradient(circle at 8% 20%,rgba(86,184,196,.12),transparent 24%),
+    linear-gradient(118deg,#0d3147 0%,#10445a 52%,#0b5562 100%);
+  box-shadow:0 5px 18px rgba(15,48,70,.18)
+}
+.app-header-inner{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto minmax(220px,1fr);
+  align-items:center;
+  width:min(1480px,calc(100% - 40px));
+  min-height:126px;
+  margin:0 auto;
+  padding:10px 0;
+  gap:18px
+}
+.app-header-balance{
+  min-width:0
+}
+.app-header-brand{
+  justify-self:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-width:320px;
+  text-align:center
+}
+.app-brand-logo-wrap{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:78px;
+  height:78px;
+  border:1px solid rgba(255,255,255,.46);
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.24),transparent 38%),
+    rgba(255,255,255,.09);
+  box-shadow:
+    0 9px 23px rgba(2,21,31,.26),
+    0 0 0 5px rgba(255,255,255,.055);
+  transition:transform .18s ease,box-shadow .18s ease
+}
+.app-brand-logo-wrap::after{
+  content:"";
+  position:absolute;
+  inset:-6px;
+  border:1px solid rgba(180,233,236,.18);
+  border-radius:50%;
+  pointer-events:none
+}
+.app-brand-logo-wrap:hover{
+  transform:translateY(-2px) scale(1.025);
+  box-shadow:
+    0 13px 28px rgba(2,21,31,.30),
+    0 0 0 6px rgba(255,255,255,.07)
+}
+.app-brand-logo-image{
+  display:block;
+  width:66px!important;
+  height:66px!important;
+  object-fit:contain;
+  border:2px solid rgba(255,255,255,.88)!important;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 3px 11px rgba(0,0,0,.18)!important
+}
+.app-header-copy h1{
+  margin:0;
+  color:#fff;
+  font-size:25px;
+  line-height:1.02;
+  letter-spacing:-.025em;
+  text-shadow:0 1px 2px rgba(0,0,0,.12)
+}
+.app-header-copy p{
+  margin:3px 0 0;
+  color:rgba(239,252,253,.90);
+  font-size:10.5px;
+  line-height:1.2;
+  opacity:1
+}
+.app-header-user{
+  justify-self:end;
+  min-width:0;
+  max-width:330px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:10px;
+  text-align:right;
+  background:rgba(0,28,41,.12)
+}
+.app-header-user-label{
+  display:block;
+  margin-bottom:2px;
+  color:rgba(204,241,243,.68);
+  font-size:7.5px;
+  font-weight:800;
+  letter-spacing:.14em
+}
+.app-header-user p{
+  margin:0;
+  color:rgba(255,255,255,.94);
+  font-size:10px;
+  line-height:1.3;
+  opacity:1
+}
+body::before{
+  inset:126px 0 0
+}
+
+/* =========================================================
+   NAVEGAÇÃO PRINCIPAL COM ÍCONES
+   ========================================================= */
+#nav{
+  min-height:52px;
+  gap:6px;
+  padding:8px 18px;
+  border-bottom:1px solid rgba(169,192,202,.78);
+  background:rgba(255,255,255,.95);
+  box-shadow:0 4px 14px rgba(15,48,70,.055)
+}
+#nav button,
+#nav .nav-group-summary{
+  min-height:35px;
+  border-radius:9px
+}
+#nav button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:7px 11px;
+  font-size:12px;
+  font-weight:620
+}
+.nav-direct{
+  position:relative
+}
+.nav-icon{
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  width:18px;
+  height:18px;
+  color:currentColor
+}
+.nav-icon svg{
+  display:block;
+  width:17px;
+  height:17px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.85;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.nav-label{
+  display:inline-block;
+  line-height:1
+}
+.nav-group>.nav-group-summary{
+  gap:7px;
+  padding:7px 11px;
+  font-size:12px;
+  font-weight:620
+}
+.nav-group>.nav-group-summary::after{
+  margin-left:1px
+}
+.nav-group-summary .nav-icon{
+  width:18px;
+  height:18px
+}
+.nav-submenu{
+  top:calc(100% + 7px);
+  min-width:224px;
+  padding:7px;
+  border-radius:11px;
+  box-shadow:0 16px 38px rgba(15,48,70,.17)
+}
+.nav-submenu .nav-submenu-item{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-height:36px;
+  padding:8px 10px;
+  border-radius:8px;
+  font-size:11.5px
+}
+.nav-submenu .nav-icon{
+  width:17px;
+  height:17px
+}
+#nav button[aria-current=page],
+.nav-group.active>.nav-group-summary{
+  box-shadow:0 4px 11px rgba(8,121,135,.22)
+}
+#nav button[aria-current=page] .nav-icon,
+.nav-group.active>.nav-group-summary .nav-icon{
+  color:#fff
+}
+
+@media(max-width:900px){
+  .app-header-inner{
+    grid-template-columns:1fr;
+    width:min(100% - 28px,760px);
+    min-height:auto;
+    padding:12px 0
+  }
+  .app-header-balance{
+    display:none
+  }
+  .app-header-brand{
+    grid-row:1;
+    min-width:0
+  }
+  .app-header-user{
+    grid-row:2;
+    justify-self:center;
+    width:min(100%,520px);
+    max-width:none;
+    text-align:center
+  }
+  .app-header{
+    min-height:0
+  }
+  .app-brand-logo-wrap{
+    width:72px;
+    height:72px
+  }
+  .app-brand-logo-image{
+    width:60px!important;
+    height:60px!important
+  }
+  body::before{
+    inset:154px 0 0
+  }
+  #nav{
+    justify-content:center
+  }
+}
+@media(max-width:560px){
+  .app-header-inner{
+    width:calc(100% - 20px);
+    gap:9px
+  }
+  .app-header-brand{
+    gap:4px
+  }
+  .app-brand-logo-wrap{
+    width:66px;
+    height:66px
+  }
+  .app-brand-logo-image{
+    width:55px!important;
+    height:55px!important
+  }
+  .app-header-copy h1{
+    font-size:21px
+  }
+  .app-header-copy p{
+    max-width:320px;
+    font-size:9.5px
+  }
+  .app-header-user{
+    padding:6px 8px
+  }
+  #nav{
+    justify-content:flex-start;
+    gap:4px;
+    padding:7px 9px
+  }
+  #nav button,
+  .nav-group>.nav-group-summary{
+    padding:7px 9px
+  }
+  .nav-icon{
+    width:16px;
+    height:16px
+  }
+  .nav-icon svg{
+    width:15px;
+    height:15px
+  }
+}
+
 </style>
