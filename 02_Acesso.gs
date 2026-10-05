@@ -575,7 +575,13 @@ function selfRegistrationStatus_(){
     funcoes:
       Array.from(
         SELF_REGISTRATION_FUNCTIONS
-      )
+      ),
+    regras:{
+      Professor:selfRegistrationAccess_('Professor'),
+      Residente:selfRegistrationAccess_('Residente'),
+      Colaborador:selfRegistrationAccess_('Colaborador'),
+      Aluno:selfRegistrationAccess_('Aluno')
+    }
   };
 }
 
@@ -920,10 +926,15 @@ function selfRegisterUser_(token,nome,funcao){
       };
     }
 
-    const permissions=[
-      'consulta',
-      'cadastro'
-    ];
+    const access=
+      selfRegistrationAccess_(
+        cleanFunction
+      );
+
+    const permissions=
+      Array.from(
+        access.permissoes
+      );
 
     const ctx={
       email:signed.email,
@@ -953,7 +964,7 @@ function selfRegisterUser_(token,nome,funcao){
         ),
         {
           email:signed.email,
-          perfil:'NOVO_USUARIO',
+          perfil:access.perfil,
           ativo:true,
           nome:cleanName,
           funcao:cleanFunction,
@@ -969,7 +980,9 @@ function selfRegisterUser_(token,nome,funcao){
       {
         email:user.email,
         perfil:user.perfil,
-        criado:true
+        criado:true,
+        permissoes:permissions,
+        aprovacaoPendente:access.aprovacaoPendente
       }
     );
 
@@ -991,6 +1004,9 @@ function selfRegisterUser_(token,nome,funcao){
       returnUrl:signed.returnUrl,
       nome:user.nome,
       perfil:user.perfil,
+      permissoes:permissions,
+      aprovacaoPendente:access.aprovacaoPendente,
+      resumoAcesso:access.resumo,
       mensagem:
         'Seu acesso ao Povo das Águas foi criado automaticamente.'
     };
