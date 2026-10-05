@@ -1,0 +1,12 @@
+PASS instalação e cadastro preservam parcelas e valor automático
+PASS 36 municípios retornam a jurisdição definida, inclusive sem acentos
+PASS jurisdição enviada manualmente é ignorada e gravada em Pessoas
+PASS município adicional preservado sem presumir jurisdição; UF diferente bloqueia minuta
+PASS instalação antiga é migrada sem deslocar colunas, com auditoria e repetição segura
+PASS falha na gravação da migração pode ser reconciliada na próxima abertura
+PASS migração rejeita cabeçalho divergente e conserva todas as células
+PASS modelo preenche JURISDIÇÃO e JURISDICAO nos dois fluxos de minuta
+PASS minuta do atendimento usa jurisdição salva e mantém o cálculo de três parcelas
+PASS modelo legado permanece válido e marcador desconhecido é bloqueado
+PASS acesso não autorizado não modifica os registros
+11 cenários de jurisdição aprovados com serviços Google simulados.

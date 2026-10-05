@@ -87,6 +87,8 @@ function validatePerson_(input,c,complete){
   }
 
   if(p.cidade&&!c.municipios.includes(p.cidade))fail_('Município não cadastrado.');
+  // A jurisdição é derivada do município, nunca do valor enviado pelo navegador.
+  p.jurisdicao=jurisdicaoPessoa_(p);
   if(p.entidade&&!c.entidades.includes(p.entidade))fail_('Entidade não cadastrada.');
   if(p.entidade==='Outro')required_(p.outraEntidade,'outra entidade');
 

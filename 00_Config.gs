@@ -17,7 +17,7 @@ const SCHEMA = Object.freeze({
   Pessoas:[
     'nome','cpf','nascimento','telefone','tipoVia','via','numero','complemento',
     'bairro','cidade','uf','entidade','outraEntidade','analfabeto',
-    'parcelasNaoRecebidas'
+    'parcelasNaoRecebidas','jurisdicao'
   ],
   Atendimentos:[
     'pessoaId','demanda','referencia','parcelas','outrosCasos','observacoes',
@@ -44,6 +44,11 @@ const SCHEMA = Object.freeze({
 
 const COMMON=['id','versao','criadoEm','alteradoEm','usuario'];
 
+const JURISDICOES = Object.freeze({
+ 'PELOTAS':['Amaral Ferrador','Arroio do Padre','Arroio Grande','Canguçu','Capão do Leão','Cerrito','Herval','Jaguarão','Morro Redondo','Pedro Osório','Pelotas','Piratini','São Lourenço do Sul','Turuçu'],
+ 'RIO GRANDE':['Chuí','Rio Grande','Santa Vitória do Palmar','São José do Norte'],
+ 'CAPÃO DA CANOA':['Arroio do Sal','Balneário Pinhal','Capão da Canoa','Caraá','Cidreira','Dom Pedro de Alcântara','Imbé','Itati','Mampituba','Maquiné','Morrinhos do Sul','Osório','Terra de Areia','Torres','Tramandaí','Três Cachoeiras','Três Forquilhas','Xangri-lá']
+});
 const DEFAULTS={
   rascunhos:'PENDENTE',
   vencimentoFuturo:'PENDENTE',
@@ -54,7 +59,7 @@ const DEFAULTS={
     'COPAPEL — COLÔNIA DOS PESCADORES E AQUICULTORES PROFISSIONAIS ARTESANAIS DE PELOTAS',
     'COLÔNIA Z-1','COLÔNIA Z-2','COLÔNIA Z-3','COLÔNIA Z-11','Outro'
   ],
-  municipios:['Rio Grande','Pelotas','São José do Norte'],
+  municipios:Object.values(JURISDICOES).flat().sort((a,b)=>a.localeCompare(b,'pt-BR')),
   demandas:['Seguro-Defeso 2025'],
   categorias:['RG_CPF','RESIDENCIA','PROCESSO_ADMINISTRATIVO','PESCA','PROCURACAO','HIPOSSUFICIENCIA'],
   situacoes:['EM_PREPARACAO','ENCAMINHADO','CONFERIDO']
@@ -113,5 +118,6 @@ function cfg_(){
   all_('Configuracoes').forEach(r=>{
     c[r.chave]=JSON.parse(r.valor);
   });
+  c.municipios=municipiosComJurisdicao_(c.municipios);
   return c;
 }

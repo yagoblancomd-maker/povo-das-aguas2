@@ -13,3 +13,6 @@ O modelo em `modelos/Modelo_ultima_parcela_placeholders.docx` mantém os argumen
 **O sistema ainda não deve ser apresentado como operacional.** Os testes executados foram locais, com serviços Google simulados. Não houve publicação de aplicativo web, autorização OAuth, criação real de recursos, nem geração nativa de Google Docs nesta conta. O pacote inclui testes reproduzíveis e o roteiro de homologação com dados fictícios.
 
 Para executar os testes locais, na pasta do projeto, use `node tests/server.test.cjs` e `node tests/interface.test.cjs`. Os testes não acessam contas Google e não enviam documentos.
+
+
+**Atualização de jurisdição: os 36 municípios passam a integrar a lista existente. O cadastro salva automaticamente Pessoas.jurisdicao; a geração aceita <<JURISDIÇÃO>> e <<JURISDICAO>>. A próxima abertura após atualizar o código completa a lista salva, acrescenta a coluna e atualiza os registros existentes. O cálculo de 1 a 4 parcelas e os demais módulos permanecem preservados. Execute node jurisdicoes.test.cjs para verificar os 11 cenários específicos com serviços Google simulados.**

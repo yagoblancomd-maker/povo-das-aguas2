@@ -22,7 +22,8 @@
       "entidade",
       "outraEntidade",
       "analfabeto",
-      "parcelasNaoRecebidas"
+      "parcelasNaoRecebidas",
+      "jurisdicao"
     ],
     "Atendimentos": [
       "pessoaId",
@@ -163,9 +164,42 @@
       "Outro"
     ],
     "municipios": [
-      "Rio Grande",
+      "Amaral Ferrador",
+      "Arroio do Padre",
+      "Arroio do Sal",
+      "Arroio Grande",
+      "Balneário Pinhal",
+      "Canguçu",
+      "Capão da Canoa",
+      "Capão do Leão",
+      "Caraá",
+      "Cerrito",
+      "Chuí",
+      "Cidreira",
+      "Dom Pedro de Alcântara",
+      "Herval",
+      "Imbé",
+      "Itati",
+      "Jaguarão",
+      "Mampituba",
+      "Maquiné",
+      "Morrinhos do Sul",
+      "Morro Redondo",
+      "Osório",
+      "Pedro Osório",
       "Pelotas",
-      "São José do Norte"
+      "Piratini",
+      "Rio Grande",
+      "Santa Vitória do Palmar",
+      "São José do Norte",
+      "São Lourenço do Sul",
+      "Terra de Areia",
+      "Torres",
+      "Tramandaí",
+      "Três Cachoeiras",
+      "Três Forquilhas",
+      "Turuçu",
+      "Xangri-lá"
     ],
     "demandas": [
       "Seguro-Defeso 2025"

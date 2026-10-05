@@ -8,7 +8,10 @@ const PERSON_TEMPLATE_PLACEHOLDERS=[
   'VALOR_CAUSA'
 ];
 
+const OPTIONAL_TEMPLATE_PLACEHOLDERS=['JURISDICAO'];
+
 const TEMPLATE_PLACEHOLDER_ALIASES={
+  'JURISDIÇÃO':'JURISDICAO',
   'NOME COMPLETO':'NOME_COMPLETO',
   'ENDEREÇO':'ENDERECO',
   'ENDERECO':'ENDERECO',
@@ -133,7 +136,7 @@ function validatePersonTemplate_(id){
   );
 
   const unknown=[...new Set(found.filter(
-    token=>!PERSON_TEMPLATE_PLACEHOLDERS.includes(token.slice(2,-2))
+    token=>!PERSON_TEMPLATE_PLACEHOLDERS.concat(OPTIONAL_TEMPLATE_PLACEHOLDERS).includes(token.slice(2,-2))
   ))];
 
   if(missing.length||unknown.length){
@@ -245,9 +248,17 @@ function parcelasText_(value){
 }
 
 function personDraftValues_(p){
+  const jurisdicao=jurisdicaoPessoa_(p);
+  if(!jurisdicao){
+    fail_('Município/UF sem jurisdição definida. Confira o cadastro antes de gerar a minuta.');
+  }
+  if(p.jurisdicao!==jurisdicao){
+    fail_('Jurisdição do cadastro desatualizada. Reabra a ficha antes de gerar a minuta.');
+  }
   const qtd=parcelasDefeso_(p.parcelasNaoRecebidas);
 
   return {
+    JURISDICAO:p.jurisdicao,
     NOME_COMPLETO:p.nome||'',
     CPF:cpfDisplay_(p.cpf),
     ENDERECO:address_(p),

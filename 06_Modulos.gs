@@ -83,7 +83,11 @@ function api(action,q){
 
   if(reads[action]){
     authorize_(action==='admin'?'administracao':'consulta');
-    return reads[action]();
+    return lock_(()=>{
+      resetData_();
+      atualizarJurisdicoes_();
+      return reads[action]();
+    });
   }
 
   if(!mutations[action])fail_('Operação desconhecida.');
@@ -92,6 +96,7 @@ function api(action,q){
     resetData_();
 
     const email=authorize_(mutations[action][0]);
+    atualizarJurisdicoes_();
 
     if(!/^[a-zA-Z0-9_-]{16,100}$/.test(q.op||'')){
       fail_('Identificador de operação inválido.');

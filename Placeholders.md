@@ -1,9 +1,10 @@
 # Placeholders da minuta — Seguro-Defeso 2025
 
-O sistema usa sete marcadores no modelo da petição. Todos são preenchidos automaticamente a partir do cadastro da pessoa. O usuário não digita o valor da causa.
+**O sistema mantém os sete marcadores obrigatórios e passa a aceitar <<JURISDIÇÃO>> ou <<JURISDICAO>>, preenchidos a partir de Pessoas.jurisdicao. A jurisdição é calculada automaticamente pelo município de residência. O usuário não digita esse valor nem o valor da causa.**
 
 | Marcador | Origem | Regra |
 | --- | --- | --- |
+| **`<<JURISDIÇÃO>>` ou `<<JURISDICAO>>`** | **Pessoas.jurisdicao** | **PELOTAS, RIO GRANDE ou CAPÃO DA CANOA, conforme município cadastrado e UF RS** |
 | `<<NOME_COMPLETO>>` | Pessoas.nome | Nome integral |
 | `<<CPF>>` | Pessoas.cpf | CPF com máscara 000.000.000-00 |
 | `<<ENDERECO>>` | Pessoas.tipoVia, via, numero, complemento, bairro | Endereço completo |
@@ -33,7 +34,7 @@ Ao enviar o DOCX em Administração, o sistema converte o arquivo para Google Do
 - `<<PARCELAS QUE NÃO RECEBEU>>` → `<<PARCELAS_NAO_RECEBIDAS>>`
 - `<<##VALOR>>` → `<<VALOR_CAUSA>>`
 
-O modelo é considerado válido somente quando contém os sete marcadores obrigatórios e nenhum marcador `<<...>>` desconhecido.
+**O modelo continua exigindo os sete marcadores anteriores. O marcador adicional de jurisdição é reconhecido com ou sem acento; os demais marcadores desconhecidos continuam bloqueados. Modelos antigos sem esse marcador continuam compatíveis. Município/UF sem jurisdição definida bloqueia a geração.**
 
 ## Fluxo de geração
 
@@ -48,3 +49,6 @@ No cadastro de Pessoas, a ordem é:
 Falha na geração da minuta não desfaz o cadastro nem os documentos já confirmados.
 
 O modelo ativo fica na pasta `MODELOS` da raiz do Povo das Águas. A interface de Administração recebe um DOCX, converte-o para Google Docs e ativa o modelo automaticamente; não é necessário copiar ou informar IDs do Drive manualmente.
+
+
+**O campo Município já existente recebe os 36 municípios informados. A coluna jurisdicao é acrescentada ao final de Pessoas, preservando as colunas anteriores, inclusive parcelasNaoRecebidas. Ao abrir a versão atualizada do aplicativo, os cadastros antigos recebem a jurisdição correspondente e a lista de municípios salva é atualizada. As alterações dos registros recebem auditoria e os atendimentos afetados voltam à preparação para nova conferência. A atualização é idempotente.**
