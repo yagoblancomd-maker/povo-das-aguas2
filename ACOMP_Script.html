@@ -227,7 +227,16 @@ window.PDA_MODULES.ACOMP = (()=>{
       const files=Array.from(chooser.files||[]);
 
       files.forEach((file,index)=>{
-        const box=card(file.name);
+        const box=details(
+          rowsArea,
+          file.name+' — Pendente'
+        );
+
+        box.open=true;
+
+        const summary=
+          box.querySelector('summary');
+
         const grid=el('div',undefined,'grid');
 
         const categoryLabel=el('label',undefined,'field');
@@ -276,9 +285,57 @@ window.PDA_MODULES.ACOMP = (()=>{
             residenceDate.value='';
             third.checked=false;
           }
+
+          const ready=
+            !!category.value&&
+            (
+              !isResidence||
+              /^\d{2}\/\d{2}\/\d{4}$/.test(
+                String(residenceDate.value||'')
+              )
+            );
+
+          if(summary){
+            summary.textContent=
+              file.name+
+              ' — '+
+              (
+                ready
+                  ?'Documento inserido'
+                  :category.value
+                    ?'Documento inserido; complete os dados'
+                    :'Pendente'
+              );
+          }
+
+          if(ready){
+            box.open=false;
+          }
         };
 
         category.addEventListener('change',syncResidence);
+
+        residenceDate.maxLength=10;
+        residenceDate.inputMode='numeric';
+
+        residenceDate.addEventListener('input',()=>{
+          const d=String(residenceDate.value||'')
+            .replace(/\D/g,'')
+            .slice(0,8);
+
+          if(d.length<=2){
+            residenceDate.value=d;
+          }else if(d.length<=4){
+            residenceDate.value=
+              d.slice(0,2)+'/'+d.slice(2);
+          }else{
+            residenceDate.value=
+              d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4);
+          }
+
+          syncResidence();
+        });
+
         syncResidence();
 
         grid.append(
@@ -288,7 +345,6 @@ window.PDA_MODULES.ACOMP = (()=>{
         );
 
         box.append(grid);
-        rowsArea.append(box);
 
         rows.push({
           index,
