@@ -404,11 +404,101 @@ window.PDA_MODULES.ACOMP = (()=>{
     root.append(el('h2','Ficha e conferência'));
 
     if(!App.state.selection){
-      await searchUI(
-        root,
-        p=>go('ACOMP',p.id)
+      const listCard=card('Pessoas cadastradas');
+      root.append(listCard);
+
+      listCard.append(
+        el(
+          'p',
+          'Todas as pessoas cadastradas são carregadas automaticamente. Use o campo abaixo apenas para filtrar a lista por nome, CPF ou município.',
+          'hint'
+        )
       );
 
+      const filter=el('input');
+      filter.type='search';
+      filter.placeholder='Filtrar por nome, CPF ou município';
+      filter.setAttribute('aria-label','Filtrar pessoas');
+
+      listCard.append(filter);
+
+      const results=el('div');
+      listCard.append(results);
+
+      const pessoas=await call(
+        'pessoas',
+        {busca:''}
+      );
+
+      if(!alive(ctx))return;
+
+      const render=()=>{
+        const term=String(filter.value||'')
+          .trim()
+          .toLowerCase();
+
+        const rows=pessoas.filter(p=>{
+          if(!term)return true;
+
+          const cpf=String(p.cpf||'')
+            .replace(/\D/g,'');
+
+          const typedCpf=term
+            .replace(/\D/g,'');
+
+          return (
+            String(p.nome||'').toLowerCase().includes(term)||
+            String(p.cidade||'').toLowerCase().includes(term)||
+            (
+              typedCpf&&
+              cpf.includes(typedCpf)
+            )
+          );
+        });
+
+        results.replaceChildren();
+
+        table(
+          results,
+          [
+            {
+              key:'nome',
+              label:'Pessoa'
+            },
+            {
+              label:'CPF',
+              value:p=>{
+                const cpf=String(p.cpf||'').replace(/\D/g,'');
+
+                return cpf.length===11
+                  ?cpf.replace(
+                      /(\d{3})(\d{3})(\d{3})(\d{2})/,
+                      '$1.$2.$3-$4'
+                    )
+                  :String(p.cpf||'');
+              }
+            },
+            {
+              key:'cidade',
+              label:'Município'
+            }
+          ],
+          rows,
+          p=>[
+            button(
+              'Abrir ficha',
+              ()=>go('ACOMP',p.id)
+            )
+          ]
+        );
+      };
+
+      filter.addEventListener(
+        'input',
+        render
+      );
+
+      render();
       return;
     }
 
