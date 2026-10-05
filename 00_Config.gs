@@ -32,7 +32,7 @@ const SCHEMA = Object.freeze({
   Pendencias:['atendimentoId','descricao','responsavel','situacao'],
   Minutas:[
     'atendimentoId','fileId','url','numero','situacao','snapshot','templateId',
-    'templateModified','revisor','revisadaEm'
+    'templateModified','revisor','revisadaEm','pdfFileId','pdfUrl'
   ],
   Historico:['entidade','registroId','antes','depois','operacao'],
   Configuracoes:['chave','valor'],
