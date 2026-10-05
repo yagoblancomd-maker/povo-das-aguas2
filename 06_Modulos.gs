@@ -68,13 +68,80 @@ function homeModule_(user){
   );
 }
 
-function doGet(){
-  authorize_('consulta');
+function accessErrorPage_(email,message){
+  const safeEmail=String(email||'Conta não identificada')
+    .replace(/[&<>"']/g,ch=>({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#39;'
+    })[ch]);
+
+  const safeMessage=String(message||'Acesso não autorizado.')
+    .replace(/[&<>"']/g,ch=>({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#39;'
+    })[ch]);
+
   return HtmlService
-    .createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle(PDA.name)
-    .addMetaTag('viewport','width=device-width, initial-scale=1');
+    .createHtmlOutput(
+      '<!doctype html>'+
+      '<html><head><meta charset="utf-8">'+
+      '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+      '<title>Povo das Águas — Acesso</title>'+
+      '<style>'+
+      'body{margin:0;font-family:Arial,sans-serif;background:#eef6f7;color:#173d50;display:grid;place-items:center;min-height:100vh;padding:20px;box-sizing:border-box}'+
+      '.box{width:min(620px,100%);background:#fff;border:1px solid #c8dce1;border-radius:14px;padding:24px;box-shadow:0 16px 44px rgba(15,48,70,.14)}'+
+      'h1{font-size:22px;margin:0 0 8px}'+
+      'p{line-height:1.45;margin:8px 0}'+
+      '.account{padding:10px 12px;background:#eef7f8;border-radius:8px;font-weight:700}'+
+      '.error{margin-top:12px;padding:10px 12px;border-left:4px solid #c84232;background:#fff3f1;color:#7d3028}'+
+      '.hint{color:#5e747e;font-size:13px}'+
+      '</style></head><body><main class="box">'+
+      '<h1>Não foi possível abrir o Povo das Águas</h1>'+
+      '<p>Conta Google utilizada nesta execução:</p>'+
+      '<div class="account">'+safeEmail+'</div>'+
+      '<div class="error">'+safeMessage+'</div>'+
+      '<p class="hint">Confirme se esta é exatamente a conta cadastrada em Administração → Usuários e permissões. Em navegadores com várias contas Google abertas, o Apps Script pode usar outra conta da sessão.</p>'+
+      '</main></body></html>'
+    )
+    .setTitle(
+      PDA.name+' — Acesso'
+    )
+    .addMetaTag(
+      'viewport',
+      'width=device-width, initial-scale=1'
+    );
+}
+
+function doGet(){
+  const email=String(
+    Session.getActiveUser().getEmail()||
+    ''
+  ).trim();
+
+  try{
+    authorize_('consulta');
+
+    return HtmlService
+      .createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle(PDA.name)
+      .addMetaTag(
+        'viewport',
+        'width=device-width, initial-scale=1'
+      );
+
+  }catch(e){
+    return accessErrorPage_(
+      email,
+      e.message||String(e)
+    );
+  }
 }
 
 function include_(name){
