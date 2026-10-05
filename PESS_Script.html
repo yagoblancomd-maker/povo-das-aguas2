@@ -1950,12 +1950,10 @@ window.PDA_MODULES.PESS = (()=>{
     );
 
     let edit=null;
-    let search=null;
     let quickDefeso=null;
 
     const workPanels=()=>[
       edit,
-      search,
       quickDefeso
     ].filter(Boolean);
 
@@ -1979,7 +1977,7 @@ window.PDA_MODULES.PESS = (()=>{
       }
     };
 
-    const actionButton_=(title,description,kind)=>{
+    const actionButton_=(title,description,kind,icon)=>{
       const b=
         el(
           'button',
@@ -1988,6 +1986,22 @@ window.PDA_MODULES.PESS = (()=>{
         );
 
       b.type='button';
+
+      const iconBox=
+        el(
+          'span',
+          undefined,
+          'pess-action-icon'
+        );
+
+      iconBox.innerHTML=icon;
+
+      const copy=
+        el(
+          'span',
+          undefined,
+          'pess-action-copy'
+        );
 
       const titleEl=
         el(
@@ -2001,9 +2015,14 @@ window.PDA_MODULES.PESS = (()=>{
           description
         );
 
-      b.append(
+      copy.append(
         titleEl,
         descriptionEl
+      );
+
+      b.append(
+        iconBox,
+        copy
       );
 
       return b;
@@ -2016,29 +2035,23 @@ window.PDA_MODULES.PESS = (()=>{
         'pess-home-actions'
       );
 
-    const openSearch=
-      actionButton_(
-        'Consultar cadastro',
-        'Localizar por nome, CPF ou município.',
-        'pess-action-search'
-      );
-
     const openDefeso=
       actionButton_(
-        'Consultar pagamento Seguro-Defeso',
-        'Consulta rápida por CPF na base oficial.',
-        'pess-action-defeso'
+        'Consultar pagamento do Seguro-Defeso',
+        'Consulte rapidamente o CPF na base oficial de 2025.',
+        'pess-action-defeso',
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="M15 15l5 5"></path><path d="M8.2 10.5h4.6"></path><path d="M10.5 8.2v4.6"></path></svg>'
       );
 
     const openNew=
       actionButton_(
         'Incluir nova pessoa',
-        'Novo cadastro com documentos e minuta.',
-        'pess-action-new'
+        'Inicie um novo cadastro com documentos e geração da inicial.',
+        'pess-action-new',
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"></circle><path d="M3.8 18.2c.7-3.1 2.6-4.8 5.2-4.8s4.5 1.7 5.2 4.8"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>'
       );
 
     actionBar.append(
-      openSearch,
       openDefeso,
       openNew
     );
@@ -3435,47 +3448,6 @@ window.PDA_MODULES.PESS = (()=>{
         residenceDate,
         residenceThird
       );
-
-    /*
-     * Consulta de cadastros fica disponível como ação principal.
-     */
-    search=card(
-      'Consultar cadastro'
-    );
-
-    search.classList.add(
-      'pess-work-panel',
-      'pess-search-panel'
-    );
-
-    search.hidden=true;
-
-    root.append(
-      search
-    );
-
-    await searchUI(
-      search,
-      p=>go(
-        'ACOMP',
-        p.id
-      )
-    );
-
-    openSearch.onclick=()=>{
-      showPanel_(
-        search
-      );
-
-      const input=
-        search.querySelector(
-          'input'
-        );
-
-      if(input){
-        input.focus();
-      }
-    };
 
     openDefeso.onclick=()=>{
       showPanel_(
