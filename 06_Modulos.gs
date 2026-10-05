@@ -77,6 +77,7 @@ function api(action,q){
     pessoaUpload:['cadastro',personUpload_],
     pessoaDocumentoExcluir:['retificacao',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
+    pessoaInicialGerar:['cadastro',personInitialGenerate_],
     atendimentoSalvar:['cadastro',atendSave_],
     upload:['cadastro',upload_],
     encaminhar:['cadastro',forward_],
