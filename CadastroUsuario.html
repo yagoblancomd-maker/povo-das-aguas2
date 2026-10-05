@@ -571,7 +571,7 @@
     if(!CONFIG.email){
       warning.hidden=false;
       warning.textContent=
-        'Não foi possível identificar sua Conta Google. Use o botão “Usar outra Conta Google” e entre novamente.';
+        'Não foi possível identificar sua Conta Google. A implantação principal precisa executar como “Usuário que acessa o app”. Depois de corrigir a implantação, use “Usar outra Conta Google” ou atualize esta página.';
       submit.disabled=true;
     }else if(!CONFIG.gatewayConfigured){
       warning.hidden=false;
