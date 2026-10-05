@@ -49,7 +49,8 @@ function api(action,q){
       perfil:all_('Usuarios').find(u=>u.email===identity_()).perfil,
       config:cfg_(),
       modulos:MODULES,
-      modelo:templateStatus_()
+      modelo:templateStatus_(),
+      portalTransparencia:portalTransparenciaStatus_()
     }),
     pessoas:()=>personSearch_(q),
     pessoa:()=>get_('Pessoas',q.id),
@@ -60,9 +61,11 @@ function api(action,q){
       configuracoes:all_('Configuracoes'),
       usuarios:all_('Usuarios'),
       perfis:Object.keys(ROLES),
-      modelo:templateStatus_()
+      modelo:templateStatus_(),
+      portalTransparencia:portalTransparenciaStatus_()
     }),
-    aptidao:()=>eligibility_(get_('Atendimentos',q.id),true)
+    aptidao:()=>eligibility_(get_('Atendimentos',q.id),true),
+    seguroDefesoConsultar:()=>seguroDefesoConsultar_(q)
   };
 
   const mutations={
@@ -79,6 +82,8 @@ function api(action,q){
     minutaGerar:['minuta',generate_],
     minutaRevisar:['minuta',reviewMin_],
     modeloUpload:['administracao',modelUpload_],
+    portalApiKeySalvar:['administracao',portalApiKeySave_],
+    seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_]
   };
