@@ -36,7 +36,7 @@ const SCHEMA = Object.freeze({
   ],
   Historico:['entidade','registroId','antes','depois','operacao'],
   Configuracoes:['chave','valor'],
-  Usuarios:['email','perfil','ativo','nome','funcao','permissoes'],
+  Usuarios:['email','perfil','ativo','nome','funcao','permissoes','permissoesVersao'],
   Distribuicao:['atendimentoId','processoId','numero','juizo','data','responsavel','protocoloId'],
   Tarefas:[
     'tipo','pessoaId','responsavel','situacao','jurisdicao','valorCausa',
