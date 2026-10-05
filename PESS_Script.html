@@ -122,6 +122,34 @@ window.PDA_MODULES.PESS = (()=>{
     return '';
   }
 
+  function documentSummary_(summary,title,state,count){
+    const ok=state==='ok';
+    const text=
+      ok
+        ?(
+            count>1
+              ?count+' documentos inseridos'
+              :'Documento inserido'
+          )
+        :state==='incomplete'
+          ?'Documento inserido · complete os dados'
+          :'Pendente';
+
+    summary.innerHTML=
+      '<span class="pess-doc-summary-content">'+
+        '<span class="pess-doc-status-icon '+(ok?'ok':'pending')+'" aria-hidden="true">'+
+          (ok?'✓':'!')+
+        '</span>'+
+        '<span class="pess-doc-summary-label"></span>'+
+        '<span class="pess-doc-summary-separator">—</span>'+
+        '<span class="pess-doc-summary-state '+(ok?'ok':'pending')+'"></span>'+
+      '</span>';
+
+    summary.querySelector('.pess-doc-summary-label').textContent=title;
+    summary.querySelector('.pess-doc-summary-state').textContent=text;
+    summary.setAttribute('aria-label',title+' — '+text);
+  }
+
   function documentBox_(categoria){
     const title=
       DOCUMENT_LABELS[categoria]||
@@ -131,8 +159,14 @@ window.PDA_MODULES.PESS = (()=>{
     box.open=true;
 
     const summary=el(
-      'summary',
-      title+' — Pendente'
+      'summary'
+    );
+
+    documentSummary_(
+      summary,
+      title,
+      'pending',
+      0
     );
 
     box.append(summary);
@@ -164,43 +198,72 @@ window.PDA_MODULES.PESS = (()=>{
 
     const sync=()=>{
       const count=
-        input.files
-          ?input.files.length
-          :0;
+        (
+          input.files&&
+          input.files.length
+        )||
+        Number(
+          input.dataset.importedCount||
+          (
+            input.dataset.imported==='true'
+              ?1
+              :0
+          )
+        );
 
       const ready=
         count>0&&
         extraReady();
 
+      input.required=
+        count===0;
+
       if(!count){
-        summary.textContent=
-          title+
-          ' — Pendente';
+        documentSummary_(
+          summary,
+          title,
+          'pending',
+          0
+        );
+
+        box.open=true;
         return;
       }
 
       if(ready){
-        summary.textContent=
-          title+
-          ' — '+
-          (
-            count===1
-              ?'Documento inserido'
-              :count+' documentos inseridos'
-          );
+        documentSummary_(
+          summary,
+          title,
+          'ok',
+          count
+        );
 
         box.open=false;
       }else{
-        summary.textContent=
-          title+
-          ' — Documento inserido; complete os dados';
+        documentSummary_(
+          summary,
+          title,
+          'incomplete',
+          count
+        );
+
         box.open=true;
       }
     };
 
     input.addEventListener(
       'change',
-      sync
+      ()=>{
+        if(
+          input.files&&
+          input.files.length
+        ){
+          delete input.dataset.imported;
+          delete input.dataset.importedCount;
+        }
+
+        sync();
+      }
     );
 
     return {
