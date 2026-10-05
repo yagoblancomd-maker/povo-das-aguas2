@@ -1,7 +1,6 @@
 const MODULES={
   PAINEL:'Painel',
   PESS:'Novo Cadastro',
-  ATEND:'Atendimentos',
   ACOMP:'Consultar Cadastros',
   DEFESO:'Consultar Defeso 2025',
   MIN:'Minutas',
@@ -13,7 +12,6 @@ const MODULES={
 const MODULE_PERMISSION=Object.freeze({
   PAINEL:'consulta',
   PESS:'cadastro',
-  ATEND:'cadastro',
   ACOMP:'consulta',
   DEFESO:'consulta',
   MIN:'minuta',
@@ -133,7 +131,6 @@ function api(action,q){
     },
     pessoas:()=>personSearch_(q),
     pessoa:()=>get_('Pessoas',q.id),
-    atendimentos:()=>all_('Atendimentos'),
     ficha:()=>dossier_(q),
     painel:()=>dashboard_(),
     admin:()=>({
@@ -169,7 +166,6 @@ function api(action,q){
       portalTransparencia:portalTransparenciaStatus_(),
       deepseek:deepseekStatus_()
     }),
-    aptidao:()=>eligibility_(get_('Atendimentos',q.id),true),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
     cepConsultar:()=>cepConsultaViaCep_(q),
     documentosImportar:()=>deepseekDocumentImport_(q)
@@ -182,13 +178,9 @@ function api(action,q){
     pessoaDocumentoExcluir:['retificacao',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
     pessoaInicialGerar:['cadastro',personInitialGenerate_],
-    atendimentoSalvar:['cadastro',atendSave_],
-    atendimentoRetificar:['retificacao',atendSave_],
+    minutaInicialGerar:['minuta',personInitialGenerate_],
     upload:['cadastro',upload_],
-    encaminhar:['cadastro',forward_],
     documentoConferir:['conferencia',checkDoc_],
-    pendenciaSalvar:['retificacao',pendSave_],
-    atendimentoConferir:['conferencia',checkAtend_],
     minutaGerar:['minuta',generate_],
     minutaRevisar:['minuta',reviewMin_],
     modeloUpload:['administracao',modelUpload_],
