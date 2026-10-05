@@ -177,8 +177,7 @@ window.PDA_MODULES.ACOMP = (()=>{
 
         if(
           allowDelete&&
-          d.vigente==='true'&&
-          can('retificacao')
+          d.vigente==='true'
         ){
           const del=button('Deletar',async()=>{
             const confirmed=window.confirm(
@@ -258,7 +257,7 @@ window.PDA_MODULES.ACOMP = (()=>{
     return String(value);
   }
 
-  function personReadOnly_(parent,p){
+  function personReadOnly_(parent,p,allowRetification){
     const view=
       el(
         'div',
@@ -312,7 +311,7 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     let editButton=null;
 
-    if(can('retificacao')){
+    if(allowRetification){
       const actions=
         el(
           'div',
@@ -1076,7 +1075,8 @@ window.PDA_MODULES.ACOMP = (()=>{
     const personReadOnly=
       personReadOnly_(
         person,
-        p
+        p,
+        !!data.podeRetificar
       );
 
     const personEditor=
@@ -1264,7 +1264,7 @@ window.PDA_MODULES.ACOMP = (()=>{
       activePersonDocs,
       null,
       p,
-      true
+      !!data.podeRetificar
     );
 
     const history=details(
