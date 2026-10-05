@@ -327,10 +327,16 @@ function userApproveProfessorResident_(ctx,q){
     );
   }
 
-  const permissions=
-    rolePermissions_(
-      'PROFESSOR_RESIDENTE'
-    );
+  const permissions=[
+    ...new Set([
+      ...effectivePermissions_(
+        user
+      ),
+      ...rolePermissions_(
+        'PROFESSOR_RESIDENTE'
+      )
+    ])
+  ];
 
   const userData={
     email:user.email,
