@@ -2,7 +2,7 @@
 window.PDA_MODULES.ACOMP = (()=>{
   const {
     el,card,details,form,table,link,button,call,go,alive,
-    personFields,atendFields,searchUI,guidance,uploadForm
+    personFields,atendFields,searchUI,guidance,uploadForm,status
   }=App;
 
   const DOC_LABELS={
@@ -13,6 +13,39 @@ window.PDA_MODULES.ACOMP = (()=>{
     PROCURACAO:'Procuração',
     HIPOSSUFICIENCIA:'Declaração de hipossuficiência'
   };
+
+  function readFile_(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+
+      reader.onload=()=>{
+        const value=String(reader.result||'');
+        const parts=value.split(',');
+
+        if(parts.length<2){
+          reject(new Error('Não foi possível ler o arquivo.'));
+          return;
+        }
+
+        resolve(parts[1]);
+      };
+
+      reader.onerror=()=>reject(reader.error||new Error('Erro ao ler o arquivo.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function mime_(file){
+    if(file.type)return file.type;
+
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+
+    if(ext==='pdf')return 'application/pdf';
+    if(ext==='jpg'||ext==='jpeg')return 'image/jpeg';
+    if(ext==='png')return 'image/png';
+
+    return '';
+  }
 
   function checkFields_(d){
     return [
@@ -67,7 +100,7 @@ window.PDA_MODULES.ACOMP = (()=>{
     ];
   }
 
-  function docsTable_(parent,docs,a){
+  function docsTable_(parent,docs,a,p,allowDelete){
     const checkArea=el('div');
 
     table(
@@ -78,11 +111,11 @@ window.PDA_MODULES.ACOMP = (()=>{
           value:d=>DOC_LABELS[d.categoria]||d.categoria
         },
         {
-          key:'id',
-          label:'ID'
+          key:'nome',
+          label:'Arquivo'
         },
         {
-          label:'Versão',
+          label:'Situação',
           value:d=>
             (d.vigente==='true'?'Vigente':'Anterior')+
             ' · '+
@@ -90,58 +123,285 @@ window.PDA_MODULES.ACOMP = (()=>{
         }
       ],
       docs,
-      d=>[
-        link(d.url,'Abrir arquivo'),
-        button('Conferir',()=>{
-          checkArea.replaceChildren();
+      d=>{
+        const actions=[
+          link(d.url,'Abrir arquivo'),
+          button('Conferir',()=>{
+            checkArea.replaceChildren();
 
-          checkArea.append(
-            el(
-              'h3',
-              (DOC_LABELS[d.categoria]||d.categoria)+
-              ' · '+
-              d.id
-            )
-          );
+            checkArea.append(
+              el(
+                'h3',
+                (DOC_LABELS[d.categoria]||d.categoria)+
+                ' · '+
+                d.nome
+              )
+            );
 
-          guidance(checkArea);
+            guidance(checkArea);
 
-          form(
-            checkArea,
-            checkFields_(d),
-            Object.assign(
-              {},
-              d,
-              a
-                ?{atendimentoVersao:a.versao}
-                :{}
-            ),
-            async v=>{
-              await call(
-                'documentoConferir',
-                v,
-                true
-              );
+            form(
+              checkArea,
+              checkFields_(d),
+              Object.assign(
+                {},
+                d,
+                a
+                  ?{atendimentoVersao:a.versao}
+                  :{}
+              ),
+              async v=>{
+                await call(
+                  'documentoConferir',
+                  v,
+                  true
+                );
 
-              await go('ACOMP');
-            }
-          );
-        })
-      ]
+                await go('ACOMP',p.id);
+              }
+            );
+          })
+        ];
+
+        if(allowDelete&&d.vigente==='true'){
+          const del=button('Deletar',async()=>{
+            const confirmed=window.confirm(
+              'Confirma a exclusão de "'+
+              d.nome+
+              '"?\n\nO arquivo será removido da pasta da pessoa no Google Drive.'
+            );
+
+            if(!confirmed)return;
+
+            const result=await call(
+              'pessoaDocumentoExcluir',
+              {
+                id:d.id,
+                versao:d.versao,
+                pessoaId:p.id
+              },
+              true
+            );
+
+            await go('ACOMP',p.id);
+            status(result.mensagem||'Documento excluído.');
+          });
+
+          del.className='danger';
+          actions.push(del);
+        }
+
+        return actions;
+      }
     );
 
     parent.append(checkArea);
   }
 
+  function personBatchUploader_(parent,p){
+    const area=details(parent,'Adicionar novos documentos em lote');
+
+    area.append(el(
+      'p',
+      'Selecione vários arquivos de uma vez. Para cada arquivo, informe individualmente o tipo documental. PDF, JPEG ou PNG; até 5 MB por arquivo.',
+      'hint'
+    ));
+
+    const chooser=el('input');
+    chooser.type='file';
+    chooser.multiple=true;
+    chooser.accept='.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+    chooser.setAttribute('aria-label','Novos documentos da pessoa');
+
+    area.append(chooser);
+
+    const rowsArea=el('div');
+    area.append(rowsArea);
+
+    let rows=[];
+
+    function renderRows_(){
+      rowsArea.replaceChildren();
+      rows=[];
+
+      const files=Array.from(chooser.files||[]);
+
+      files.forEach((file,index)=>{
+        const box=card(file.name);
+        const grid=el('div',undefined,'grid');
+
+        const categoryLabel=el('label',undefined,'field');
+        categoryLabel.append(el('span','Tipo do documento *'));
+
+        const category=el('select');
+        category.required=true;
+        category.append(new Option('Selecione',''));
+
+        App.state.boot.config.categorias.forEach(value=>{
+          category.append(
+            new Option(
+              DOC_LABELS[value]||value,
+              value
+            )
+          );
+        });
+
+        categoryLabel.append(category);
+
+        const residenceDateLabel=el('label',undefined,'field');
+        residenceDateLabel.append(el('span','Vencimento do comprovante *'));
+
+        const residenceDate=el('input');
+        residenceDate.type='text';
+        residenceDate.placeholder='DD/MM/AAAA';
+        residenceDateLabel.append(residenceDate);
+        residenceDateLabel.hidden=true;
+
+        const thirdLabel=el('label',undefined,'field');
+        thirdLabel.append(el('span','Comprovante em nome de terceiro?'));
+
+        const third=el('input');
+        third.type='checkbox';
+        thirdLabel.append(third);
+        thirdLabel.hidden=true;
+
+        const syncResidence=()=>{
+          const isResidence=category.value==='RESIDENCIA';
+
+          residenceDateLabel.hidden=!isResidence;
+          thirdLabel.hidden=!isResidence;
+          residenceDate.required=isResidence;
+
+          if(!isResidence){
+            residenceDate.value='';
+            third.checked=false;
+          }
+        };
+
+        category.addEventListener('change',syncResidence);
+        syncResidence();
+
+        grid.append(
+          categoryLabel,
+          residenceDateLabel,
+          thirdLabel
+        );
+
+        box.append(grid);
+        rowsArea.append(box);
+
+        rows.push({
+          index,
+          file,
+          category,
+          residenceDate,
+          third
+        });
+      });
+
+      if(files.length){
+        const actions=el('div',undefined,'actions');
+
+        actions.append(
+          button('Enviar lote',async()=>{
+            const invalid=rows.find(row=>!row.category.value);
+
+            if(invalid){
+              throw new Error(
+                'Selecione o tipo documental de todos os arquivos antes de enviar.'
+              );
+            }
+
+            const invalidResidence=rows.find(
+              row=>
+                row.category.value==='RESIDENCIA'&&
+                !String(row.residenceDate.value||'').trim()
+            );
+
+            if(invalidResidence){
+              throw new Error(
+                'Informe o vencimento de cada comprovante de residência.'
+              );
+            }
+
+            const enviados=[];
+            const erros=[];
+
+            for(const row of rows){
+              try{
+                if(row.file.size>5*1024*1024){
+                  throw new Error('Arquivo maior que 5 MB.');
+                }
+
+                const mime=mime_(row.file);
+
+                if(!['application/pdf','image/jpeg','image/png'].includes(mime)){
+                  throw new Error('Formato não permitido. Use PDF, JPEG ou PNG.');
+                }
+
+                const base64=await readFile_(row.file);
+
+                await call(
+                  'pessoaUpload',
+                  {
+                    pessoaId:p.id,
+                    categoria:row.category.value,
+                    base64,
+                    mime,
+                    vencimento:
+                      row.category.value==='RESIDENCIA'
+                        ?String(row.residenceDate.value||'').trim()
+                        :'',
+                    terceiro:
+                      row.category.value==='RESIDENCIA'
+                        ?!!row.third.checked
+                        :false
+                  },
+                  true
+                );
+
+                enviados.push(row.file.name);
+
+              }catch(e){
+                erros.push(
+                  row.file.name+
+                  ': '+
+                  (e.message||String(e))
+                );
+              }
+            }
+
+            await go('ACOMP',p.id);
+
+            if(erros.length){
+              status(
+                'Arquivos enviados: '+
+                (enviados.length?enviados.join(', '):'nenhum')+
+                '\nFalhas:\n'+
+                erros.join('\n'),
+                true
+              );
+            }else{
+              status(
+                'Novos documentos adicionados: '+
+                enviados.join(', ')+
+                '.'
+              );
+            }
+          })
+        );
+
+        rowsArea.append(actions);
+      }
+    }
+
+    chooser.addEventListener('change',renderRows_);
+  }
+
   return async function(ctx){
     const root=ctx.root;
 
-    root.append(
-      el(
-        'h2',
-        'Ficha e conferência'
-      )
-    );
+    root.append(el('h2','Ficha e conferência'));
 
     if(!App.state.selection){
       await searchUI(
@@ -152,45 +412,33 @@ window.PDA_MODULES.ACOMP = (()=>{
       return;
     }
 
-    const data=
-      await call(
-        'ficha',
-        {
-          pessoaId:
-            App.state.selection
-        }
-      );
+    const data=await call(
+      'ficha',
+      {
+        pessoaId:App.state.selection
+      }
+    );
 
-    if(!alive(ctx)){
-      return;
-    }
+    if(!alive(ctx))return;
 
     const p=data.pessoa;
 
-    root.append(
-      el(
-        'h3',
-        p.nome
-      )
-    );
+    root.append(el('h3',p.nome));
 
     root.append(
       el(
         'p',
         'CPF '+
         p.cpf+
+        ' · Jurisdição: '+
+        (p.jurisdicao||'não definida')+
         ' · Parcelas não recebidas: '+
         (p.parcelasNaoRecebidas||'não informado'),
         'badge'
       )
     );
 
-    const actions=
-      el(
-        'div',
-        undefined,
-        'actions'
-      );
+    const actions=el('div',undefined,'actions');
 
     actions.append(
       button(
@@ -209,11 +457,10 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     root.append(actions);
 
-    const person=
-      details(
-        root,
-        'Dados pessoais — consultar e retificar'
-      );
+    const person=details(
+      root,
+      'Dados pessoais — consultar e retificar'
+    );
 
     form(
       person,
@@ -226,39 +473,46 @@ window.PDA_MODULES.ACOMP = (()=>{
           true
         );
 
-        await go('ACOMP');
+        await go('ACOMP',p.id);
       }
     );
 
-    const shared=
-      details(
-        root,
-        'Documentos da pessoa ('+
-        data.documentosPessoa.length+
-        ')'
+    const activePersonDocs=
+      data.documentosPessoa.filter(
+        d=>d.vigente==='true'
       );
+
+    const shared=details(
+      root,
+      'Documentos da pessoa ('+
+      activePersonDocs.length+
+      ')'
+    );
 
     shared.append(
       el(
         'p',
-        'Estes documentos pertencem ao cadastro da pessoa e são reutilizados nos atendimentos, salvo quando houver documento específico da mesma categoria no atendimento.',
+        'Os documentos abaixo pertencem ao cadastro individual da pessoa. É possível adicionar novos arquivos a qualquer momento, inclusive vários de uma vez, e excluir arquivos existentes mediante confirmação.',
         'hint'
       )
     );
 
+    personBatchUploader_(shared,p);
+
     docsTable_(
       shared,
-      data.documentosPessoa,
-      null
+      activePersonDocs,
+      null,
+      p,
+      true
     );
 
     data.atendimentos.forEach(a=>{
-      const area=
-        card(
-          a.demanda+
-          ' · '+
-          a.referencia
-        );
+      const area=card(
+        a.demanda+
+        ' · '+
+        a.referencia
+      );
 
       area.append(
         el(
@@ -312,11 +566,10 @@ window.PDA_MODULES.ACOMP = (()=>{
         )
       );
 
-      const edit=
-        details(
-          area,
-          'Retificar dados do atendimento'
-        );
+      const edit=details(
+        area,
+        'Retificar dados do atendimento'
+      );
 
       form(
         edit,
@@ -329,17 +582,16 @@ window.PDA_MODULES.ACOMP = (()=>{
             true
           );
 
-          await go('ACOMP');
+          await go('ACOMP',p.id);
         }
       );
 
       const adocs=
-        data.documentos
-          .filter(
-            d=>
-              d.atendimentoId===
-              a.id
-          );
+        data.documentos.filter(
+          d=>
+            d.atendimentoId===a.id&&
+            d.vigente==='true'
+        );
 
       uploadForm(
         area,
@@ -347,25 +599,25 @@ window.PDA_MODULES.ACOMP = (()=>{
         adocs
       );
 
-      const docs=
-        details(
-          area,
-          'Documentos específicos do atendimento ('+
-          adocs.length+
-          ')'
-        );
+      const docs=details(
+        area,
+        'Documentos específicos do atendimento ('+
+        adocs.length+
+        ')'
+      );
 
       docsTable_(
         docs,
         adocs,
-        a
+        a,
+        p,
+        false
       );
 
-      const pend=
-        details(
-          area,
-          'Pendências e responsáveis'
-        );
+      const pend=details(
+        area,
+        'Pendências e responsáveis'
+      );
 
       const fields=[
         {
@@ -391,26 +643,22 @@ window.PDA_MODULES.ACOMP = (()=>{
 
       data.pendencias
         .filter(
-          x=>
-            x.atendimentoId===
-            a.id
+          x=>x.atendimentoId===a.id
         )
         .forEach(x=>{
-          const box=
-            details(
-              pend,
-              x.situacao+
-              ' — '+
-              x.descricao
-            );
+          const box=details(
+            pend,
+            x.situacao+
+            ' — '+
+            x.descricao
+          );
 
           form(
             box,
             fields,
             {
               ...x,
-              atendimentoVersao:
-                a.versao
+              atendimentoVersao:a.versao
             },
             async v=>{
               await call(
@@ -419,7 +667,7 @@ window.PDA_MODULES.ACOMP = (()=>{
                 true
               );
 
-              await go('ACOMP');
+              await go('ACOMP',p.id);
             }
           );
         });
@@ -439,17 +687,12 @@ window.PDA_MODULES.ACOMP = (()=>{
             true
           );
 
-          await go('ACOMP');
+          await go('ACOMP',p.id);
         },
         'Registrar pendência'
       );
 
-      const acts=
-        el(
-          'div',
-          undefined,
-          'actions'
-        );
+      const acts=el('div',undefined,'actions');
 
       acts.append(
         button(
@@ -464,7 +707,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               true
             );
 
-            await go('ACOMP');
+            await go('ACOMP',p.id);
           }
         ),
         button(
@@ -479,7 +722,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               true
             );
 
-            await go('ACOMP');
+            await go('ACOMP',p.id);
           }
         ),
         button(
@@ -492,27 +735,25 @@ window.PDA_MODULES.ACOMP = (()=>{
       root.append(area);
     });
 
-    const history=
-      details(
-        root,
-        'Histórico de alterações ('+
-        data.historico.length+
-        ')'
-      );
+    const history=details(
+      root,
+      'Histórico de alterações ('+
+      data.historico.length+
+      ')'
+    );
 
     data.historico
       .slice()
       .reverse()
       .forEach(h=>{
-        const d=
-          details(
-            history,
-            h.alteradoEm+
-            ' · '+
-            h.usuario+
-            ' · '+
-            h.entidade
-          );
+        const d=details(
+          history,
+          h.alteradoEm+
+          ' · '+
+          h.usuario+
+          ' · '+
+          h.entidade
+        );
 
         d.append(
           el(
@@ -525,11 +766,10 @@ window.PDA_MODULES.ACOMP = (()=>{
         );
       });
 
-    const proc=
-      details(
-        root,
-        'Processos judiciais'
-      );
+    const proc=details(
+      root,
+      'Processos judiciais'
+    );
 
     proc.append(
       el(
