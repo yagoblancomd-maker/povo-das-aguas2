@@ -205,6 +205,129 @@ window.PDA_MODULES.ACOMP = (()=>{
     parent.append(checkArea);
   }
 
+  function personDisplayValue_(field,p){
+    const value=p[field.key];
+
+    if(
+      value===undefined||
+      value===null||
+      String(value).trim()===''
+    ){
+      return '—';
+    }
+
+    if(field.key==='cpf'){
+      const digits=String(value).replace(/\D/g,'');
+
+      return digits.length===11
+        ?digits.replace(
+            /(\d{3})(\d{3})(\d{3})(\d{2})/,
+            '$1.$2.$3-$4'
+          )
+        :String(value);
+    }
+
+    if(field.key==='analfabeto'){
+      return String(value).toUpperCase()==='SIM'
+        ?'Sim'
+        :'Não';
+    }
+
+    if(field.key==='parcelasNaoRecebidas'){
+      const n=Number(value);
+
+      return (
+        String(n)+
+        (
+          n===1
+            ?' parcela'
+            :' parcelas'
+        )
+      );
+    }
+
+    return String(value);
+  }
+
+  function personReadOnly_(parent,p){
+    const view=
+      el(
+        'div',
+        undefined,
+        'acomp-person-view'
+      );
+
+    const grid=
+      el(
+        'div',
+        undefined,
+        'acomp-person-view-grid'
+      );
+
+    personFields()
+      .filter(field=>{
+        if(
+          field.key==='outraEntidade'&&
+          String(p.entidade||'')!=='Outro'
+        ){
+          return false;
+        }
+
+        return true;
+      })
+      .forEach(field=>{
+        const item=
+          el(
+            'div',
+            undefined,
+            'acomp-person-view-item'
+          );
+
+        item.append(
+          el(
+            'span',
+            field.label,
+            'acomp-person-view-label'
+          ),
+          el(
+            'strong',
+            personDisplayValue_(field,p),
+            'acomp-person-view-value'
+          )
+        );
+
+        grid.append(item);
+      });
+
+    view.append(grid);
+
+    const actions=
+      el(
+        'div',
+        undefined,
+        'actions acomp-person-view-actions'
+      );
+
+    const editButton=
+      button(
+        'Editar cadastro',
+        ()=>{}
+      );
+
+    editButton.classList.add(
+      'acomp-person-edit-button'
+    );
+
+    actions.append(editButton);
+    view.append(actions);
+    parent.append(view);
+
+    return {
+      view,
+      editButton
+    };
+  }
+
   function personBatchUploader_(parent,p){
     const area=details(parent,'Adicionar novos documentos em lote');
 
@@ -938,20 +1061,165 @@ window.PDA_MODULES.ACOMP = (()=>{
       'Dados pessoais — consultar e retificar'
     );
 
-    form(
-      person,
-      personFields(),
-      p,
-      async v=>{
-        await call(
-          'pessoaSalvar',
-          v,
-          true
+    const personReadOnly=
+      personReadOnly_(
+        person,
+        p
+      );
+
+    const personEditor=
+      el(
+        'div',
+        undefined,
+        'acomp-person-editor'
+      );
+
+    personEditor.hidden=true;
+    person.append(personEditor);
+
+    const personEditForm=
+      form(
+        personEditor,
+        personFields(),
+        p,
+        async v=>{
+          await call(
+            'pessoaSalvar',
+            v,
+            true
+          );
+
+          status(
+            'Cadastro atualizado e gravado.'
+          );
+
+          await go(
+            'ACOMP',
+            p.id
+          );
+        },
+        'Salvar alterações'
+      );
+
+    const editActions=
+      personEditForm.querySelector(
+        ':scope > .actions'
+      );
+
+    const cancelEdit=
+      button(
+        'Cancelar',
+        ()=>{
+          personEditor.hidden=true;
+          personReadOnly.view.hidden=false;
+
+          /*
+           * Descarta qualquer alteração ainda não salva reconstruindo
+           * os valores originais do cadastro na próxima abertura.
+           */
+          const original=p;
+
+          personFields().forEach(field=>{
+            const control=
+              personEditForm.elements.namedItem(
+                field.key
+              );
+
+            if(!control)return;
+
+            if(field.type==='checkbox'){
+              control.checked=
+                original[field.key]===true||
+                original[field.key]==='true';
+            }else{
+              control.value=
+                original[field.key]===undefined
+                  ?''
+                  :original[field.key];
+            }
+
+            control.dispatchEvent(
+              new Event(
+                'input',
+                {bubbles:true}
+              )
+            );
+
+            control.dispatchEvent(
+              new Event(
+                'change',
+                {bubbles:true}
+              )
+            );
+          });
+        },
+        true
+      );
+
+    if(editActions){
+      editActions.insertBefore(
+        cancelEdit,
+        editActions.firstChild
+      );
+    }
+
+    const outraEntidade=
+      personEditForm.elements.namedItem(
+        'outraEntidade'
+      );
+
+    const entidade=
+      personEditForm.elements.namedItem(
+        'entidade'
+      );
+
+    const outraWrap=
+      outraEntidade
+        ?outraEntidade.closest(
+            '.field'
+          )
+        :null;
+
+    const syncOutraEntidade=()=>{
+      const show=
+        !!entidade&&
+        entidade.value==='Outro';
+
+      if(outraWrap){
+        outraWrap.hidden=!show;
+      }
+
+      if(outraEntidade){
+        outraEntidade.required=show;
+
+        if(!show){
+          outraEntidade.value='';
+        }
+      }
+    };
+
+    if(entidade){
+      entidade.addEventListener(
+        'change',
+        syncOutraEntidade
+      );
+    }
+
+    syncOutraEntidade();
+
+    personReadOnly.editButton.onclick=()=>{
+      personReadOnly.view.hidden=true;
+      personEditor.hidden=false;
+
+      const first=
+        personEditForm.elements.namedItem(
+          'nome'
         );
 
-        await go('ACOMP',p.id);
+      if(first){
+        first.focus();
       }
-    );
+    };
 
     const activePersonDocs=
       data.documentosPessoa.filter(
