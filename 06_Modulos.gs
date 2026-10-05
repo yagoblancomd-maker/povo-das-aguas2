@@ -48,7 +48,8 @@ function api(action,q){
       email:identity_(),
       perfil:all_('Usuarios').find(u=>u.email===identity_()).perfil,
       config:cfg_(),
-      modulos:MODULES
+      modulos:MODULES,
+      modelo:templateStatus_()
     }),
     pessoas:()=>personSearch_(q),
     pessoa:()=>get_('Pessoas',q.id),
@@ -67,6 +68,7 @@ function api(action,q){
   const mutations={
     pessoaSalvar:['cadastro',personSave_],
     pessoaUpload:['cadastro',personUpload_],
+    pessoaDocumentoExcluir:['retificacao',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
     atendimentoSalvar:['cadastro',atendSave_],
     upload:['cadastro',upload_],
