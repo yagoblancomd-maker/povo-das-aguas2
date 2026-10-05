@@ -514,6 +514,329 @@ function distributionTaskDetail_(q){
   };
 }
 
+function distributionZipFileName_(index,doc,file){
+  const original=
+    safeName_(
+      file.getName()||
+      doc.nome||
+      'documento'
+    );
+
+  const label=
+    safeName_(
+      documentLabel_(
+        doc.categoria
+      )
+    );
+
+  const prefix=
+    String(index+1)
+      .padStart(
+        2,
+        '0'
+      );
+
+  return safeName_(
+    prefix+
+    ' - '+
+    label+
+    ' - '+
+    original
+  );
+}
+
+function distributionDocumentsZip_(ctx,q){
+  required_(
+    q.id,
+    'tarefa'
+  );
+
+  const task=
+    get_(
+      'Tarefas',
+      q.id
+    );
+
+  if(
+    task.tipo!==
+    DISTRIBUTION_TASK_TYPE
+  ){
+    fail_(
+      'A tarefa informada não é uma distribuição processual.'
+    );
+  }
+
+  const user=
+    activeUser_();
+
+  const canManage=
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  const isOwner=
+    String(
+      task.responsavel||
+      ''
+    ).toLowerCase()===
+    String(
+      user.email||
+      ''
+    ).toLowerCase();
+
+  if(
+    !isOwner&&
+    !canManage
+  ){
+    fail_(
+      'Esta tarefa está atribuída a outro usuário.'
+    );
+  }
+
+  const p=
+    get_(
+      'Pessoas',
+      task.pessoaId
+    );
+
+  const owner=
+    personOwnerKey_(
+      p.id
+    );
+
+  const docs=
+    all_('Documentos')
+      .filter(d=>
+        d.atendimentoId===owner&&
+        bool_(d.vigente)&&
+        String(
+          d.fileId||
+          ''
+        ).trim()
+      )
+      .sort((a,b)=>
+        String(
+          documentLabel_(
+            a.categoria
+          )
+        ).localeCompare(
+          String(
+            documentLabel_(
+              b.categoria
+            )
+          ),
+          'pt-BR',
+          {sensitivity:'base'}
+        )
+      );
+
+  if(!docs.length){
+    fail_(
+      'Nenhum documento vigente foi localizado para esta pessoa.'
+    );
+  }
+
+  const blobs=[];
+  const included=[];
+  let totalBytes=0;
+
+  docs.forEach((doc,index)=>{
+    let file;
+
+    try{
+      file=
+        DriveApp.getFileById(
+          doc.fileId
+        );
+
+      if(file.isTrashed()){
+        return;
+      }
+
+    }catch(e){
+      return;
+    }
+
+    const mime=
+      String(
+        file.getMimeType()||
+        ''
+      );
+
+    let blob;
+
+    if(
+      mime.indexOf(
+        'application/vnd.google-apps.'
+      )===0
+    ){
+      blob=
+        file.getAs(
+          MimeType.PDF
+        );
+
+      blob.setName(
+        safeName_(
+          String(index+1)
+            .padStart(
+              2,
+              '0'
+            )+
+          ' - '+
+          documentLabel_(
+            doc.categoria
+          )+
+          ' - '+
+          file.getName()
+        )+
+        '.pdf'
+      );
+
+    }else{
+      blob=
+        file.getBlob();
+
+      blob.setName(
+        distributionZipFileName_(
+          index,
+          doc,
+          file
+        )
+      );
+    }
+
+    const size=
+      blob.getBytes().length;
+
+    totalBytes+=size;
+
+    if(
+      totalBytes>
+      45*1024*1024
+    ){
+      fail_(
+        'O conjunto de documentos ultrapassa 45 MB e não pode ser compactado em uma única operação. Reduza o tamanho dos arquivos antes de tentar novamente.'
+      );
+    }
+
+    blobs.push(blob);
+
+    included.push({
+      categoria:doc.categoria,
+      nome:blob.getName(),
+      bytes:size
+    });
+  });
+
+  if(!blobs.length){
+    fail_(
+      'Os documentos estão registrados no sistema, mas os arquivos correspondentes não puderam ser lidos no Google Drive.'
+    );
+  }
+
+  const fingerprint=
+    hash_(
+      included.map(item=>[
+        item.categoria,
+        item.nome,
+        item.bytes
+      ])
+    );
+
+  const folder=
+    personFolder_(p);
+
+  const zipName=
+    safeName_(
+      'DOCUMENTOS.DISTRIBUICAO.'+
+      p.nome
+    )+
+    '.zip';
+
+  const marker=
+    'PDA_TASK_DOCS_ZIP:'+
+    task.id+
+    ':'+
+    fingerprint;
+
+  const existing=
+    folder.getFilesByName(
+      zipName
+    );
+
+  while(existing.hasNext()){
+    const file=
+      existing.next();
+
+    if(
+      !file.isTrashed()&&
+      String(
+        file.getDescription()||
+        ''
+      )===marker
+    ){
+      return {
+        fileId:file.getId(),
+        nome:file.getName(),
+        quantidade:included.length,
+        downloadUrl:
+          'https://drive.google.com/uc?export=download&id='+
+          encodeURIComponent(
+            file.getId()
+          ),
+        driveUrl:file.getUrl(),
+        mensagem:
+          included.length+
+          (
+            included.length===1
+              ?' documento preparado para download.'
+              :' documentos preparados para download.'
+          )
+      };
+    }
+  }
+
+  const zipBlob=
+    Utilities.zip(
+      blobs,
+      zipName
+    );
+
+  const zipFile=
+    folder.createFile(
+      zipBlob
+    );
+
+  zipFile.setDescription(
+    marker
+  );
+
+  ctx.effects.push(
+    'Pacote ZIP de documentos criado no Drive: '+
+    zipFile.getUrl()
+  );
+
+  return {
+    fileId:zipFile.getId(),
+    nome:zipFile.getName(),
+    quantidade:included.length,
+    downloadUrl:
+      'https://drive.google.com/uc?export=download&id='+
+      encodeURIComponent(
+        zipFile.getId()
+      ),
+    driveUrl:zipFile.getUrl(),
+    mensagem:
+      included.length+
+      (
+        included.length===1
+          ?' documento preparado para download.'
+          :' documentos preparados para download.'
+      )
+  };
+}
+
 function distributionTaskAssign_(ctx,q){
   required_(
     q.id,
