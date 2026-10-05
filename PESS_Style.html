@@ -1,37 +1,37 @@
 <style>
 #pess-root{
   position:relative;
-  width:min(1180px,100%);
-  min-height:380px;
+  width:min(1080px,100%);
+  min-height:360px;
   margin:0 auto
 }
 #pess-root::before{
   content:"";
   position:absolute;
   z-index:-1;
-  inset:64px -3vw auto;
-  height:220px;
-  opacity:.45;
+  inset:58px -2vw auto;
+  height:190px;
+  opacity:.4;
   pointer-events:none;
   background:
-    radial-gradient(ellipse at 12% 90%,transparent 0 53%,rgba(8,121,135,.07) 54% 55%,transparent 56%),
-    radial-gradient(ellipse at 54% 96%,transparent 0 57%,rgba(15,48,70,.045) 58% 59%,transparent 60%),
-    radial-gradient(ellipse at 90% 92%,transparent 0 50%,rgba(8,121,135,.045) 51% 52%,transparent 53%);
-  background-size:340px 105px,470px 130px,370px 115px
+    radial-gradient(ellipse at 12% 90%,transparent 0 53%,rgba(8,121,135,.065) 54% 55%,transparent 56%),
+    radial-gradient(ellipse at 54% 96%,transparent 0 57%,rgba(15,48,70,.04) 58% 59%,transparent 60%),
+    radial-gradient(ellipse at 90% 92%,transparent 0 50%,rgba(8,121,135,.04) 51% 52%,transparent 53%);
+  background-size:320px 95px,440px 120px,350px 105px
 }
 .pess-page-head{
   display:flex;
   align-items:flex-end;
   justify-content:space-between;
-  gap:12px;
-  margin-bottom:6px;
+  gap:10px;
+  margin-bottom:5px;
   padding:0 2px
 }
 .pess-page-head h2{margin-bottom:0}
 .pess-page-subtitle{
   margin:1px 0 0;
   color:var(--muted);
-  font-size:10.5px
+  font-size:10px
 }
 .pess-home-actions{
   display:grid;
@@ -41,23 +41,23 @@
 }
 .pess-action-card{
   display:flex;
-  min-height:58px;
+  min-height:54px;
   flex-direction:column;
   align-items:flex-start;
   justify-content:center;
   gap:1px;
-  padding:9px 12px;
+  padding:8px 11px;
   border:1px solid transparent;
   border-radius:9px;
   text-align:left
 }
 .pess-action-card strong{
-  font-size:12.5px;
-  line-height:1.1
+  font-size:12px;
+  line-height:1.08
 }
 .pess-action-card span{
   opacity:.86;
-  font-size:9.6px;
+  font-size:9.2px;
   font-weight:450
 }
 .pess-action-search{
@@ -77,74 +77,161 @@
   background:linear-gradient(145deg,#12364d,#0e5664)
 }
 .pess-work-panel{
-  scroll-margin-top:56px;
+  scroll-margin-top:54px;
   animation:pessReveal .16s ease
 }
-.pess-work-panel[hidden]{
-  display:none!important
-}
+.pess-work-panel[hidden]{display:none!important}
 @keyframes pessReveal{
   from{opacity:0;transform:translateY(-4px)}
   to{opacity:1;transform:none}
 }
 .pess-register-panel{
   margin:0 auto;
-  padding:8px 9px 9px;
+  padding:7px 8px 8px;
   border-color:#b7cdd5;
-  background:rgba(255,255,255,.93);
+  background:rgba(255,255,255,.94);
   box-shadow:0 5px 18px rgba(15,48,70,.07)
 }
 .pess-register-panel>summary{
-  font-size:13px;
+  font-size:12.5px;
   color:#123e52
 }
 .pess-register-panel>p.hint{
-  margin:1px 0 6px;
-  font-size:10px
+  margin:1px 0 5px;
+  font-size:9.5px
 }
-.pess-person-form>.grid{
+.pess-stepper{
+  margin-top:4px
+}
+.pess-step-progress{
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:4px;
+  margin:0 0 6px
+}
+.pess-step-progress-item{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:5px;
+  padding:5px 6px;
+  border:1px solid #d4e1e5;
+  border-radius:7px;
+  color:#667b85;
+  background:#f5f9fa;
+  font-size:9.6px;
+  white-space:nowrap;
+  overflow:hidden
+}
+.pess-step-progress-item strong{
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.pess-step-number{
+  display:grid;
+  place-items:center;
+  flex:0 0 20px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  color:#496775;
+  background:#dfecef;
+  font-size:9px;
+  font-weight:750
+}
+.pess-step-progress-item.active{
+  color:#123e52;
+  border-color:#77aeb7;
+  background:#e8f4f5
+}
+.pess-step-progress-item.active .pess-step-number{
+  color:#fff;
+  background:var(--teal)
+}
+.pess-step-progress-item.done{
+  color:#24574e;
+  border-color:#b7d8cf;
+  background:#edf7f4
+}
+.pess-step-progress-item.done .pess-step-number{
+  color:#fff;
+  background:#28725f
+}
+.pess-step{
+  min-height:145px;
+  padding:8px;
+  border:1px solid #c9dbe1;
+  border-radius:9px;
+  background:rgba(252,254,254,.95)
+}
+.pess-step[hidden]{display:none!important}
+.pess-step-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+  padding-bottom:5px;
+  border-bottom:1px solid #e2ebee
+}
+.pess-step-head h3{
+  margin:0;
+  color:#143f53;
+  font-size:13px
+}
+.pess-step-head p{
+  margin:0;
+  font-size:9.5px
+}
+.pess-step-grid{
+  display:grid;
   gap:6px 7px;
   align-items:start
 }
-.pess-person-form>.grid>.field[data-field="nome"]{
+.pess-step-grid-1{
+  grid-template-columns:minmax(260px,420px)
+}
+.pess-step-grid-2{
+  grid-template-columns:1.5fr .8fr 1fr 1.25fr
+}
+.pess-step-grid-3{
+  grid-template-columns:.75fr 1.4fr .55fr .9fr .8fr 1fr
+}
+.pess-step-grid-3>.field[data-field="cep"]{
   grid-column:span 2
 }
-.pess-person-form>.grid>.field[data-field="via"]{
+.pess-step-grid-3>.field[data-field="bairro"]{
   grid-column:span 2
 }
-.pess-person-form>.grid>.field[data-field="entidade"]{
+.pess-step-grid-3>.field[data-field="cidade"]{
   grid-column:span 2
 }
-.pess-person-form>.grid>.field[data-field="outraEntidade"]{
+.pess-step-grid-4{
+  grid-template-columns:1.4fr 1.2fr 1fr 1fr
+}
+.pess-step-grid-4>.field[data-field="outraEntidade"]{
   grid-column:span 2
 }
-.pess-person-form>.grid>.field[data-field="analfabeto"]{
+.pess-step-grid-4>.field[data-field="analfabeto"]{
   grid-column:span 2
 }
-.pess-person-form>.grid>.field[data-field="parcelasNaoRecebidas"]{
-  grid-column:span 2
+.pess-step-controls{
+  display:flex;
+  justify-content:space-between;
+  gap:6px;
+  margin-top:7px;
+  padding-top:6px;
+  border-top:1px solid #e3ebee
 }
-.pess-person-form>.grid>.field[data-field="nascimento"] .hint{
-  white-space:nowrap
-}
-.pess-person-form>.grid input,
-.pess-person-form>.grid select{
-  min-height:31px
+.pess-step-controls button{
+  min-width:120px;
+  padding:7px 11px
 }
 .pess-person-form>.actions{
-  position:sticky;
-  bottom:6px;
-  z-index:15;
   justify-content:flex-end;
   margin:7px 0 0;
-  padding:6px;
-  border:1px solid rgba(184,204,212,.88);
-  border-radius:8px;
-  background:rgba(249,252,252,.95);
-  backdrop-filter:blur(10px);
-  box-shadow:0 5px 16px rgba(15,48,70,.1)
+  padding:6px 0 0;
+  border-top:1px solid #dfe8eb
 }
 .pess-person-form>.actions button{
   min-width:220px;
@@ -159,12 +246,12 @@
 }
 .pess-cpf-api button{
   padding:5px 7px;
-  font-size:9.8px
+  font-size:9.6px
 }
 .pess-cpf-api small{
   flex:1 1 125px;
   margin:0;
-  font-size:9px;
+  font-size:8.8px;
   line-height:1.1
 }
 .pess-inline-query{
@@ -174,9 +261,7 @@
   align-items:end;
   max-width:500px
 }
-.pess-inline-query button{
-  min-height:32px
-}
+.pess-inline-query button{min-height:32px}
 .pess-quick-panel,
 .pess-search-panel{
   padding:10px 12px
@@ -187,21 +272,19 @@
   gap:5px;
   margin-bottom:6px
 }
-.pess-search-panel form button{
-  min-height:32px
-}
+.pess-search-panel form button{min-height:32px}
 .pess-defeso-card{
-  margin:6px 0;
-  padding:8px 9px;
+  margin:6px 0 0;
+  padding:7px 8px;
   border-color:#c9dee0;
   background:linear-gradient(135deg,rgba(239,249,249,.96),rgba(255,255,255,.93))
 }
 .pess-defeso-card h3{
-  margin:0 0 4px;
-  font-size:12.5px
+  margin:0 0 3px;
+  font-size:11.5px
 }
 .pess-defeso-card>p{
-  margin:2px 0 5px
+  margin:1px 0 4px
 }
 .pess-defeso-card .grid{
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -209,54 +292,50 @@
 }
 .pess-defeso-card .card{
   margin:0;
-  padding:7px 9px;
+  padding:6px 8px;
   box-shadow:none
 }
 .pess-defeso-card .card h3{
-  font-size:10.5px;
-  margin-bottom:2px
+  font-size:10px;
+  margin-bottom:1px
 }
 .pess-documents{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:5px;
-  margin:6px 0 6px;
-  padding:8px;
-  background:rgba(250,252,252,.94)
+  margin:0;
+  padding:7px;
+  border:0;
+  background:transparent;
+  box-shadow:none
 }
 .pess-documents>h3,
 .pess-documents>p{
   grid-column:1/-1;
   margin:0
 }
-.pess-documents>h3{
-  font-size:12.5px
-}
+.pess-documents>h3{font-size:11.5px}
 .pess-documents>p{
-  font-size:9.6px;
-  line-height:1.2
+  font-size:9.2px;
+  line-height:1.15
 }
-.pess-documents>p+details{
-  margin-top:1px
-}
+.pess-documents>p+details{margin-top:1px}
 .pess-doc-card{
   min-width:0;
   margin:0;
-  padding:6px 7px;
-  background:rgba(255,255,255,.94);
+  padding:5px 6px;
+  background:rgba(255,255,255,.95);
   box-shadow:none
 }
 .pess-doc-card summary{
   color:#153e52;
-  font-size:10.5px;
-  line-height:1.2
+  font-size:10px;
+  line-height:1.15
 }
-.pess-doc-card .field{
-  font-size:9.8px
-}
+.pess-doc-card .field{font-size:9.5px}
 .pess-doc-card input[type=file]{
-  min-height:30px;
-  font-size:9.5px
+  min-height:29px;
+  font-size:9px
 }
 .pess-doc-residence{
   grid-column:span 2
@@ -266,8 +345,8 @@
   gap:5px
 }
 .pess-doc-residence .card{
-  margin:4px 0 0;
-  padding:6px
+  margin:3px 0 0;
+  padding:5px
 }
 .pess-api-dialog{
   width:min(900px,94vw);
@@ -284,63 +363,51 @@
   background:rgba(11,39,55,.58);
   backdrop-filter:blur(2px)
 }
-.pess-api-dialog details{
-  margin:5px 0
-}
+.pess-api-dialog details{margin:5px 0}
 .pess-api-dialog pre{
   font-size:10.8px;
   line-height:1.4
 }
-@media(max-width:1050px){
-  #pess-root{
-    width:min(100%,940px)
+@media(max-width:960px){
+  #pess-root{width:100%}
+  .pess-step-progress{
+    grid-template-columns:repeat(5,minmax(110px,1fr));
+    overflow-x:auto
   }
-  .pess-person-form>.grid{
-    grid-template-columns:repeat(4,minmax(0,1fr))
-  }
-  .pess-person-form>.grid>.field[data-field="nome"],
-  .pess-person-form>.grid>.field[data-field="via"],
-  .pess-person-form>.grid>.field[data-field="entidade"],
-  .pess-person-form>.grid>.field[data-field="outraEntidade"],
-  .pess-person-form>.grid>.field[data-field="analfabeto"],
-  .pess-person-form>.grid>.field[data-field="parcelasNaoRecebidas"]{
-    grid-column:span 2
-  }
-}
-@media(max-width:760px){
-  .pess-home-actions{
-    grid-template-columns:1fr
-  }
-  .pess-action-card{
-    min-height:52px
-  }
-  .pess-person-form>.grid{
+  .pess-step-grid-2,
+  .pess-step-grid-3,
+  .pess-step-grid-4{
     grid-template-columns:repeat(2,minmax(0,1fr))
   }
+  .pess-step-grid-3>.field[data-field="cep"],
+  .pess-step-grid-3>.field[data-field="bairro"],
+  .pess-step-grid-3>.field[data-field="cidade"],
+  .pess-step-grid-4>.field[data-field="outraEntidade"],
+  .pess-step-grid-4>.field[data-field="analfabeto"]{
+    grid-column:auto
+  }
+  .pess-documents{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .pess-doc-residence{
+    grid-column:1/-1
+  }
+}
+@media(max-width:680px){
+  .pess-home-actions{grid-template-columns:1fr}
+  .pess-action-card{min-height:48px}
+  .pess-step-progress{display:flex}
+  .pess-step-progress-item{min-width:120px}
+  .pess-step-grid-1,
+  .pess-step-grid-2,
+  .pess-step-grid-3,
+  .pess-step-grid-4,
   .pess-inline-query,
   .pess-search-panel form{
     grid-template-columns:1fr
   }
-  .pess-documents{
-    grid-template-columns:1fr
-  }
-  .pess-doc-residence{
-    grid-column:auto
-  }
-  .pess-person-form>.actions{
-    position:static
-  }
-  .pess-person-form>.actions button{
-    width:100%;
-    min-width:0
-  }
-}
-@media(max-width:480px){
-  .pess-person-form>.grid{
-    grid-template-columns:1fr
-  }
-  .pess-person-form>.grid>.field{
-    grid-column:auto!important
-  }
+  .pess-documents{grid-template-columns:1fr}
+  .pess-doc-residence{grid-column:auto}
+  .pess-person-form>.actions button{width:100%;min-width:0}
 }
 </style>
