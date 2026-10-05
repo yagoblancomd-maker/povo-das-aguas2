@@ -139,82 +139,235 @@ function change_(ctx,entity,id,data,version){
   return after;
 }
 
-/** Atualização de dados, auditoria e recibo idempotente em uma única transação Sheets. */
-function commit_(ctx,result){
-  const changes=ctx.changes.slice();
+function remove_(ctx,entity,id,version){
+  const before=
+    all_(entity)
+      .find(r=>r.id===id);
 
-  ctx.changes.forEach(c=>changes.push({
-    entity:'Historico',
-    after:record_(
-      'Historico',
-      uid_(),
-      {
-        entidade:c.entity,
-        registroId:c.after.id,
-        antes:JSON.stringify(c.before),
-        depois:JSON.stringify(c.after),
-        operacao:ctx.op
-      },
-      null,
-      ctx.email
-    )
-  }));
+  if(!before){
+    fail_(
+      'Registro não encontrado: '+
+      entity
+    );
+  }
+
+  if(
+    Number(version)!==
+    before.versao
+  ){
+    fail_(
+      'CONFLITO: o registro mudou. Reabra a ficha antes de excluir.'
+    );
+  }
+
+  ctx.changes.push({
+    entity,
+    before,
+    after:null
+  });
+
+  return before;
+}
+
+
+/** Atualização, exclusão, auditoria e recibo idempotente em uma única transação Sheets. */
+function commit_(ctx,result){
+  const changes=
+    ctx.changes.slice();
+
+  ctx.changes.forEach(c=>{
+    const target=
+      c.after||
+      c.before;
+
+    changes.push({
+      entity:'Historico',
+      after:record_(
+        'Historico',
+        uid_(),
+        {
+          entidade:c.entity,
+          registroId:
+            target.id,
+          antes:
+            JSON.stringify(
+              c.before
+            ),
+          depois:
+            JSON.stringify(
+              c.after
+            ),
+          operacao:ctx.op
+        },
+        null,
+        ctx.email
+      )
+    });
+  });
 
   changes.push({
     entity:'Operacoes',
     after:record_(
       'Operacoes',
       ctx.op,
-      {hash:ctx.hash,resultado:JSON.stringify(result)},
+      {
+        hash:ctx.hash,
+        resultado:JSON.stringify(
+          result
+        )
+      },
       null,
       ctx.email
     )
   });
 
+  const deletes=
+    changes
+      .filter(c=>
+        c.before&&
+        c.after===null
+      )
+      .map(c=>{
+        const sh=
+          ensureEntitySchema_(
+            c.entity
+          );
+
+        const index=
+          row_(
+            c.entity,
+            c.before.id
+          );
+
+        if(index===null){
+          fail_(
+            'Registro a excluir não localizado: '+
+            c.entity
+          );
+        }
+
+        return {
+          entity:c.entity,
+          sheetId:sh.getSheetId(),
+          index
+        };
+      })
+      .sort((a,b)=>{
+        if(a.sheetId!==b.sheetId){
+          return a.sheetId-b.sheetId;
+        }
+
+        return b.index-a.index;
+      });
+
   const next={};
   const requests=[];
 
-  changes.forEach(c=>{
-    const sh=ensureEntitySchema_(c.entity);
-    let index=row_(c.entity,c.after.id);
-
-    if(index===null){
-      if(next[c.entity]===undefined)next[c.entity]=sh.getLastRow();
-      index=next[c.entity]++;
-    }
-
-    if(index>=sh.getMaxRows()){
-      requests.push({
-        appendDimension:{
-          sheetId:sh.getSheetId(),
-          dimension:'ROWS',
-          length:index-sh.getMaxRows()+1
-        }
-      });
-    }
-
-    const values=headers_(c.entity).map(k=>({
-      userEnteredValue:{stringValue:String(c.after[k]===undefined?'':c.after[k])}
-    }));
-
+  deletes.forEach(item=>{
     requests.push({
-      updateCells:{
+      deleteDimension:{
         range:{
-          sheetId:sh.getSheetId(),
-          startRowIndex:index,
-          endRowIndex:index+1,
-          startColumnIndex:0,
-          endColumnIndex:values.length
-        },
-        rows:[{values}],
-        fields:'userEnteredValue'
+          sheetId:item.sheetId,
+          dimension:'ROWS',
+          startIndex:item.index,
+          endIndex:item.index+1
+        }
       }
     });
   });
 
-  Sheets.Spreadsheets.batchUpdate({requests},ss_().getId());
+  changes
+    .filter(c=>
+      c.after!==null
+    )
+    .forEach(c=>{
+      const sh=
+        ensureEntitySchema_(
+          c.entity
+        );
+
+      let index=
+        row_(
+          c.entity,
+          c.after.id
+        );
+
+      if(index===null){
+        if(
+          next[c.entity]===
+          undefined
+        ){
+          next[c.entity]=
+            sh.getLastRow();
+        }
+
+        index=
+          next[c.entity]++;
+      }
+
+      if(
+        index>=
+        sh.getMaxRows()
+      ){
+        requests.push({
+          appendDimension:{
+            sheetId:
+              sh.getSheetId(),
+            dimension:'ROWS',
+            length:
+              index-
+              sh.getMaxRows()+
+              1
+          }
+        });
+      }
+
+      const values=
+        headers_(
+          c.entity
+        ).map(k=>({
+          userEnteredValue:{
+            stringValue:String(
+              c.after[k]===
+                undefined
+                ?''
+                :c.after[k]
+            )
+          }
+        }));
+
+      requests.push({
+        updateCells:{
+          range:{
+            sheetId:
+              sh.getSheetId(),
+            startRowIndex:index,
+            endRowIndex:index+1,
+            startColumnIndex:0,
+            endColumnIndex:
+              values.length
+          },
+          rows:[
+            {
+              values
+            }
+          ],
+          fields:
+            'userEnteredValue'
+        }
+      });
+    });
+
+  Sheets.Spreadsheets.batchUpdate(
+    {
+      requests
+    },
+    ss_().getId()
+  );
+
   SpreadsheetApp.flush();
   resetData_();
+
   return result;
 }
 
