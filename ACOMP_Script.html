@@ -1298,17 +1298,49 @@ window.PDA_MODULES.ACOMP = (()=>{
         );
       });
 
+    const processos=
+      data.processos||
+      [];
+
     const proc=details(
       root,
-      'Processos judiciais'
+      'Processos judiciais ('+
+      processos.length+
+      ')'
     );
 
-    proc.append(
-      el(
-        'p',
-        'Espaço reservado para a futura etapa de acompanhamento.'
-      )
-    );
+    if(!processos.length){
+      proc.append(
+        el(
+          'p',
+          'Nenhum processo judicial vinculado a esta pessoa.',
+          'hint'
+        )
+      );
+    }else{
+      table(
+        proc,
+        [
+          {
+            key:'numero',
+            label:'Processo TRF4'
+          },
+          {
+            key:'juizo',
+            label:'Jurisdição'
+          },
+          {
+            key:'distribuidoEm',
+            label:'Distribuído em'
+          },
+          {
+            key:'responsavel',
+            label:'Responsável pela distribuição'
+          }
+        ],
+        processos
+      );
+    }
   };
 })();
 </script>
