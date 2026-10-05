@@ -183,4 +183,55 @@
   }
 }
 
+
+.adm-user-danger{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:12px;
+  padding:10px 11px;
+  border:1px solid #e4bbb6;
+  border-radius:9px;
+  background:#fff6f4
+}
+.adm-user-danger-copy{
+  min-width:0
+}
+.adm-user-danger-copy strong{
+  display:block;
+  color:#8a332c;
+  font-size:10px
+}
+.adm-user-danger-copy span{
+  display:block;
+  margin-top:2px;
+  color:#815f5b;
+  font-size:8.8px;
+  line-height:1.35
+}
+.adm-user-delete-button{
+  flex:0 0 auto;
+  min-height:30px;
+  padding:6px 10px;
+  color:#fff!important;
+  border-color:#b74439!important;
+  background:#b74439!important;
+  box-shadow:none!important;
+  font-size:9px
+}
+.adm-user-delete-button:hover{
+  border-color:#96352d!important;
+  background:#96352d!important
+}
+@media(max-width:680px){
+  .adm-user-danger{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .adm-user-delete-button{
+    width:100%
+  }
+}
+
 </style>
