@@ -1,3 +1,25 @@
+function personRetify_(ctx,q){
+  required_(
+    q.id,
+    'cadastro a retificar'
+  );
+
+  const person=
+    get_(
+      'Pessoas',
+      q.id
+    );
+
+  authorizePersonRetification_(
+    person
+  );
+
+  return personSave_(
+    ctx,
+    q
+  );
+}
+
 function personSave_(ctx,q){
   const before=q.id?get_('Pessoas',q.id):null;
 
