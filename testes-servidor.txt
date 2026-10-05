@@ -1,0 +1,29 @@
+PASS instalação repetida preserva IDs, recursos e configurações
+PASS CPF com zero inicial, telefone celular, data válida
+PASS bloqueio de CPF inválido, data impossível e nascimento futuro
+PASS duplicação de pessoa bloqueada
+PASS rascunho não libera campos sem decisão expressa
+PASS criação de atendimento e reenvio idempotente
+PASS duplicação da demanda bloqueada; outra referência permitida
+PASS concorrência rejeita segunda atualização e registra antes/depois
+PASS encaminhamento incompleto bloqueado
+PASS falha Sheets depois do Drive e reenvio sem duplicar arquivo/pasta
+PASS resposta perdida após commit retorna mesmo resultado no reenvio
+PASS substituição mantém versão anterior e invalida conferência
+PASS assinatura incompatível com MIME é rejeitada
+PASS todas categorias anexadas não equivalem à conferência
+PASS limite inclusivo de 60 dias, 61 dias e futuro
+PASS conferência completa, terceiro, processo e anexo
+PASS geração do modelo certo, bloqueio de desconhecidos e preservação original
+PASS edição posterior sinaliza minuta desatualizada e bloqueia revisão
+PASS modelo da última parcela bloqueado para outros casos
+PASS permissões são verificadas no servidor e identidade vazia bloqueia
+PASS texto de fórmula gravado como string, nunca fórmula Sheets
+PASS pendência aberta bloqueia fluxo; resolução preserva histórico
+PASS analfabetismo exige conferência a rogo e duas testemunhas
+PASS campos obrigatórios e placeholders inseridos nos dados bloqueiam minuta
+PASS reenvio do mesmo conteúdo em outra operação mantém único documento vigente
+PASS substituição cruzada entre atendimentos é bloqueada
+PASS instalação posterior preserva registros e decisões administrativas
+
+27 cenários locais aprovados. Google Drive/Sheets/Docs são simulados; não constituem homologação Google.

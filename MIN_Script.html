@@ -1,0 +1,28 @@
+<script>
+window.PDA_MODULES.MIN = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
+return async function(ctx){const root=ctx.root;
+root.append(el('h2','Minutas'));
+root.append(el('p','O modelo inicial atende somente à última parcela do Seguro-Defeso 2025. Cada geração cria uma versão editável, pendente de revisão.'));
+if(!App.state.selection){await searchUI(root,p=>go('MIN',p.id));
+return;
+}const data=await call('ficha',{pessoaId:App.state.selection});
+if(!alive(ctx))return;
+root.append(el('h3',data.pessoa.nome));
+root.append(button('Selecionar outra pessoa',()=>{App.state.selection=null;
+return go('MIN');
+},true));
+data.atendimentos.forEach(a=>{const generation=crypto.randomUUID();
+const box=card(a.demanda+' · '+a.referencia);
+const errors=data.aptidao.find(x=>x.id===a.id).pendencias;
+box.append(el('p',errors.length?errors.join('\n'):'Documentação conferida.','warn'));
+box.append(button('Gerar nova minuta',async()=>{await call('minutaGerar',{id:a.id,versao:a.versao,generation},true);
+await go('MIN');
+}));
+table(box,[{key:'numero',label:'Versão'},{key:'situacao',label:'Revisão'},{label:'Atualidade',value:m=>m.desatualizada?'DADOS/MODELO ALTERADOS':'Compatível com os dados'}],data.minutas.filter(m=>m.atendimentoId===a.id),m=>[link(m.url,'Abrir documento'),button('Registrar revisão',async()=>{await call('minutaRevisar',{id:m.id,versao:m.versao},true);
+await go('MIN');
+})]);
+root.append(box);
+});
+};
+})();
+</script>

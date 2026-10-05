@@ -1,0 +1,10 @@
+PASS carregamento PAINEL
+PASS carregamento PESS
+PASS carregamento ATEND
+PASS carregamento ACOMP
+PASS carregamento MIN
+PASS carregamento ADM
+PASS carregamento DIST
+PASS carregamento PROC
+PASS busca de pessoa e renderização dos resultados
+9 verificações de interface em DOM simulado aprovadas.

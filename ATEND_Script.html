@@ -1,0 +1,19 @@
+<script>
+window.PDA_MODULES.ATEND = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
+return async function(ctx){const root=ctx.root;
+root.append(el('h2','Atendimentos'));
+if(!App.state.selection){root.append(el('p','Selecione uma pessoa para abrir outra demanda.'));
+await searchUI(root,p=>go('ATEND',p.id));
+return;
+}const p=await call('pessoa',{id:App.state.selection});
+if(!alive(ctx))return;
+root.append(el('p',p.nome+' · CPF '+p.cpf));
+root.append(button('Selecionar outra pessoa',()=>{App.state.selection=null;
+return go('ATEND');
+},true));
+form(root,atendFields(),{pessoaId:p.id,demanda:'Seguro-Defeso 2025',localData:'Rio Grande, data da distribuição'},async a=>{await call('atendimentoSalvar',a,true);
+await go('ACOMP',p.id);
+},'Criar atendimento');
+};
+})();
+</script>

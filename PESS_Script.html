@@ -1,0 +1,15 @@
+<script>
+window.PDA_MODULES.PESS = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
+return async function(ctx){const root=ctx.root;
+root.append(el('h2','Pessoas'));
+const search=card('Consultar cadastro');
+root.append(search);
+await searchUI(search,p=>go('ACOMP',p.id));
+const edit=details(root,'Cadastrar pessoa');
+edit.append(el('p','CPF e nome são sempre obrigatórios. Campos incompletos somente poderão ser gravados após autorização de rascunhos em Administração.','hint'));
+form(edit,personFields(),{uf:'RS'},async p=>{const result=await call('pessoaSalvar',p,true);
+await go('ACOMP',result.id);
+},'Cadastrar pessoa');
+};
+})();
+</script>
