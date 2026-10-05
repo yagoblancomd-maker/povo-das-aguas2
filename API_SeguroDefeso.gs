@@ -425,21 +425,55 @@ function povoDasAguasLogoBlob_(){
 }
 
 function clearContainer_(container){
-  while(container.getNumChildren()>0){
+  /*
+   * Seções de cabeçalho do Google Docs mantêm um parágrafo estrutural.
+   * Tentar remover o último filho pode lançar erro em tempo de execução.
+   */
+  while(container.getNumChildren()>1){
     container.removeChild(
       container.getChild(0)
     );
   }
+
+  if(container.getNumChildren()===1){
+    const last=container.getChild(0);
+
+    if(
+      last.getType()===
+      DocumentApp.ElementType.PARAGRAPH
+    ){
+      const paragraph=last.asParagraph();
+      paragraph.setText('');
+      paragraph.setSpacingBefore(0);
+      paragraph.setSpacingAfter(0);
+    }else{
+      /*
+       * Mantém o último elemento estrutural e evita impedir a geração do
+       * relatório. O novo cabeçalho será acrescentado em seguida.
+       */
+    }
+  }
 }
 
-function appendSeguroDefesoHeader_(doc){
-  let header=doc.getHeader();
+function appendSeguroDefesoHeader_(doc,body){
+  let header=null;
 
-  if(!header){
-    header=doc.addHeader();
+  try{
+    header=doc.getHeader();
+
+    if(!header){
+      header=doc.addHeader();
+    }
+
+    clearContainer_(header);
+
+  }catch(e){
+    /*
+     * O relatório não pode falhar por limitação do cabeçalho do Google Docs.
+     * Em caso de incompatibilidade, usa o corpo como fallback visual.
+     */
+    header=body;
   }
-
-  clearContainer_(header);
 
   const table=header.appendTable([
     ['', '']
@@ -652,7 +686,8 @@ function renderSeguroDefesoReport_(doc,p,consulta){
   );
 
   appendSeguroDefesoHeader_(
-    doc
+    doc,
+    body
   );
 
   appendJustifiedParagraph_(
