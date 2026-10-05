@@ -1,0 +1,332 @@
+<style>
+#tarefas-root{
+  width:min(1320px,100%);
+  margin:0 auto
+}
+.tasks-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px
+}
+.tasks-head h2{
+  margin-bottom:2px
+}
+.tasks-summary{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap
+}
+.tasks-summary span{
+  padding:6px 9px;
+  border:1px solid #cbdde2;
+  border-radius:999px;
+  color:#456572;
+  background:#f5fafb;
+  font-size:9.5px
+}
+.tasks-summary strong{
+  margin-right:3px;
+  color:#0b6f7b
+}
+.tasks-section{
+  margin-top:10px
+}
+.tasks-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px
+}
+.tasks-section-head h3{
+  margin:0;
+  color:#173f51;
+  font-size:13px
+}
+.tasks-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px
+}
+.task-card{
+  display:flex;
+  min-height:130px;
+  flex-direction:column;
+  gap:7px;
+  padding:12px;
+  border:1px solid #c9dce1;
+  border-radius:11px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 4px 14px rgba(15,48,70,.05)
+}
+.task-card.done{
+  opacity:.78;
+  background:#f7fafb
+}
+.task-card-top{
+  display:flex;
+  justify-content:space-between;
+  gap:8px
+}
+.task-card-top strong{
+  color:#173f51;
+  font-size:11px;
+  line-height:1.25
+}
+.task-status{
+  flex:0 0 auto;
+  padding:4px 6px;
+  border-radius:999px;
+  color:#0b6874;
+  background:#e7f4f5;
+  font-size:8px;
+  font-weight:750
+}
+.task-status.done{
+  color:#526a74;
+  background:#edf2f4
+}
+.task-card-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px 8px
+}
+.task-card-meta span{
+  min-width:0;
+  color:#687e87;
+  font-size:8.8px
+}
+.task-card-meta b{
+  display:block;
+  overflow:hidden;
+  margin-top:1px;
+  color:#325664;
+  font-size:9.7px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.task-card .actions{
+  margin-top:auto;
+  padding-top:3px
+}
+.task-empty{
+  padding:18px;
+  border:1px dashed #bdd2d8;
+  border-radius:10px;
+  color:#6b8088;
+  text-align:center;
+  background:#f8fbfc
+}
+.task-dialog{
+  width:min(980px,calc(100vw - 28px));
+  max-height:90vh;
+  padding:0;
+  overflow:hidden;
+  border:1px solid #b9d3d9;
+  border-radius:14px;
+  color:#173f51;
+  background:#fff;
+  box-shadow:0 24px 70px rgba(6,35,48,.28)
+}
+.task-dialog::backdrop{
+  background:rgba(8,31,44,.55);
+  backdrop-filter:blur(5px)
+}
+.task-dialog-shell{
+  display:flex;
+  max-height:90vh;
+  flex-direction:column
+}
+.task-dialog-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px 12px;
+  color:#fff;
+  background:linear-gradient(145deg,#0b6674,#0b8490)
+}
+.task-dialog-head h3{
+  margin:0;
+  color:#fff;
+  font-size:16px
+}
+.task-dialog-head p{
+  margin:3px 0 0;
+  color:rgba(255,255,255,.84);
+  font-size:9.5px
+}
+.task-dialog-head button{
+  min-height:28px;
+  padding:4px 8px;
+  color:#fff;
+  border-color:rgba(255,255,255,.25);
+  background:rgba(255,255,255,.12)
+}
+.task-dialog-body{
+  overflow:auto;
+  padding:13px 15px 15px
+}
+.task-distribution-banner{
+  display:grid;
+  grid-template-columns:1.2fr .8fr .8fr;
+  gap:7px;
+  margin-bottom:9px
+}
+.task-distribution-banner>div{
+  padding:9px 10px;
+  border:1px solid #c6dce1;
+  border-radius:8px;
+  background:#f2f8f9
+}
+.task-distribution-banner span{
+  display:block;
+  color:#6c828b;
+  font-size:8.5px
+}
+.task-distribution-banner strong{
+  display:block;
+  margin-top:2px;
+  color:#0b6571;
+  font-size:11px
+}
+.task-detail-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
+  margin-bottom:10px
+}
+.task-detail-item{
+  min-width:0;
+  padding:7px 8px;
+  border:1px solid #dae6e9;
+  border-radius:7px;
+  background:#fbfdfd
+}
+.task-detail-item span{
+  display:block;
+  color:#72868e;
+  font-size:8.3px
+}
+.task-detail-item strong{
+  display:block;
+  margin-top:2px;
+  overflow-wrap:anywhere;
+  color:#2f5260;
+  font-size:9.7px
+}
+.task-dialog-section{
+  margin-top:10px
+}
+.task-dialog-section h4{
+  margin:0 0 6px;
+  color:#173f51;
+  font-size:11px
+}
+.task-lawyers{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px
+}
+.task-lawyer{
+  padding:7px 8px;
+  border:1px solid #d5e4e7;
+  border-radius:7px;
+  color:#315663;
+  background:#f8fbfc;
+  font-size:9px
+}
+.task-docs{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px
+}
+.task-doc{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  padding:7px 8px;
+  border:1px solid #d5e3e7;
+  border-radius:7px;
+  background:#fbfdfd
+}
+.task-doc strong{
+  display:block;
+  color:#315461;
+  font-size:9.2px
+}
+.task-doc small{
+  display:block;
+  margin-top:1px;
+  overflow:hidden;
+  color:#7a8d94;
+  font-size:8px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.task-doc a{
+  font-size:8.5px
+}
+.task-dialog-actions{
+  position:sticky;
+  bottom:0;
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+  margin:12px -15px -15px;
+  padding:9px 15px;
+  border-top:1px solid #d6e3e6;
+  background:rgba(255,255,255,.97)
+}
+.task-complete-box{
+  margin-top:9px;
+  padding:10px;
+  border:1px solid #bcd8de;
+  border-radius:9px;
+  background:#f1f8f9
+}
+.task-complete-box h4{
+  margin:0 0 4px;
+  font-size:11px
+}
+.task-complete-row{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto auto;
+  gap:6px;
+  align-items:end;
+  margin-top:7px
+}
+.task-complete-row .field{
+  margin:0
+}
+@media(max-width:980px){
+  .tasks-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .task-detail-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+@media(max-width:650px){
+  .tasks-grid,
+  .task-lawyers,
+  .task-docs,
+  .task-distribution-banner,
+  .task-detail-grid,
+  .task-complete-row{
+    grid-template-columns:1fr
+  }
+  .task-dialog{
+    width:calc(100vw - 16px)
+  }
+  .task-dialog-actions{
+    flex-direction:column
+  }
+  .task-dialog-actions button{
+    width:100%
+  }
+}
+</style>
