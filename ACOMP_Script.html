@@ -1,69 +1,542 @@
 <script>
-window.PDA_MODULES.ACOMP = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
-return async function(ctx){const root=ctx.root;
-root.append(el('h2','Ficha e conferência'));
-if(!App.state.selection){await searchUI(root,p=>go('ACOMP',p.id));
-return;
-}const data=await call('ficha',{pessoaId:App.state.selection});
-if(!alive(ctx))return;
-const p=data.pessoa;
-root.append(el('h3',p.nome));
-const actions=el('div',undefined,'actions');
-actions.append(button('Outra pessoa',()=>{App.state.selection=null;
-return go('ACOMP');
-},true),button('Novo atendimento',()=>go('ATEND',p.id)));
-root.append(actions);
-const person=details(root,'Dados pessoais — consultar e retificar');
-form(person,personFields(),p,async v=>{await call('pessoaSalvar',v,true);
-await go('ACOMP');
-});
-data.atendimentos.forEach(a=>{const area=card(a.demanda+' · '+a.referencia);
-area.append(el('p',a.id+' · '+a.situacao,'badge'));
-area.append(el('p','Responsável: '+(a.responsavel||'não atribuído')));
-if(a.folderId)area.append(link('https://drive.google.com/drive/folders/'+a.folderId,'Abrir pasta do atendimento'));
-const blockers=data.aptidao.find(x=>x.id===a.id).pendencias;
-area.append(el('p',blockers.length?'Conferência pendente:\n'+blockers.join('\n'):'Requisitos documentais conferidos.','warn'));
-const edit=details(area,'Retificar dados do atendimento');
-form(edit,atendFields(),a,async v=>{await call('atendimentoSalvar',v,true);
-await go('ACOMP');
-});
-const adocs=data.documentos.filter(d=>d.atendimentoId===a.id);
-uploadForm(area,a,adocs);
-const docs=details(area,'Documentos e versões ('+adocs.length+')');
-table(docs,[{key:'categoria',label:'Categoria'},{key:'id',label:'ID'},{label:'Versão',value:d=>(d.vigente==='true'?'Vigente':'Anterior')+' · '+(d.conferido==='true'?'Conferido':'Não conferido')}],adocs,d=>[link(d.url,'Abrir arquivo'),button('Conferir',()=>{checkArea.replaceChildren();
-checkArea.append(el('h3',d.categoria+' · '+d.id));
-guidance(checkArea);
-form(checkArea,[...(d.categoria==='RESIDENCIA'?[{key:'vencimento',label:'Vencimento do comprovante',placeholder:'DD/MM/AAAA',required:true},{key:'terceiro',label:'Comprovante em nome de terceiro',type:'checkbox'}]:[]),{key:'conferido',label:'Conteúdo documental conferido',type:'checkbox'},{key:'declaracaoTerceiro',label:'Declaração na própria fatura verificada',type:'checkbox'},{key:'processoCompleto',label:'Processo administrativo completo',type:'checkbox'},{key:'anexoPresente',label:'Anexo exigido verificado',type:'checkbox'},{key:'rogo',label:'Assinatura a rogo verificada',type:'checkbox'},{key:'testemunhas',label:'Duas testemunhas identificadas',type:'checkbox'},{key:'observacoes',label:'Observações da conferência',type:'textarea'}],{...d,atendimentoVersao:a.versao},async v=>{await call('documentoConferir',v,true);
-await go('ACOMP');
-});
-})]);
-const checkArea=el('div');
-docs.append(checkArea);
-const pend=details(area,'Pendências e responsáveis');
-const fields=[{key:'descricao',label:'Descrição',type:'textarea',required:true},{key:'responsavel',label:'E-mail do responsável'},{key:'situacao',label:'Situação',options:['ABERTA','RESOLVIDA'],required:true}];
-data.pendencias.filter(x=>x.atendimentoId===a.id).forEach(x=>{const box=details(pend,x.situacao+' — '+x.descricao);
-form(box,fields,{...x,atendimentoVersao:a.versao},async v=>{await call('pendenciaSalvar',v,true);
-await go('ACOMP');
-});
-});
-form(pend,fields,{atendimentoId:a.id,atendimentoVersao:a.versao,situacao:'ABERTA'},async v=>{await call('pendenciaSalvar',v,true);
-await go('ACOMP');
-},'Registrar pendência');
-const acts=el('div',undefined,'actions');
-acts.append(button('Encaminhar para conferência',async()=>{await call('encaminhar',{id:a.id,versao:a.versao},true);
-await go('ACOMP');
-}),button('Concluir conferência',async()=>{await call('atendimentoConferir',{id:a.id,versao:a.versao},true);
-await go('ACOMP');
-}),button('Minutas',()=>go('MIN',p.id)));
-area.append(acts);
-root.append(area);
-});
-const history=details(root,'Histórico de alterações ('+data.historico.length+')');
-data.historico.slice().reverse().forEach(h=>{const d=details(history,h.alteradoEm+' · '+h.usuario+' · '+h.entidade);
-d.append(el('pre','Antes: '+h.antes+'\nDepois: '+h.depois));
-});
-const proc=details(root,'Processos judiciais');
-proc.append(el('p','Espaço reservado para a futura etapa de acompanhamento.'));
-};
+window.PDA_MODULES.ACOMP = (()=>{
+  const {
+    el,card,details,form,table,link,button,call,go,alive,
+    personFields,atendFields,searchUI,guidance,uploadForm
+  }=App;
+
+  const DOC_LABELS={
+    RG_CPF:'Documento de identidade e CPF',
+    RESIDENCIA:'Comprovante de residência',
+    PROCESSO_ADMINISTRATIVO:'Processo administrativo',
+    PESCA:'Documentos de pesca',
+    PROCURACAO:'Procuração',
+    HIPOSSUFICIENCIA:'Declaração de hipossuficiência'
+  };
+
+  function checkFields_(d){
+    return [
+      ...(d.categoria==='RESIDENCIA'?[
+        {
+          key:'vencimento',
+          label:'Vencimento do comprovante',
+          placeholder:'DD/MM/AAAA',
+          required:true
+        },
+        {
+          key:'terceiro',
+          label:'Comprovante em nome de terceiro',
+          type:'checkbox'
+        }
+      ]:[]),
+      {
+        key:'conferido',
+        label:'Conteúdo documental conferido',
+        type:'checkbox'
+      },
+      {
+        key:'declaracaoTerceiro',
+        label:'Declaração na própria fatura verificada',
+        type:'checkbox'
+      },
+      {
+        key:'processoCompleto',
+        label:'Processo administrativo completo',
+        type:'checkbox'
+      },
+      {
+        key:'anexoPresente',
+        label:'Anexo exigido verificado',
+        type:'checkbox'
+      },
+      {
+        key:'rogo',
+        label:'Assinatura a rogo verificada',
+        type:'checkbox'
+      },
+      {
+        key:'testemunhas',
+        label:'Duas testemunhas identificadas',
+        type:'checkbox'
+      },
+      {
+        key:'observacoes',
+        label:'Observações da conferência',
+        type:'textarea'
+      }
+    ];
+  }
+
+  function docsTable_(parent,docs,a){
+    const checkArea=el('div');
+
+    table(
+      parent,
+      [
+        {
+          label:'Categoria',
+          value:d=>DOC_LABELS[d.categoria]||d.categoria
+        },
+        {
+          key:'id',
+          label:'ID'
+        },
+        {
+          label:'Versão',
+          value:d=>
+            (d.vigente==='true'?'Vigente':'Anterior')+
+            ' · '+
+            (d.conferido==='true'?'Conferido':'Não conferido')
+        }
+      ],
+      docs,
+      d=>[
+        link(d.url,'Abrir arquivo'),
+        button('Conferir',()=>{
+          checkArea.replaceChildren();
+
+          checkArea.append(
+            el(
+              'h3',
+              (DOC_LABELS[d.categoria]||d.categoria)+
+              ' · '+
+              d.id
+            )
+          );
+
+          guidance(checkArea);
+
+          form(
+            checkArea,
+            checkFields_(d),
+            Object.assign(
+              {},
+              d,
+              a
+                ?{atendimentoVersao:a.versao}
+                :{}
+            ),
+            async v=>{
+              await call(
+                'documentoConferir',
+                v,
+                true
+              );
+
+              await go('ACOMP');
+            }
+          );
+        })
+      ]
+    );
+
+    parent.append(checkArea);
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    root.append(
+      el(
+        'h2',
+        'Ficha e conferência'
+      )
+    );
+
+    if(!App.state.selection){
+      await searchUI(
+        root,
+        p=>go('ACOMP',p.id)
+      );
+
+      return;
+    }
+
+    const data=
+      await call(
+        'ficha',
+        {
+          pessoaId:
+            App.state.selection
+        }
+      );
+
+    if(!alive(ctx)){
+      return;
+    }
+
+    const p=data.pessoa;
+
+    root.append(
+      el(
+        'h3',
+        p.nome
+      )
+    );
+
+    root.append(
+      el(
+        'p',
+        'CPF '+
+        p.cpf+
+        ' · Parcelas não recebidas: '+
+        (p.parcelasNaoRecebidas||'não informado'),
+        'badge'
+      )
+    );
+
+    const actions=
+      el(
+        'div',
+        undefined,
+        'actions'
+      );
+
+    actions.append(
+      button(
+        'Outra pessoa',
+        ()=>{
+          App.state.selection=null;
+          return go('ACOMP');
+        },
+        true
+      ),
+      button(
+        'Novo atendimento',
+        ()=>go('ATEND',p.id)
+      )
+    );
+
+    root.append(actions);
+
+    const person=
+      details(
+        root,
+        'Dados pessoais — consultar e retificar'
+      );
+
+    form(
+      person,
+      personFields(),
+      p,
+      async v=>{
+        await call(
+          'pessoaSalvar',
+          v,
+          true
+        );
+
+        await go('ACOMP');
+      }
+    );
+
+    const shared=
+      details(
+        root,
+        'Documentos da pessoa ('+
+        data.documentosPessoa.length+
+        ')'
+      );
+
+    shared.append(
+      el(
+        'p',
+        'Estes documentos pertencem ao cadastro da pessoa e são reutilizados nos atendimentos, salvo quando houver documento específico da mesma categoria no atendimento.',
+        'hint'
+      )
+    );
+
+    docsTable_(
+      shared,
+      data.documentosPessoa,
+      null
+    );
+
+    data.atendimentos.forEach(a=>{
+      const area=
+        card(
+          a.demanda+
+          ' · '+
+          a.referencia
+        );
+
+      area.append(
+        el(
+          'p',
+          a.id+
+          ' · '+
+          a.situacao,
+          'badge'
+        )
+      );
+
+      area.append(
+        el(
+          'p',
+          'Responsável: '+
+          (a.responsavel||'não atribuído')
+        )
+      );
+
+      area.append(
+        el(
+          'p',
+          'Valor da causa calculado: R$ '+
+          (a.valorCausa||'—')
+        )
+      );
+
+      if(a.folderId){
+        area.append(
+          link(
+            'https://drive.google.com/drive/folders/'+
+            a.folderId,
+            'Abrir pasta do atendimento'
+          )
+        );
+      }
+
+      const blockers=
+        data.aptidao
+          .find(x=>x.id===a.id)
+          .pendencias;
+
+      area.append(
+        el(
+          'p',
+          blockers.length
+            ?'Conferência pendente:\n'+
+              blockers.join('\n')
+            :'Requisitos documentais conferidos.',
+          'warn'
+        )
+      );
+
+      const edit=
+        details(
+          area,
+          'Retificar dados do atendimento'
+        );
+
+      form(
+        edit,
+        atendFields(),
+        a,
+        async v=>{
+          await call(
+            'atendimentoSalvar',
+            v,
+            true
+          );
+
+          await go('ACOMP');
+        }
+      );
+
+      const adocs=
+        data.documentos
+          .filter(
+            d=>
+              d.atendimentoId===
+              a.id
+          );
+
+      uploadForm(
+        area,
+        a,
+        adocs
+      );
+
+      const docs=
+        details(
+          area,
+          'Documentos específicos do atendimento ('+
+          adocs.length+
+          ')'
+        );
+
+      docsTable_(
+        docs,
+        adocs,
+        a
+      );
+
+      const pend=
+        details(
+          area,
+          'Pendências e responsáveis'
+        );
+
+      const fields=[
+        {
+          key:'descricao',
+          label:'Descrição',
+          type:'textarea',
+          required:true
+        },
+        {
+          key:'responsavel',
+          label:'E-mail do responsável'
+        },
+        {
+          key:'situacao',
+          label:'Situação',
+          options:[
+            'ABERTA',
+            'RESOLVIDA'
+          ],
+          required:true
+        }
+      ];
+
+      data.pendencias
+        .filter(
+          x=>
+            x.atendimentoId===
+            a.id
+        )
+        .forEach(x=>{
+          const box=
+            details(
+              pend,
+              x.situacao+
+              ' — '+
+              x.descricao
+            );
+
+          form(
+            box,
+            fields,
+            {
+              ...x,
+              atendimentoVersao:
+                a.versao
+            },
+            async v=>{
+              await call(
+                'pendenciaSalvar',
+                v,
+                true
+              );
+
+              await go('ACOMP');
+            }
+          );
+        });
+
+      form(
+        pend,
+        fields,
+        {
+          atendimentoId:a.id,
+          atendimentoVersao:a.versao,
+          situacao:'ABERTA'
+        },
+        async v=>{
+          await call(
+            'pendenciaSalvar',
+            v,
+            true
+          );
+
+          await go('ACOMP');
+        },
+        'Registrar pendência'
+      );
+
+      const acts=
+        el(
+          'div',
+          undefined,
+          'actions'
+        );
+
+      acts.append(
+        button(
+          'Encaminhar para conferência',
+          async()=>{
+            await call(
+              'encaminhar',
+              {
+                id:a.id,
+                versao:a.versao
+              },
+              true
+            );
+
+            await go('ACOMP');
+          }
+        ),
+        button(
+          'Concluir conferência',
+          async()=>{
+            await call(
+              'atendimentoConferir',
+              {
+                id:a.id,
+                versao:a.versao
+              },
+              true
+            );
+
+            await go('ACOMP');
+          }
+        ),
+        button(
+          'Minutas',
+          ()=>go('MIN',p.id)
+        )
+      );
+
+      area.append(acts);
+      root.append(area);
+    });
+
+    const history=
+      details(
+        root,
+        'Histórico de alterações ('+
+        data.historico.length+
+        ')'
+      );
+
+    data.historico
+      .slice()
+      .reverse()
+      .forEach(h=>{
+        const d=
+          details(
+            history,
+            h.alteradoEm+
+            ' · '+
+            h.usuario+
+            ' · '+
+            h.entidade
+          );
+
+        d.append(
+          el(
+            'pre',
+            'Antes: '+
+            h.antes+
+            '\nDepois: '+
+            h.depois
+          )
+        );
+      });
+
+    const proc=
+      details(
+        root,
+        'Processos judiciais'
+      );
+
+    proc.append(
+      el(
+        'p',
+        'Espaço reservado para a futura etapa de acompanhamento.'
+      )
+    );
+  };
 })();
 </script>
