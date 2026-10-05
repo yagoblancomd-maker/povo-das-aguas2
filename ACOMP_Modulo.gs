@@ -20,8 +20,20 @@ function dossier_(q){
     ...processos.map(x=>x.id)
   ];
 
+  const user=
+    activeUser_();
+
   return {
     pessoa:p,
+    podeRetificar:
+      canRetifyPerson_(
+        user,
+        p
+      ),
+    criador:
+      personCreatorEmail_(
+        p
+      ),
     documentos:docs,
     documentosPessoa:docs,
     processos,
