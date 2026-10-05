@@ -21,7 +21,8 @@
       "uf",
       "entidade",
       "outraEntidade",
-      "analfabeto"
+      "analfabeto",
+      "parcelasNaoRecebidas"
     ],
     "Atendimentos": [
       "pessoaId",
