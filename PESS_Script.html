@@ -193,6 +193,192 @@ window.PDA_MODULES.PESS = (()=>{
     };
   }
 
+  function normalizeApiText_(value){
+    return String(value||'')
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .toLowerCase();
+  }
+
+  function uniqueApiValues_(registros,key){
+    const values=[];
+
+    (registros||[]).forEach(r=>{
+      const value=String(r&&r[key]||'').trim();
+
+      if(
+        value&&
+        !values.some(existing=>
+          normalizeApiText_(existing)===
+          normalizeApiText_(value)
+        )
+      ){
+        values.push(value);
+      }
+    });
+
+    return values;
+  }
+
+  function selectMatchingOption_(select,value){
+    if(!select||!value)return false;
+
+    const target=
+      normalizeApiText_(value);
+
+    const option=
+      Array.from(select.options||[])
+        .find(o=>
+          normalizeApiText_(o.value)===target||
+          normalizeApiText_(o.textContent)===target
+        );
+
+    if(!option)return false;
+
+    select.value=option.value;
+
+    select.dispatchEvent(
+      new Event(
+        'change',
+        {bubbles:true}
+      )
+    );
+
+    return true;
+  }
+
+  function fillPersonFromApi_(personForm,consulta){
+    const registros=
+      consulta&&
+      Array.isArray(consulta.registros)
+        ?consulta.registros
+        :[];
+
+    const nomes=
+      uniqueApiValues_(
+        registros,
+        'nome'
+      );
+
+    const municipios=
+      uniqueApiValues_(
+        registros,
+        'nomeIBGE'
+      );
+
+    const ufs=
+      uniqueApiValues_(
+        registros,
+        'ufSigla'
+      );
+
+    const messages=[];
+
+    const nomeInput=
+      personForm.elements.namedItem(
+        'nome'
+      );
+
+    if(nomes.length===1&&nomeInput){
+      const apiNome=
+        nomes[0];
+
+      if(!String(nomeInput.value||'').trim()){
+        nomeInput.value=
+          apiNome;
+
+        nomeInput.dispatchEvent(
+          new Event(
+            'input',
+            {bubbles:true}
+          )
+        );
+
+        messages.push(
+          'nome completo preenchido pela API'
+        );
+
+      }else if(
+        normalizeApiText_(nomeInput.value)!==
+        normalizeApiText_(apiNome)
+      ){
+        messages.push(
+          'o nome retornado pela API difere do nome já digitado e não foi sobrescrito'
+        );
+      }
+    }else if(nomes.length>1){
+      messages.push(
+        'a API retornou mais de um nome e o campo Nome completo não foi preenchido automaticamente'
+      );
+    }
+
+    const municipioSelect=
+      personForm.elements.namedItem(
+        'cidade'
+      );
+
+    if(
+      municipios.length===1&&
+      municipioSelect
+    ){
+      const apiMunicipio=
+        municipios[0];
+
+      if(!String(municipioSelect.value||'').trim()){
+        if(
+          selectMatchingOption_(
+            municipioSelect,
+            apiMunicipio
+          )
+        ){
+          messages.push(
+            'município preenchido pela API'
+          );
+        }else{
+          messages.push(
+            'o município retornado pela API não consta na lista de municípios cadastrados'
+          );
+        }
+
+      }else if(
+        normalizeApiText_(municipioSelect.value)!==
+        normalizeApiText_(apiMunicipio)
+      ){
+        messages.push(
+          'o município retornado pela API difere do município já selecionado e não foi sobrescrito'
+        );
+      }
+    }else if(municipios.length>1){
+      messages.push(
+        'a API retornou mais de um município e o campo Município não foi preenchido automaticamente'
+      );
+    }
+
+    const ufSelect=
+      personForm.elements.namedItem(
+        'uf'
+      );
+
+    if(
+      ufs.length===1&&
+      ufSelect&&
+      !String(ufSelect.value||'').trim()
+    ){
+      selectMatchingOption_(
+        ufSelect,
+        ufs[0]
+      );
+    }
+
+    return {
+      nomes,
+      municipios,
+      ufs,
+      messages
+    };
+  }
+
   function apiRecordText_(r){
     return [
       'ID: '+(r.id||'—'),
@@ -840,10 +1026,21 @@ window.PDA_MODULES.PESS = (()=>{
           seguroDefesoConsulta=
             result;
 
+          const preenchimento=
+            fillPersonFromApi_(
+              personForm,
+              result
+            );
+
           apiInfoText.textContent=
             'Consulta concluída: '+
             result.quantidade+
-            ' registro(s) de 2025 localizado(s).';
+            ' registro(s) de 2025 localizado(s).'+
+            (
+              preenchimento.messages.length
+                ?' '+preenchimento.messages.join('; ')+'.'
+                :''
+            );
 
           showSeguroDefesoDialog_(
             result
