@@ -162,6 +162,116 @@ function modelUpload_(ctx,q){
   };
 }
 
+function userDelete_(ctx,q){
+  required_(
+    q.id,
+    'usuário'
+  );
+
+  const user=
+    get_(
+      'Usuarios',
+      q.id
+    );
+
+  const email=String(
+    user.email||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if(
+    email===
+    String(
+      ctx.email||
+      ''
+    )
+      .trim()
+      .toLowerCase()
+  ){
+    fail_(
+      'Você não pode excluir o próprio usuário enquanto estiver conectado.'
+    );
+  }
+
+  const owner=String(
+    props_().getProperty(
+      'OWNER_EMAIL'
+    )||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if(
+    owner&&
+    email===owner
+  ){
+    fail_(
+      'O usuário proprietário do sistema não pode ser excluído.'
+    );
+  }
+
+  const pendingTasks=
+    all_('Tarefas')
+      .filter(task=>
+        task.tipo===
+          DISTRIBUTION_TASK_TYPE&&
+        String(
+          task.responsavel||
+          ''
+        )
+          .trim()
+          .toLowerCase()===
+          email&&
+        task.situacao!==
+          DISTRIBUTION_TASK_DONE
+      );
+
+  if(pendingTasks.length){
+    fail_(
+      'Este usuário possui '+
+      pendingTasks.length+
+      (
+        pendingTasks.length===1
+          ?' tarefa de distribuição pendente. Reatribua a tarefa antes de excluir o usuário.'
+          :' tarefas de distribuição pendentes. Reatribua as tarefas antes de excluir o usuário.'
+      )
+    );
+  }
+
+  /*
+   * Remove primeiro as permissões materiais do Google. Caso o commit da
+   * planilha falhe, a repetição da mesma operação é segura e refaz a remoção.
+   */
+  syncGoogleResourcesForUser_(
+    Object.assign(
+      {},
+      user,
+      {
+        ativo:false
+      }
+    ),
+    ctx
+  );
+
+  remove_(
+    ctx,
+    'Usuarios',
+    user.id,
+    q.versao
+  );
+
+  return {
+    id:user.id,
+    email,
+    nome:user.nome||email,
+    mensagem:
+      'Usuário excluído definitivamente do sistema. O histórico de operações já realizadas foi preservado.'
+  };
+}
+
 function userSave_(ctx,q){
   const nome=String(
     q.nome||''
