@@ -938,138 +938,8 @@ window.PDA_MODULES.PESS = (()=>{
     }
 
     /*
-     * Consulta oficial do Seguro-Defeso.
+     * Consulta oficial do Seguro-Defeso junto ao campo CPF.
      */
-    const apiCard=card(
-      'Consulta Seguro-Defeso — Portal da Transparência'
-    );
-
-    apiCard.append(
-      el(
-        'p',
-        'Consulta pelo CPF na API oficial do Portal da Transparência. A janela mostra os registros de mês de referência entre 01/01/2025 e 31/12/2025. Se a consulta for realizada, o relatório será gravado na pasta da pessoa quando o cadastro for salvo.',
-        'hint'
-      )
-    );
-
-    apiInfoText=el(
-      'p',
-      App.state.boot.portalTransparencia&&
-      App.state.boot.portalTransparencia.configurada
-        ?'API configurada e disponível.'
-        :'API não configurada. Cadastre a chave em Administração.',
-      App.state.boot.portalTransparencia&&
-      App.state.boot.portalTransparencia.configurada
-        ?'badge'
-        :'warn'
-    );
-
-    apiCard.append(
-      apiInfoText
-    );
-
-    const apiActions=el(
-      'div',
-      undefined,
-      'actions'
-    );
-
-    const apiButton=el(
-      'button',
-      'Consultar API'
-    );
-
-    apiButton.type='button';
-
-    apiButton.disabled=
-      !(
-        App.state.boot.portalTransparencia&&
-        App.state.boot.portalTransparencia.configurada
-      );
-
-    apiButton.onclick=
-      async()=>{
-        try{
-          const cpf=
-            personForm
-              .elements
-              .namedItem(
-                'cpf'
-              );
-
-          const codigo=
-            String(
-              cpf&&cpf.value||
-              ''
-            ).replace(/\D/g,'');
-
-          if(!/^\d{11}$/.test(codigo)){
-            throw new Error(
-              'Informe um CPF completo no formato 000.000.000-00 antes de consultar.'
-            );
-          }
-
-          apiInfoText.textContent=
-            'Consultando a API oficial...';
-
-          apiInfoText.className=
-            'badge';
-
-          const result=
-            await call(
-              'seguroDefesoConsultar',
-              {
-                codigo
-              }
-            );
-
-          seguroDefesoConsulta=
-            result;
-
-          const preenchimento=
-            fillPersonFromApi_(
-              personForm,
-              result
-            );
-
-          apiInfoText.textContent=
-            'Consulta concluída: '+
-            result.quantidade+
-            ' registro(s) de 2025 localizado(s).'+
-            (
-              preenchimento.messages.length
-                ?' '+preenchimento.messages.join('; ')+'.'
-                :''
-            );
-
-          showSeguroDefesoDialog_(
-            result
-          );
-
-        }catch(e){
-          apiInfoText.textContent=
-            e.message||
-            String(e);
-
-          apiInfoText.className=
-            'warn';
-
-          status(
-            e.message||
-            String(e),
-            true
-          );
-        }
-      };
-
-    apiActions.append(
-      apiButton
-    );
-
-    apiCard.append(
-      apiActions
-    );
-
     const cpfInput=
       personForm
         .elements
@@ -1078,6 +948,125 @@ window.PDA_MODULES.PESS = (()=>{
         );
 
     if(cpfInput){
+      const cpfField=
+        cpfInput.closest(
+          'label'
+        );
+
+      const apiInline=
+        el(
+          'div',
+          undefined,
+          'pess-cpf-api'
+        );
+
+      const apiButton=
+        el(
+          'button',
+          'Consultar Seguro-Defeso'
+        );
+
+      apiButton.type=
+        'button';
+
+      apiButton.disabled=
+        !(
+          App.state.boot.portalTransparencia&&
+          App.state.boot.portalTransparencia.configurada
+        );
+
+      apiInfoText=
+        el(
+          'small',
+          App.state.boot.portalTransparencia&&
+          App.state.boot.portalTransparencia.configurada
+            ?'Consulta disponível.'
+            :'API não configurada. Cadastre a chave em Administração.',
+          App.state.boot.portalTransparencia&&
+          App.state.boot.portalTransparencia.configurada
+            ?'hint'
+            :'warn'
+        );
+
+      apiButton.onclick=
+        async()=>{
+          try{
+            const codigo=
+              String(
+                cpfInput.value||
+                ''
+              ).replace(/\D/g,'');
+
+            if(!/^\d{11}$/.test(codigo)){
+              throw new Error(
+                'Informe um CPF completo no formato 000.000.000-00 antes de consultar.'
+              );
+            }
+
+            apiInfoText.textContent=
+              'Consultando a API oficial...';
+
+            apiInfoText.className=
+              'hint';
+
+            const result=
+              await call(
+                'seguroDefesoConsultar',
+                {
+                  codigo
+                }
+              );
+
+            seguroDefesoConsulta=
+              result;
+
+            const preenchimento=
+              fillPersonFromApi_(
+                personForm,
+                result
+              );
+
+            apiInfoText.textContent=
+              'Consulta concluída: '+
+              result.quantidade+
+              ' registro(s) de 2025 localizado(s).'+
+              (
+                preenchimento.messages.length
+                  ?' '+preenchimento.messages.join('; ')+'.'
+                  :''
+              );
+
+            showSeguroDefesoDialog_(
+              result
+            );
+
+          }catch(e){
+            apiInfoText.textContent=
+              e.message||
+              String(e);
+
+            apiInfoText.className=
+              'warn';
+
+            status(
+              e.message||
+              String(e),
+              true
+            );
+          }
+        };
+
+      apiInline.append(
+        apiButton,
+        apiInfoText
+      );
+
+      if(cpfField){
+        cpfField.append(
+          apiInline
+        );
+      }
+
       cpfInput.addEventListener(
         'input',
         ()=>{
@@ -1092,7 +1081,7 @@ window.PDA_MODULES.PESS = (()=>{
             seguroDefesoConsulta=null;
 
             apiInfoText.textContent=
-              'CPF alterado. Faça uma nova consulta à API antes de salvar o relatório.';
+              'CPF alterado. Consulte novamente para atualizar os dados.';
 
             apiInfoText.className=
               'warn';
@@ -1353,11 +1342,6 @@ window.PDA_MODULES.PESS = (()=>{
 
     if(actions){
       personForm.insertBefore(
-        apiCard,
-        actions
-      );
-
-      personForm.insertBefore(
         defeso,
         actions
       );
@@ -1369,7 +1353,6 @@ window.PDA_MODULES.PESS = (()=>{
 
     }else{
       personForm.append(
-        apiCard,
         defeso,
         documents
       );
