@@ -58,16 +58,41 @@ function parseUserPermissions_(user){
       );
     }
 
+    const cleaned=
+      parsed
+        .map(v=>String(v||'').trim())
+        .filter(v=>
+          Object.prototype.hasOwnProperty.call(
+            PERMISSIONS,
+            v
+          )
+        );
+
+    /*
+     * Migração das permissões introduzidas com o fluxo de distribuição.
+     * Usuários gravados antes da versão 2 recebem, uma única vez logicamente,
+     * as novas permissões padrão do seu perfil. Depois que forem salvos pela
+     * Administração, permissoesVersao=2 faz prevalecer exatamente as caixas
+     * marcadas pelo administrador.
+     */
+    if(
+      Number(
+        user&&user.permissoesVersao||
+        0
+      )<2
+    ){
+      rolePermissions_(
+        user&&user.perfil
+      ).forEach(permission=>{
+        if(!cleaned.includes(permission)){
+          cleaned.push(permission);
+        }
+      });
+    }
+
     return [
       ...new Set(
-        parsed
-          .map(v=>String(v||'').trim())
-          .filter(v=>
-            Object.prototype.hasOwnProperty.call(
-              PERMISSIONS,
-              v
-            )
-          )
+        cleaned
       )
     ];
 
