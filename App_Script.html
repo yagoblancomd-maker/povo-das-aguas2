@@ -645,6 +645,20 @@ parent.append(d);
 return d;
 }
  async function go(code,pessoaId){if(busy)return;
+if(
+  boot&&
+  boot.modulos&&
+  !Object.prototype.hasOwnProperty.call(
+    boot.modulos,
+    code
+  )
+){
+  status(
+    'Este módulo não está disponível para suas permissões atuais.',
+    true
+  );
+  return;
+}
 if(pessoaId)selection=pessoaId;
 else if(code==='ACOMP')selection=null;
 current=code;
@@ -730,21 +744,89 @@ fileState.textContent=count
 f.insertBefore(fileState,f.firstChild);
 f.insertBefore(file,f.firstChild);
 }
- async function start(){try{boot=await call('bootstrap');
-document.getElementById('identity').textContent=boot.email+' · '+boot.perfil;
-const nav=document.getElementById('nav');
-Object.entries(boot.modulos).forEach(([code,label])=>{if(code==='ADM'&&boot.perfil!=='ADMIN')return;
-const b=button(label,()=>go(code));
-b.dataset.code=code;
-nav.append(b);
-});
-await go('PAINEL');
-}catch(e){status(e.message||String(e),true);
-}}
- return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ function can(permission){
+  return !!(
+    boot&&
+    Array.isArray(boot.permissoes)&&
+    boot.permissoes.includes(permission)
+  );
+ }
+
+ function renderNavigation_(){
+  if(!boot)return;
+
+  const identity=
+    document.getElementById('identity');
+
+  if(identity){
+    const user=boot.usuario||{};
+    const parts=[
+      user.nome||boot.email,
+      user.funcao||'',
+      boot.perfil
+    ].filter(Boolean);
+
+    identity.textContent=
+      parts.join(' · ');
+
+    identity.title=
+      boot.email+
+      ' · permissões: '+
+      (boot.permissoes||[]).join(', ');
+  }
+
+  const nav=
+    document.getElementById('nav');
+
+  if(!nav)return;
+
+  nav.replaceChildren();
+
+  Object.entries(
+    boot.modulos||{}
+  ).forEach(([code,label])=>{
+    const b=
+      button(
+        label,
+        ()=>go(code)
+      );
+
+    b.dataset.code=code;
+
+    if(code===current){
+      b.setAttribute(
+        'aria-current',
+        'page'
+      );
+    }
+
+    nav.append(b);
+  });
+ }
+
+ async function start(){
+  try{
+    boot=await call('bootstrap');
+    renderNavigation_();
+
+    await go(
+      boot.home||
+      'PAINEL'
+    );
+
+  }catch(e){
+    status(
+      e.message||String(e),
+      true
+    );
+  }
+ }
+
+ return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
+renderNavigation_();
 }}};
 })();
 App.start();
