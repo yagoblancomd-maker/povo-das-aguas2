@@ -1,5 +1,5 @@
 <script>
-window.PDA_MODULES.PAINEL = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status}=App;
+window.PDA_MODULES.PAINEL = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can}=App;
 return async function(ctx){const root=ctx.root;
 root.append(el('h2','Painel'));
 const d=await call('painel');
@@ -8,7 +8,7 @@ const stats=el('div',undefined,'stats'),list=card('Atendimentos');
 const show=(rows)=>{list.replaceChildren(el('h3','Registros'));
 table(list,[{key:'nome',label:'Pessoa'},{key:'referencia',label:'Referência'},{key:'situacao',label:'Situação'}],rows,a=>[button('Abrir ficha',()=>go('ACOMP',a.pessoaId))]);
 };
-[['pessoas','Pessoas',()=>go('PESS')],['atendimentos','Atendimentos',()=>show(d.registros)],['pendencias','Pendências',()=>show(d.registros.filter(a=>d.pendenciasRegistros.some(p=>p.atendimentoId===a.id)))],['conferencias','A conferir',()=>show(d.registros.filter(a=>a.situacao!=='CONFERIDO'))],['minutas','Minutas',()=>show(d.registros.filter(a=>d.minutasRegistros.some(m=>m.atendimentoId===a.id)))]].forEach(([key,label,fn])=>{const b=button('',fn);
+[['pessoas','Pessoas',()=>go(can('cadastro')?'PESS':'ACOMP')],['atendimentos','Atendimentos',()=>show(d.registros)],['pendencias','Pendências',()=>show(d.registros.filter(a=>d.pendenciasRegistros.some(p=>p.atendimentoId===a.id)))],['conferencias','A conferir',()=>show(d.registros.filter(a=>a.situacao!=='CONFERIDO'))],['minutas','Minutas',()=>show(d.registros.filter(a=>d.minutasRegistros.some(m=>m.atendimentoId===a.id)))]].forEach(([key,label,fn])=>{const b=button('',fn);
 b.className='stat';
 b.append(el('strong',String(d[key])),el('span',label));
 stats.append(b);
