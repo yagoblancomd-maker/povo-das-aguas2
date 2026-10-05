@@ -5,6 +5,29 @@
 .adm-users-card{
   margin-top:12px
 }
+.adm-google-access{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:8px 0 10px;
+  padding:9px 10px;
+  border:1px solid #c6dce1;
+  border-radius:8px;
+  background:#f3f9fa
+}
+.adm-google-access strong{
+  flex:0 0 auto;
+  color:#143f53;
+  font-size:10.5px
+}
+.adm-google-access p{
+  flex:1 1 auto;
+  margin:0
+}
+.adm-google-access button{
+  flex:0 0 auto
+}
 .adm-profile-guide{
   display:grid;
   grid-template-columns:repeat(5,minmax(0,1fr));
@@ -116,6 +139,13 @@
   }
 }
 @media(max-width:680px){
+  .adm-google-access{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .adm-google-access button{
+    width:100%
+  }
   .adm-profile-guide,
   .adm-user-form>.grid{
     grid-template-columns:1fr
