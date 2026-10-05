@@ -674,7 +674,7 @@ if(!window.PDA_MODULES[code]){const s=document.createElement('script');
 s.textContent=m.script.replace(/^\s*<script>/,'').replace(/<\/script>\s*$/,'');
 document.head.append(s);
 s.remove();
-}document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.code===code?'page':'false'));
+}renderNavigation_();
 status('');
 await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
 }catch(e){if(token===epoch)status(e.message||String(e),true);
@@ -782,18 +782,21 @@ f.insertBefore(file,f.firstChild);
 
   nav.replaceChildren();
 
-  Object.entries(
-    boot.modulos||{}
-  ).forEach(([code,label])=>{
+  const available=
+    boot.modulos||{};
+
+  const appendDirect=(code,label)=>{
+    if(!available[code])return;
+
     const b=
       button(
-        label,
+        label||available[code],
         ()=>go(code)
       );
 
     b.dataset.code=code;
 
-    if(code===current){
+    if(current===code){
       b.setAttribute(
         'aria-current',
         'page'
@@ -801,7 +804,133 @@ f.insertBefore(file,f.firstChild);
     }
 
     nav.append(b);
-  });
+  };
+
+  const appendGroup=(label,items)=>{
+    const visible=
+      items.filter(item=>
+        !!available[item.code]
+      );
+
+    if(!visible.length)return;
+
+    const group=
+      el(
+        'details',
+        undefined,
+        'nav-group'
+      );
+
+    if(
+      visible.some(item=>
+        item.code===current
+      )
+    ){
+      group.classList.add(
+        'active'
+      );
+    }
+
+    const summary=
+      el(
+        'summary',
+        label,
+        'nav-group-summary'
+      );
+
+    const menu=
+      el(
+        'div',
+        undefined,
+        'nav-submenu'
+      );
+
+    visible.forEach(item=>{
+      const b=
+        button(
+          item.label,
+          ()=>{
+            group.open=false;
+            return go(item.code);
+          }
+        );
+
+      b.classList.add(
+        'nav-submenu-item'
+      );
+
+      b.dataset.code=
+        item.code;
+
+      if(current===item.code){
+        b.setAttribute(
+          'aria-current',
+          'page'
+        );
+      }
+
+      menu.append(b);
+    });
+
+    group.append(
+      summary,
+      menu
+    );
+
+    nav.append(group);
+  };
+
+  /*
+   * Estrutura principal:
+   * Pessoas -> Pessoas + Cadastros
+   * Distribuição -> Distribuição + Processos + Minutas
+   */
+  appendGroup(
+    'Pessoas',
+    [
+      {
+        code:'PESS',
+        label:'Pessoas'
+      },
+      {
+        code:'ACOMP',
+        label:'Cadastros'
+      }
+    ]
+  );
+
+  appendDirect(
+    'ATEND',
+    'Atendimentos'
+  );
+
+  appendGroup(
+    'Distribuição',
+    [
+      {
+        code:'DIST',
+        label:'Distribuição'
+      },
+      {
+        code:'PROC',
+        label:'Processos'
+      },
+      {
+        code:'MIN',
+        label:'Minutas'
+      }
+    ]
+  );
+
+  appendDirect(
+    'PAINEL',
+    'Painel'
+  );
+
+  appendDirect(
+    'ADM',
+    'Administração'
+  );
  }
 
  async function start(){
