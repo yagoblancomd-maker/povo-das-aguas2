@@ -812,6 +812,388 @@ window.PDA_MODULES.PESS = (()=>{
     dialog.showModal();
   }
 
+  function buildPersonStepper_(personForm,defeso,documents){
+    const sourceGrid=
+      Array.from(personForm.children)
+        .find(node=>
+          node.classList&&
+          node.classList.contains('grid')
+        );
+
+    const submitActions=
+      personForm.querySelector(
+        ':scope > .actions'
+      );
+
+    if(!sourceGrid||!submitActions){
+      return null;
+    }
+
+    const fieldNode=key=>
+      sourceGrid.querySelector(
+        '[data-field="'+key+'"]'
+      );
+
+    const stepper=
+      el(
+        'div',
+        undefined,
+        'pess-stepper'
+      );
+
+    const progress=
+      el(
+        'div',
+        undefined,
+        'pess-step-progress'
+      );
+
+    const definitions=[
+      {
+        title:'CPF',
+        subtitle:'Identificação e consulta oficial',
+        fields:['cpf']
+      },
+      {
+        title:'Dados pessoais',
+        subtitle:'Nome e contato',
+        fields:['nome','nascimento','telefone','email']
+      },
+      {
+        title:'Endereço',
+        subtitle:'CEP e residência',
+        fields:['cep','tipoVia','via','numero','complemento','bairro','cidade','uf']
+      },
+      {
+        title:'Vínculo e benefício',
+        subtitle:'Entidade e parcelas',
+        fields:['entidade','outraEntidade','analfabeto','parcelasNaoRecebidas'],
+        extra:defeso
+      },
+      {
+        title:'Documentos',
+        subtitle:'Arquivos obrigatórios',
+        fields:[],
+        extra:documents,
+        final:true
+      }
+    ];
+
+    const progressItems=[];
+    const steps=[];
+
+    definitions.forEach((definition,index)=>{
+      const indicator=
+        el(
+          'div',
+          undefined,
+          'pess-step-progress-item'
+        );
+
+      indicator.append(
+        el(
+          'span',
+          String(index+1),
+          'pess-step-number'
+        ),
+        el(
+          'strong',
+          definition.title
+        )
+      );
+
+      progress.append(
+        indicator
+      );
+
+      progressItems.push(
+        indicator
+      );
+
+      const step=
+        el(
+          'section',
+          undefined,
+          'pess-step'
+        );
+
+      step.dataset.step=
+        String(index);
+
+      if(index!==0){
+        step.hidden=true;
+      }
+
+      const head=
+        el(
+          'div',
+          undefined,
+          'pess-step-head'
+        );
+
+      head.append(
+        el(
+          'h3',
+          (index+1)+'. '+definition.title
+        ),
+        el(
+          'p',
+          definition.subtitle,
+          'hint'
+        )
+      );
+
+      step.append(
+        head
+      );
+
+      if(definition.fields.length){
+        const grid=
+          el(
+            'div',
+            undefined,
+            'pess-step-grid pess-step-grid-'+(index+1)
+          );
+
+        definition.fields.forEach(key=>{
+          const node=
+            fieldNode(
+              key
+            );
+
+          if(node){
+            grid.append(
+              node
+            );
+          }
+        });
+
+        step.append(
+          grid
+        );
+      }
+
+      if(definition.extra){
+        step.append(
+          definition.extra
+        );
+      }
+
+      const controls=
+        el(
+          'div',
+          undefined,
+          'pess-step-controls'
+        );
+
+      if(index>0){
+        const previous=
+          el(
+            'button',
+            'Anterior',
+            'secondary'
+          );
+
+        previous.type='button';
+        previous.dataset.previous=
+          String(index-1);
+
+        controls.append(
+          previous
+        );
+      }
+
+      if(!definition.final){
+        const next=
+          el(
+            'button',
+            index===0
+              ?'Continuar para dados pessoais'
+              :index===1
+                ?'Continuar para endereço'
+                :index===2
+                  ?'Continuar para vínculo e parcelas'
+                  :'Continuar para documentos'
+          );
+
+        next.type='button';
+        next.dataset.next=
+          String(index+1);
+
+        controls.append(
+          next
+        );
+      }
+
+      step.append(
+        controls
+      );
+
+      steps.push(
+        step
+      );
+
+      stepper.append(
+        step
+      );
+    });
+
+    stepper.prepend(
+      progress
+    );
+
+    const finalStep=
+      steps[
+        steps.length-1
+      ];
+
+    finalStep.append(
+      submitActions
+    );
+
+    sourceGrid.remove();
+
+    personForm.insertBefore(
+      stepper,
+      personForm.firstChild
+    );
+
+    let current=0;
+
+    const isVisibleControl=control=>{
+      if(control.disabled)return false;
+
+      const hiddenAncestor=
+        control.closest(
+          '[hidden]'
+        );
+
+      if(hiddenAncestor){
+        return false;
+      }
+
+      const style=
+        window.getComputedStyle(
+          control
+        );
+
+      return (
+        style.display!=='none'&&
+        style.visibility!=='hidden'
+      );
+    };
+
+    const validateStep=index=>{
+      const controls=
+        Array.from(
+          steps[index].querySelectorAll(
+            'input,select,textarea'
+          )
+        ).filter(
+          isVisibleControl
+        );
+
+      for(const control of controls){
+        if(!control.reportValidity()){
+          control.focus();
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    const showStep=index=>{
+      current=index;
+
+      steps.forEach((step,i)=>{
+        step.hidden=
+          i!==index;
+      });
+
+      progressItems.forEach((item,i)=>{
+        item.classList.toggle(
+          'active',
+          i===index
+        );
+
+        item.classList.toggle(
+          'done',
+          i<index
+        );
+      });
+
+      const first=
+        steps[index].querySelector(
+          'input:not([type="hidden"]),select,textarea'
+        );
+
+      requestAnimationFrame(()=>{
+        steps[index].scrollIntoView({
+          behavior:'smooth',
+          block:'nearest'
+        });
+
+        if(first){
+          first.focus({
+            preventScroll:true
+          });
+        }
+      });
+    };
+
+    stepper.addEventListener(
+      'click',
+      event=>{
+        const next=
+          event.target.closest(
+            '[data-next]'
+          );
+
+        if(next){
+          const target=
+            Number(
+              next.dataset.next
+            );
+
+          if(
+            validateStep(
+              current
+            )
+          ){
+            showStep(
+              target
+            );
+          }
+
+          return;
+        }
+
+        const previous=
+          event.target.closest(
+            '[data-previous]'
+          );
+
+        if(previous){
+          showStep(
+            Number(
+              previous.dataset.previous
+            )
+          );
+        }
+      }
+    );
+
+    showStep(
+      0
+    );
+
+    return {
+      showStep,
+      validateStep
+    };
+  }
+
   return async function(ctx){
     const root=ctx.root;
 
@@ -2286,6 +2668,21 @@ window.PDA_MODULES.PESS = (()=>{
     }
 
     /*
+     * Cadastro orientado por etapas:
+     * 1 CPF/Seguro-Defeso
+     * 2 dados pessoais
+     * 3 endereço/CEP
+     * 4 vínculo/parcelas
+     * 5 documentos
+     */
+    const personStepper=
+      buildPersonStepper_(
+        personForm,
+        defeso,
+        documents
+      );
+
+    /*
      * Consulta de cadastros fica disponível como ação principal.
      */
     search=card(
@@ -2339,9 +2736,15 @@ window.PDA_MODULES.PESS = (()=>{
         edit
       );
 
+      if(personStepper){
+        personStepper.showStep(
+          0
+        );
+      }
+
       const first=
         personForm.elements.namedItem(
-          'nome'
+          'cpf'
         );
 
       if(first){
