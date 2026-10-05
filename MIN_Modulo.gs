@@ -247,6 +247,85 @@ function parcelasText_(value){
   }[n];
 }
 
+function valorCausaTexto_(value){
+  const qtd=parcelasDefeso_(value);
+  const total=valorCausaDefeso_(qtd);
+  const parcela=SEGURO_DEFESO_2025.salarioMinimo;
+  const descricao=qtd===1?'1 parcela não paga':qtd+' parcelas não pagas';
+
+  return (
+    moneyBR_(total)+
+    ' ('+
+    descricao+
+    ' × R$ '+
+    moneyBR_(parcela)+
+    ' por parcela)'
+  );
+}
+
+function initialDocumentTitle_(p){
+  const jurisdicao=String(p.jurisdicao||jurisdicaoPessoa_(p)||'')
+    .trim()
+    .toUpperCase();
+
+  const nome=String(p.nome||'')
+    .trim()
+    .toUpperCase();
+
+  required_(jurisdicao,'jurisdição');
+  required_(nome,'nome completo');
+
+  return safeName_(
+    'INI.'+
+    jurisdicao+
+    '.'+
+    nome
+  );
+}
+
+function findPdfByOperation_(folder,op){
+  const marker='PDA_PDF_OP:'+op;
+  const iterator=folder.getFiles();
+
+  while(iterator.hasNext()){
+    const file=iterator.next();
+
+    if(
+      !file.isTrashed()&&
+      file.getMimeType()===MimeType.PDF&&
+      String(file.getDescription()||'')===marker
+    ){
+      return file;
+    }
+  }
+
+  return null;
+}
+
+function generatePdfFromDoc_(ctx,folder,docFile,baseName){
+  let pdf=findPdfByOperation_(folder,ctx.op);
+
+  if(!pdf){
+    const blob=docFile
+      .getAs(MimeType.PDF)
+      .setName(baseName+'.pdf');
+
+    pdf=folder.createFile(blob);
+    pdf.setDescription('PDA_PDF_OP:'+ctx.op);
+
+    ctx.effects.push(
+      'PDF da minuta criado no Drive: '+
+      pdf.getUrl()
+    );
+  }
+
+  if(pdf.getName()!==baseName+'.pdf'){
+    pdf.setName(baseName+'.pdf');
+  }
+
+  return pdf;
+}
+
 function personDraftValues_(p){
   const jurisdicao=jurisdicaoPessoa_(p);
   if(!jurisdicao){
@@ -258,14 +337,14 @@ function personDraftValues_(p){
   const qtd=parcelasDefeso_(p.parcelasNaoRecebidas);
 
   return {
-    JURISDICAO:p.jurisdicao,
-    NOME_COMPLETO:p.nome||'',
+    JURISDICAO:String(p.jurisdicao||'').toUpperCase(),
+    NOME_COMPLETO:String(p.nome||'').toUpperCase(),
     CPF:cpfDisplay_(p.cpf),
     ENDERECO:address_(p),
     CIDADE_UF:[p.cidade,p.uf].filter(Boolean).join('/'),
     TELEFONE:p.telefone||'',
     PARCELAS_NAO_RECEBIDAS:parcelasText_(qtd),
-    VALOR_CAUSA:moneyBR_(valorCausaDefeso_(qtd))
+    VALOR_CAUSA:valorCausaTexto_(qtd)
   };
 }
 
@@ -321,7 +400,7 @@ function generatePersonDraft_(ctx,p){
   validatePersonTemplate_(template.getId());
 
   const folder=personFolder_(p);
-  const finalName='MINUTA.'+safeName_(p.nome);
+  const finalName=initialDocumentTitle_(p);
 
   let file=findFileByOperation_(folder,ctx.op);
 
@@ -350,13 +429,24 @@ function generatePersonDraft_(ctx,p){
     file.setName(finalName);
   }
 
+  const pdf=generatePdfFromDoc_(
+    ctx,
+    folder,
+    file,
+    finalName
+  );
+
   return {
     fileId:file.getId(),
     url:file.getUrl(),
     nome:file.getName(),
+    pdfFileId:pdf.getId(),
+    pdfUrl:pdf.getUrl(),
+    pdfNome:pdf.getName(),
     parcelas:Number(p.parcelasNaoRecebidas),
     salarioMinimo:SEGURO_DEFESO_2025.salarioMinimo,
     valorCausa:valorCausaDefeso_(p.parcelasNaoRecebidas),
+    valorCausaTexto:valorCausaTexto_(p.parcelasNaoRecebidas),
     templateId:template.getId()
   };
 }
@@ -386,21 +476,28 @@ function generate_(ctx,q){
 
   const folder=folder_(a);
   const mid=id_('MIN',ctx.op);
-  const name='MINUTA_'+a.id+'_'+mid;
-  const iterator=folder.getFilesByName(name);
-  let file=iterator.hasNext()?iterator.next():null;
+  const name=initialDocumentTitle_(p);
 
-  if(iterator.hasNext()){
-    fail_('Cópias duplicadas; reconciliação necessária.');
-  }
+  let file=findFileByOperation_(folder,ctx.op);
 
   if(!file){
-    file=template.makeCopy(name,folder);
+    file=template.makeCopy(name+' - EM GERAÇÃO',folder);
     file.setDescription('PDA_OP:'+ctx.op);
     ctx.effects.push('Cópia de minuta no Drive: '+file.getUrl());
   }
 
   fillTemplateCopy_(file,p);
+
+  if(file.getName()!==name){
+    file.setName(name);
+  }
+
+  const pdf=generatePdfFromDoc_(
+    ctx,
+    folder,
+    file,
+    name
+  );
 
   const number=all_('Minutas').filter(m=>m.atendimentoId===a.id).length+1;
 
@@ -412,7 +509,9 @@ function generate_(ctx,q){
     situacao:'AGUARDA_REVISAO',
     snapshot:snapshot_(a,p),
     templateId:template.getId(),
-    templateModified:String(template.getLastUpdated().getTime())
+    templateModified:String(template.getLastUpdated().getTime()),
+    pdfFileId:pdf.getId(),
+    pdfUrl:pdf.getUrl()
   });
 }
 
