@@ -101,11 +101,11 @@ const PERMISSIONS=Object.freeze({
   },
   retificacao:{
     label:'Retificação',
-    descricao:'Editar pessoas e atendimentos já gravados, corrigir dados existentes, excluir documentos quando permitido e gerenciar pendências. Funciona independentemente da permissão Cadastro.'
+    descricao:'Editar pessoas já gravadas, corrigir dados existentes e excluir documentos quando permitido. Funciona independentemente da permissão Cadastro.'
   },
   conferencia:{
     label:'Conferência',
-    descricao:'Conferir documentos, registrar validações e concluir a conferência dos atendimentos.'
+    descricao:'Conferir documentos e registrar validações no cadastro da pessoa.'
   },
   minuta:{
     label:'Minutas jurídicas',
@@ -120,7 +120,7 @@ const PERMISSIONS=Object.freeze({
 const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
-  CONFERENCIA:'Cadastro, retificação e conferência documental e dos atendimentos.',
+  CONFERENCIA:'Cadastro, retificação e conferência documental.',
   JURIDICO:'Conferência e atividades jurídicas, incluindo geração e revisão de minutas.',
   ADMIN:'Acesso integral ao sistema e às configurações administrativas.'
 });
