@@ -8,7 +8,7 @@ Pessoas se relaciona com Atendimentos por pessoaId. Documentos específicos de a
 
 Cadastro único da pessoa. Nome e CPF obrigatórios em qualquer política; demais campos exigidos para encaminhar.
 
-Campos específicos: `nome`, `cpf`, `nascimento`, `telefone`, `tipoVia`, `via`, `numero`, `complemento`, `bairro`, `cidade`, `uf`, `entidade`, `outraEntidade`, `analfabeto`, `parcelasNaoRecebidas`. O último campo aceita apenas 1, 2, 3 ou 4 e alimenta o cálculo automático do valor da causa do Seguro-Defeso 2025.
+Campos específicos: `nome`, `cpf`, `nascimento`, `telefone`, `email`, `tipoVia`, `via`, `numero`, `complemento`, `cep`, `bairro`, `cidade`, `uf`, `entidade`, `outraEntidade`, `analfabeto`, `parcelasNaoRecebidas`, `jurisdicao`. A data de nascimento é aceita de 01/01/1910 até a data atual; o telefone é armazenado no formato `(DDD) XXXXX-XXXX`; o e-mail é opcional e validado quando informado. O último campo aceita apenas 1, 2, 3 ou 4 e alimenta o cálculo automático do valor da causa do Seguro-Defeso 2025.
 
 ## Atendimentos
 
