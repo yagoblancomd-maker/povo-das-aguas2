@@ -1,5 +1,5 @@
 /** Projeto independente. Não reutiliza IDs nem dados do Salém. */
-const PDA = Object.freeze({parent:'1wKO6B73R2e-H8E5R_vxRAHmUOIFz3bu7',name:'Povo das Águas',tz:'America/Sao_Paulo',maxBytes:5*1024*1024});
+const PDA = Object.freeze({parent:'10alyWnpE3WW3Q-Q0PeZ2RsSZvpAkEubR',name:'Povo das Águas',tz:'America/Sao_Paulo',maxBytes:5*1024*1024});
 const SCHEMA = Object.freeze({
  Pessoas:['nome','cpf','nascimento','telefone','tipoVia','via','numero','complemento','bairro','cidade','uf','entidade','outraEntidade','analfabeto'],
  Atendimentos:['pessoaId','demanda','referencia','parcelas','outrosCasos','observacoes','responsavel','situacao','folderId','revisao','conferencia','enderecamento','secaoJudiciaria','valorCausa','localData'],
