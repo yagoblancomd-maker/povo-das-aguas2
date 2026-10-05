@@ -513,61 +513,72 @@ window.PDA_MODULES.PESS = (()=>{
         'uf'
       );
 
-    if(parts.tipoVia){
-      setInputIfEmpty_(
-        tipoVia,
-        parts.tipoVia,
-        messages,
-        'tipo de via'
+    /*
+     * Ao clicar em "Consultar CEP", o endereço retornado pelo serviço passa a
+     * ser a referência para logradouro, bairro, município e UF.
+     * Número e complemento continuam sempre manuais.
+     */
+    if(
+      tipoVia&&
+      parts.tipoVia
+    ){
+      tipoVia.value=
+        parts.tipoVia;
+
+      tipoVia.dispatchEvent(
+        new Event(
+          'input',
+          {bubbles:true}
+        )
       );
     }
 
-    setInputIfEmpty_(
-      via,
-      parts.via||
-        result.logradouro,
-      messages,
-      'logradouro'
-    );
+    if(
+      via&&
+      (
+        parts.via||
+        result.logradouro
+      )
+    ){
+      via.value=
+        parts.via||
+        result.logradouro;
 
-    setInputIfEmpty_(
-      bairro,
-      result.bairro,
-      messages,
-      'bairro/localidade'
-    );
+      via.dispatchEvent(
+        new Event(
+          'input',
+          {bubbles:true}
+        )
+      );
+    }
+
+    if(
+      bairro&&
+      result.bairro
+    ){
+      bairro.value=
+        result.bairro;
+
+      bairro.dispatchEvent(
+        new Event(
+          'input',
+          {bubbles:true}
+        )
+      );
+    }
 
     if(
       cidade&&
       result.cidade
     ){
-      const current=
-        String(
-          cidade.value||
-          ''
-        ).trim();
-
-      if(!current){
-        if(
-          selectMatchingOption_(
-            cidade,
-            result.cidade
-          )
-        ){
-          messages.push(
-            'município preenchido pelo CEP'
-          );
-        }else{
-          messages.push(
-            'o município retornado pelo CEP não consta na lista de municípios cadastrados'
-          );
-        }
-      }else if(
-        normalizeApiText_(current)!==
-        normalizeApiText_(result.cidade)
+      if(
+        !selectMatchingOption_(
+          cidade,
+          result.cidade
+        )
       ){
         messages.push(
-          'o município retornado pelo CEP difere do município já selecionado e não foi sobrescrito'
+          'o município retornado pelo CEP não consta na lista de municípios cadastrados'
         );
       }
     }
@@ -576,31 +587,10 @@ window.PDA_MODULES.PESS = (()=>{
       uf&&
       result.uf
     ){
-      const current=
-        String(
-          uf.value||
-          ''
-        ).trim();
-
-      if(!current){
-        if(
-          selectMatchingOption_(
-            uf,
-            result.uf
-          )
-        ){
-          messages.push(
-            'UF preenchida pelo CEP'
-          );
-        }
-      }else if(
-        normalizeApiText_(current)!==
-        normalizeApiText_(result.uf)
-      ){
-        messages.push(
-          'a UF retornada pelo CEP difere da UF já selecionada e não foi sobrescrita'
-        );
-      }
+      selectMatchingOption_(
+        uf,
+        result.uf
+      );
     }
 
     return messages;
@@ -1415,7 +1405,7 @@ window.PDA_MODULES.PESS = (()=>{
               (
                 messages.length
                   ?'. '+messages.join('; ')+'.'
-                  :'.'
+                  :'. Endereço preenchido automaticamente.'
               );
 
           }catch(e){
