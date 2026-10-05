@@ -172,13 +172,23 @@ function personInitialGenerate_(ctx,q){
 
   const folder=personFolder_(p);
   const minuta=generatePersonDraft_(ctx,p);
+  const tarefaDistribuicao=
+    ensureDistributionTask_(
+      ctx,
+      p
+    );
 
   return {
     pessoaId:p.id,
     folderId:folder.getId(),
     folderUrl:folder.getUrl(),
     minutaBase:minuta,
-    mensagem:'Petição inicial gerada e adicionada aos documentos da pessoa.'
+    tarefaDistribuicao:
+      tarefaDistribuicao
+        ?tarefaDistribuicao.id
+        :'',
+    mensagem:
+      'Petição inicial gerada e adicionada aos documentos da pessoa. A tarefa de distribuição foi garantida.'
   };
 }
 
