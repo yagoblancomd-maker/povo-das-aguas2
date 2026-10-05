@@ -87,6 +87,7 @@ n.addEventListener('blur',sync);
 sync();
 }
  function field(f,value){const wrap=el('label',undefined,'field');
+wrap.dataset.field=f.key;
 wrap.append(el('span',f.label));
 const n=el(f.options?'select':f.type==='textarea'?'textarea':'input');
 n.name=f.key;
@@ -176,8 +177,8 @@ if(f.birthDate){
   n.addEventListener('change',validateBirth);
   validateBirth();
 }
-if(f.hint)wrap.append(el('small',f.hint,'hint'));
 wrap.append(n);
+if(f.hint)wrap.append(el('small',f.hint,'hint'));
 return wrap;
 }
  function form(parent,fields,data,save,label='Salvar'){const f=el('form');
