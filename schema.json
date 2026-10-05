@@ -23,7 +23,8 @@
       "outraEntidade",
       "analfabeto",
       "parcelasNaoRecebidas",
-      "jurisdicao"
+      "jurisdicao",
+      "cep"
     ],
     "Atendimentos": [
       "pessoaId",
