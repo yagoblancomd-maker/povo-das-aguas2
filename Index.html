@@ -1,5 +1,43 @@
-<!DOCTYPE html><html lang="pt-BR"><head><base target="_top"><meta charset="utf-8"><?!= include_('App_Style'); ?></head><body>
-<header><?!= include_('Logo'); ?><div><h1>Povo das Águas</h1><p>CIDIJUS · Cadastro, organização documental e preparação de ações</p><p id="identity"></p></div></header>
-<nav id="nav" aria-label="Módulos"></nav><div id="status" class="status" role="status" aria-live="polite"></div><main id="app" aria-busy="true"></main>
-<footer>Povo das Águas · CIDIJUS / EMAJ / FURG · Documentação, acesso à Justiça e apoio às comunidades pesqueiras.</footer>
-<?!= include_('App_Script'); ?></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include_('App_Style'); ?>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="app-header-balance" aria-hidden="true"></div>
+
+      <div class="app-header-brand">
+        <div class="app-brand-logo-wrap">
+          <?!= include_('Logo'); ?>
+        </div>
+
+        <div class="app-header-copy">
+          <h1>Povo das Águas</h1>
+          <p>CIDIJUS · Cadastro, organização documental e preparação de ações</p>
+        </div>
+      </div>
+
+      <div class="app-header-user">
+        <span class="app-header-user-label">USUÁRIO</span>
+        <p id="identity"></p>
+      </div>
+    </div>
+  </header>
+
+  <nav id="nav" aria-label="Módulos"></nav>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <main id="app" aria-busy="true"></main>
+
+  <footer>
+    Povo das Águas · CIDIJUS / EMAJ / FURG · Documentação, acesso à Justiça e apoio às comunidades pesqueiras.
+  </footer>
+
+  <?!= include_('App_Script'); ?>
+</body>
+</html>
