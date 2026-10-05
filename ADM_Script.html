@@ -202,6 +202,63 @@ window.PDA_MODULES.ADM = (()=>{
         :'Salvar chave da API'
     );
 
+    const deepseek=card('API DeepSeek — leitura automática de documentos');
+    root.append(deepseek);
+
+    deepseek.append(
+      el(
+        'p',
+        d.deepseek&&d.deepseek.configurada
+          ?'Chave da API DeepSeek configurada. Modelo ativo: '+d.deepseek.modelo+'.'
+          :'Chave da API DeepSeek ainda não configurada.',
+        d.deepseek&&d.deepseek.configurada
+          ?'badge'
+          :'warn'
+      )
+    );
+
+    deepseek.append(
+      el(
+        'p',
+        'A chave é usada somente no servidor para a importação assistida de dados do documento de identidade e do comprovante de residência. Ela não é enviada ao navegador nem exibida depois de salva. A funcionalidade usa o modelo '+((d.deepseek&&d.deepseek.modelo)||'deepseek-flash')+'.',
+        'hint'
+      )
+    );
+
+    form(
+      deepseek,
+      [
+        {
+          key:'chave',
+          label:'DEEPSEEK_API_KEY',
+          type:'password',
+          required:true,
+          placeholder:'Cole aqui sua chave da API DeepSeek'
+        }
+      ],
+      {},
+      async q=>{
+        const result=await call(
+          'deepseekApiKeySalvar',
+          q,
+          true
+        );
+
+        App.state.boot=
+          await call('bootstrap');
+
+        await go('ADM');
+
+        status(
+          result.mensagem||
+          'Chave da API DeepSeek salva.'
+        );
+      },
+      d.deepseek&&d.deepseek.configurada
+        ?'Substituir chave DeepSeek'
+        :'Salvar chave DeepSeek'
+    );
+
     const labels={
       rascunhos:
         'Salvar dados pessoais incompletos',
