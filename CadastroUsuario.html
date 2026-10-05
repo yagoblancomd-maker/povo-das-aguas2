@@ -517,8 +517,8 @@
             </label>
 
             <div class="permissions">
-              <strong>Seu perfil inicial</strong>
-              <p>Após o cadastro, você terá automaticamente somente as permissões de <b>Consulta</b> e <b>Cadastro</b>. Nenhuma permissão de retificação, conferência, minutas, distribuição ou administração será concedida.</p>
+              <strong id="permissionsTitle">Seu perfil inicial</strong>
+              <p id="permissionsText">Selecione sua função para ver as permissões iniciais que serão concedidas.</p>
             </div>
 
             <button id="submitBtn" class="submit" type="submit">Criar meu acesso ao Povo das Águas</button>
@@ -556,6 +556,58 @@
     const submit=document.getElementById('submitBtn');
     const warning=document.getElementById('warning');
     const switchAccount=document.getElementById('switchAccount');
+    const functionSelect=document.getElementById('funcao');
+    const permissionsTitle=document.getElementById('permissionsTitle');
+    const permissionsText=document.getElementById('permissionsText');
+
+    const ACCESS_BY_FUNCTION={
+      Professor:{
+        title:'Professor · acesso inicial',
+        html:'Você iniciará com <b>Consulta</b> e <b>Cadastro</b>. As demais permissões operacionais do perfil de Professor/Residente dependem de aprovação do Administrador. <b>Administração</b> e <b>Distribuir processos</b> nunca são concedidas automaticamente.'
+      },
+      Residente:{
+        title:'Residente · acesso inicial',
+        html:'Você iniciará com <b>Consulta</b> e <b>Cadastro</b>. As demais permissões operacionais do perfil de Professor/Residente dependem de aprovação do Administrador. <b>Administração</b> e <b>Distribuir processos</b> nunca são concedidas automaticamente.'
+      },
+      Colaborador:{
+        title:'Colaborador · acesso inicial',
+        html:'Você receberá <b>Consulta</b>, <b>Cadastro</b> e <b>Retificação dos próprios cadastros</b>. Cadastros criados por outras pessoas permanecem somente para consulta.'
+      },
+      Aluno:{
+        title:'Aluno · acesso inicial',
+        html:'Você receberá <b>Consulta</b> e <b>Distribuir processos</b>, podendo receber e concluir tarefas de distribuição atribuídas a você.'
+      }
+    };
+
+    function syncFunctionAccess_(){
+      const info=
+        ACCESS_BY_FUNCTION[
+          functionSelect.value
+        ];
+
+      if(!info){
+        permissionsTitle.textContent=
+          'Seu perfil inicial';
+
+        permissionsText.textContent=
+          'Selecione sua função para ver as permissões iniciais que serão concedidas.';
+
+        return;
+      }
+
+      permissionsTitle.textContent=
+        info.title;
+
+      permissionsText.innerHTML=
+        info.html;
+    }
+
+    functionSelect.addEventListener(
+      'change',
+      syncFunctionAccess_
+    );
+
+    syncFunctionAccess_();
 
     accountEmail.textContent=
       CONFIG.email||
