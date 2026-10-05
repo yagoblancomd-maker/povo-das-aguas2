@@ -130,9 +130,64 @@
   background:#fff;
   box-shadow:0 24px 70px rgba(6,35,48,.28)
 }
-.task-dialog::backdrop{
+.task-dialog::backdrop,
+.task-process-dialog::backdrop{
   background:rgba(8,31,44,.55);
   backdrop-filter:blur(5px)
+}
+.task-process-dialog{
+  width:min(520px,calc(100vw - 28px));
+  padding:0;
+  overflow:hidden;
+  border:1px solid #b9d3d9;
+  border-radius:13px;
+  color:#173f51;
+  background:#fff;
+  box-shadow:0 24px 70px rgba(6,35,48,.30)
+}
+.task-process-shell{
+  display:flex;
+  flex-direction:column
+}
+.task-process-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  padding:13px 15px;
+  color:#fff;
+  background:linear-gradient(145deg,#0b6674,#0b8490)
+}
+.task-process-head h3{
+  margin:0;
+  color:#fff;
+  font-size:15px
+}
+.task-process-head p{
+  margin:2px 0 0;
+  color:rgba(255,255,255,.82);
+  font-size:9px
+}
+.task-process-head button{
+  min-height:27px;
+  padding:4px 8px;
+  color:#fff;
+  border-color:rgba(255,255,255,.24);
+  background:rgba(255,255,255,.12)
+}
+.task-process-body{
+  padding:13px 15px 15px
+}
+.task-process-body>.field{
+  margin-top:9px
+}
+.task-process-body input{
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.02em
+}
+.task-process-actions{
+  justify-content:flex-end;
+  margin-top:10px
 }
 .task-dialog-shell{
   display:flex;
