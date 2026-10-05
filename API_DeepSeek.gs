@@ -554,6 +554,10 @@ function deepseekContentParts_(identidade,residencia){
   ];
 
   const addFile=(file,label)=>{
+    if(!file){
+      return;
+    }
+
     parts.push({
       type:'text',
       text:'DOCUMENTO: '+label+' — '+file.nome
@@ -585,17 +589,19 @@ function deepseekContentParts_(identidade,residencia){
     }
   };
 
-  identidade.forEach(
+  (identidade||[]).forEach(
     file=>addFile(
       file,
       'IDENTIDADE / CPF'
     )
   );
 
-  addFile(
-    residencia,
-    'COMPROVANTE DE RESIDÊNCIA'
-  );
+  if(residencia){
+    addFile(
+      residencia,
+      'COMPROVANTE DE RESIDÊNCIA'
+    );
+  }
 
   return parts;
 }
@@ -749,34 +755,51 @@ function deepseekDocumentImport_(q){
       :[];
 
   if(
-    !identidadeInput.length||
-    identidadeInput.length>DEEPSEEK_IMPORT_MAX_ID_FILES
+    identidadeInput.length>
+    DEEPSEEK_IMPORT_MAX_ID_FILES
   ){
     fail_(
-      'Envie 1 ou 2 arquivos do documento de identidade.'
+      'Envie no máximo 2 arquivos do documento de identidade.'
     );
   }
 
-  if(!q||!q.residencia){
+  const hasIdentity=
+    identidadeInput.length>0;
+
+  const hasResidence=
+    !!(
+      q&&
+      q.residencia&&
+      q.residencia.base64
+    );
+
+  if(
+    !hasIdentity&&
+    !hasResidence
+  ){
     fail_(
-      'Envie o comprovante de residência.'
+      'Envie pelo menos um documento: identidade/CPF ou comprovante de residência.'
     );
   }
 
   const identidade=
-    identidadeInput.map(
-      (file,index)=>
-        deepseekImportFile_(
-          file,
-          'documento de identidade '+(index+1)
+    hasIdentity
+      ?identidadeInput.map(
+          (file,index)=>
+            deepseekImportFile_(
+              file,
+              'documento de identidade '+(index+1)
+            )
         )
-    );
+      :[];
 
   const residencia=
-    deepseekImportFile_(
-      q.residencia,
-      'comprovante de residência'
-    );
+    hasResidence
+      ?deepseekImportFile_(
+          q.residencia,
+          'comprovante de residência'
+        )
+      :null;
 
   const request=
     deepseekRequest_(
@@ -795,6 +818,10 @@ function deepseekDocumentImport_(q){
     {},
     normalized,
     {
+      documentosProcessados:{
+        identidade:hasIdentity,
+        residencia:hasResidence
+      },
       modelo:DEEPSEEK_MODEL,
       uso:{
         inputTokens:Number(request.usage.prompt_tokens||0),
