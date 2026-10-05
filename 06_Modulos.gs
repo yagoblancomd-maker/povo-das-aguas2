@@ -181,8 +181,6 @@ function api(action,q){
     minutaInicialGerar:['minuta',personInitialGenerate_],
     upload:['cadastro',upload_],
     documentoConferir:['conferencia',checkDoc_],
-    minutaGerar:['minuta',generate_],
-    minutaRevisar:['minuta',reviewMin_],
     modeloUpload:['administracao',modelUpload_],
     portalApiKeySalvar:['administracao',portalApiKeySave_],
     deepseekApiKeySalvar:['administracao',deepseekApiKeySave_],
