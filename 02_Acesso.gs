@@ -1,13 +1,120 @@
+function currentGoogleEmail_(){
+  let email='';
+
+  try{
+    email=String(
+      Session
+        .getActiveUser()
+        .getEmail()||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+  }catch(e){}
+
+  if(email){
+    return email;
+  }
+
+  /*
+   * Contas Gmail pessoais e usuários externos podem não ser expostos por
+   * Session.getActiveUser().getEmail() mesmo quando o Web App exige login.
+   * Como o manifesto já possui userinfo.email, consultamos o endpoint oficial
+   * do Google com o token OAuth da própria execução.
+   *
+   * IMPORTANTE: o fallback só é aceito quando a execução não está ocorrendo
+   * como o proprietário. Isso impede que uma implantação "Executar como eu"
+   * identifique todo visitante como o dono do sistema.
+   */
+  try{
+    const effective=String(
+      Session
+        .getEffectiveUser()
+        .getEmail()||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+    const owner=String(
+      props_().getProperty(
+        'OWNER_EMAIL'
+      )||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+    if(
+      effective&&
+      owner&&
+      effective===owner
+    ){
+      return '';
+    }
+
+    const token=
+      ScriptApp.getOAuthToken();
+
+    if(!token){
+      return '';
+    }
+
+    const response=
+      UrlFetchApp.fetch(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        {
+          method:'get',
+          headers:{
+            Authorization:
+              'Bearer '+
+              token
+          },
+          muteHttpExceptions:true
+        }
+      );
+
+    if(
+      response.getResponseCode()!==
+      200
+    ){
+      return '';
+    }
+
+    const data=
+      JSON.parse(
+        response.getContentText()||
+        '{}'
+      );
+
+    email=String(
+      data.email||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+    if(
+      data.email_verified===false
+    ){
+      return '';
+    }
+
+    return email;
+
+  }catch(e){
+    return '';
+  }
+}
+
 function identity_(){
-  const email=Session
-    .getActiveUser()
-    .getEmail()
-    .toLowerCase()
-    .trim();
+  const email=
+    currentGoogleEmail_();
 
   if(!email){
     fail_(
-      'Identidade Google indisponível. Acesso bloqueado; revise a implantação.'
+      'Não foi possível identificar a Conta Google desta execução. '+
+      'A implantação principal deve executar como "Usuário que acessa o app" e exigir login Google.'
     );
   }
 
