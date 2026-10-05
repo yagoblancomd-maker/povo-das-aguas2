@@ -205,6 +205,7 @@ function api(action,q){
     distribuicaoFila:()=>distributionQueue_(),
     tarefasMinhas:()=>myDistributionTasks_(),
     tarefaDistribuicaoDetalhe:()=>distributionTaskDetail_(q),
+    processos:()=>processList_(),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
       usuarios:all_('Usuarios').map(u=>
