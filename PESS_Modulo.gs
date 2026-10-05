@@ -130,13 +130,23 @@ function personFinalize_(ctx,q){
 
   const folder=personFolder_(p);
   const minuta=generatePersonDraft_(ctx,p);
+  const tarefaDistribuicao=
+    ensureDistributionTask_(
+      ctx,
+      p
+    );
 
   return {
     pessoaId:p.id,
     folderId:folder.getId(),
     folderUrl:folder.getUrl(),
     minutaBase:minuta,
-    mensagem:'Cadastro, documentos e minuta concluídos.'
+    tarefaDistribuicao:
+      tarefaDistribuicao
+        ?tarefaDistribuicao.id
+        :'',
+    mensagem:
+      'Cadastro, documentos e minuta concluídos. Tarefa de distribuição criada automaticamente.'
   };
 }
 
