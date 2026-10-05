@@ -61,7 +61,47 @@ function personRequiredDocumentErrors_(p){
       });
 
       if(!residenceWithDate){
-        errors.push('Informe o vencimento do comprovante de residência.');
+        errors.push('Informe uma data válida para o vencimento do comprovante de residência.');
+      }
+
+      const thirdPartyDocs=
+        validFiles.filter(d=>
+          bool_(d.terceiro)
+        );
+
+      if(thirdPartyDocs.length){
+        const hasDeclaration=
+          thirdPartyDocs.some(d=>
+            bool_(d.declaracaoTerceiro)
+          );
+
+        if(!hasDeclaration){
+          errors.push(
+            'Confirme que há declaração de residência no comprovante em nome de terceiro.'
+          );
+        }
+
+        const holderIdentityDocs=
+          docs.filter(d=>
+            d.categoria==='IDENTIDADE_TITULAR_RESIDENCIA'&&
+            bool_(d.vigente)
+          );
+
+        const hasHolderIdentity=
+          holderIdentityDocs.some(d=>{
+            try{
+              const file=DriveApp.getFileById(d.fileId);
+              return !file.isTrashed();
+            }catch(e){
+              return false;
+            }
+          });
+
+        if(!hasHolderIdentity){
+          errors.push(
+            'Anexe a carteira de identidade do titular da residência.'
+          );
+        }
       }
     }
   });
