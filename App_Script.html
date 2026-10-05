@@ -55,8 +55,14 @@ return d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4);
 if(d.length<=5)return d;
 return d.slice(0,5)+'-'+d.slice(5);
 }
+ function maskPhone_(value){const d=String(value||'').replace(/\D/g,'').slice(0,11);
+if(!d)return '';
+if(d.length<=2)return '('+d;
+if(d.length<=7)return '('+d.slice(0,2)+') '+d.slice(2);
+return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7);
+}
  function applyMask_(n,mask){if(!mask)return;
-const fn=mask==='cpf'?maskCpf_:mask==='date'?maskDate_:mask==='cep'?maskCep_:null;
+const fn=mask==='cpf'?maskCpf_:mask==='date'?maskDate_:mask==='cep'?maskCep_:mask==='phone'?maskPhone_:null;
 if(!fn)return;
 const sync=()=>{n.value=fn(n.value);};
 n.addEventListener('input',sync);
@@ -76,6 +82,8 @@ n.required=!!f.required;
 if(f.placeholder)n.placeholder=f.placeholder;
 if(f.maxLength)n.maxLength=f.maxLength;
 if(f.inputMode)n.inputMode=f.inputMode;
+if(f.pattern)n.pattern=f.pattern;
+if(f.title)n.title=f.title;
 if(f.suggestions&&!f.options){
   const listId=
     'pda-list-'+
@@ -95,6 +103,61 @@ if(f.suggestions&&!f.options){
   wrap.append(datalist);
 }
 applyMask_(n,f.mask);
+if(f.birthDate){
+  const validateBirth=()=>{
+    const value=String(n.value||'').trim();
+
+    if(!value){
+      n.setCustomValidity('');
+      return;
+    }
+
+    const match=value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if(!match){
+      n.setCustomValidity('Informe a data no formato DD/MM/AAAA.');
+      return;
+    }
+
+    const day=Number(match[1]);
+    const month=Number(match[2]);
+    const year=Number(match[3]);
+    const parsed=new Date(year,month-1,day);
+    parsed.setHours(0,0,0,0);
+
+    if(
+      parsed.getFullYear()!==year||
+      parsed.getMonth()!==month-1||
+      parsed.getDate()!==day
+    ){
+      n.setCustomValidity('Informe uma data de nascimento válida.');
+      return;
+    }
+
+    const minimum=new Date(1910,0,1);
+    minimum.setHours(0,0,0,0);
+
+    const today=new Date();
+    today.setHours(0,0,0,0);
+
+    if(parsed<minimum){
+      n.setCustomValidity('A data de nascimento não pode ser anterior a 01/01/1910.');
+      return;
+    }
+
+    if(parsed>today){
+      n.setCustomValidity('A data de nascimento não pode estar no futuro.');
+      return;
+    }
+
+    n.setCustomValidity('');
+  };
+
+  n.addEventListener('input',validateBirth);
+  n.addEventListener('blur',validateBirth);
+  n.addEventListener('change',validateBirth);
+  validateBirth();
+}
 if(f.hint)wrap.append(el('small',f.hint,'hint'));
 wrap.append(n);
 return wrap;
@@ -169,7 +232,7 @@ await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
 }finally{if(token===epoch)root.setAttribute('aria-busy','false');
 }}
  const alive=ctx=>ctx.token===epoch;
- const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true,placeholder:'000.000.000-00',mask:'cpf',maxLength:14,inputMode:'numeric'},{key:'nascimento',label:'Nascimento',placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric'},{key:'telefone',label:'Telefone',placeholder:'(53) 99632-1234'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua',suggestions:['Rua','Avenida','Travessa','Estrada','Rodovia','Praça','Alameda','Beco','Servidão','Vila','Loteamento','Linha','Acesso']},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'cep',label:'CEP',required:true,placeholder:'00000-000',mask:'cep',maxLength:9,inputMode:'numeric'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
+ const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true,placeholder:'000.000.000-00',mask:'cpf',maxLength:14,inputMode:'numeric'},{key:'nascimento',label:'Nascimento',required:true,placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric',birthDate:true,hint:'Aceita datas entre 01/01/1910 e hoje.'},{key:'telefone',label:'Telefone',required:true,placeholder:'(53) 99999-9999',mask:'phone',maxLength:15,inputMode:'numeric',pattern:'\\(\\d{2}\\) \\d{5}-\\d{4}',title:'Use o formato (DDD) XXXXX-XXXX'},{key:'email',label:'E-mail (opcional)',type:'email',placeholder:'nome@exemplo.com'},{key:'tipoVia',label:'Tipo de via',placeholder:'Rua',suggestions:['Rua','Avenida','Travessa','Estrada','Rodovia','Praça','Alameda','Beco','Servidão','Vila','Loteamento','Linha','Acesso']},{key:'via',label:'Nome da via'},{key:'numero',label:'Número'},{key:'complemento',label:'Complemento'},{key:'cep',label:'CEP',required:true,placeholder:'00000-000',mask:'cep',maxLength:9,inputMode:'numeric'},{key:'bairro',label:'Bairro ou localidade'},{key:'cidade',label:'Município',options:boot.config.municipios},{key:'uf',label:'UF',options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
  const atendFields=()=>[{key:'demanda',label:'Demanda',options:boot.config.demandas,required:true},{key:'referencia',label:'Referência que identifica a demanda',required:true,hint:'Ex.: Defeso 2025 — requerimento 123. Nova referência somente para demanda distinta.'},{key:'parcelas',label:'Parcelas não recebidas no atendimento',options:['Todas de 2025','Somente a última de 2025','Outros casos'],required:true},{key:'outrosCasos',label:'Descrição de outros casos',type:'textarea'},{key:'responsavel',label:'E-mail do responsável'},{key:'observacoes',label:'Observações',type:'textarea'},{key:'enderecamento',label:'Endereçamento completo',placeholder:'AO JUÍZO DA …'},{key:'secaoJudiciaria',label:'Seção judiciária',placeholder:'SEÇÃO JUDICIÁRIA DO ESTADO …'},{key:'localData',label:'Local e data da petição',placeholder:'Rio Grande, data da distribuição'}];
  async function searchUI(parent,onSelect){const f=el('form'),input=el('input');
 input.placeholder='Pesquisar por nome ou CPF';
