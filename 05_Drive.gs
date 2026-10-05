@@ -720,3 +720,78 @@ function upload_(ctx,q){
       'Arquivo gravado. Conferência humana pendente.'
   };
 }
+
+
+/**
+ * Exclui um documento geral da pessoa.
+ * O arquivo é enviado para a lixeira do Drive e o registro é mantido apenas
+ * para fins de auditoria, com vigente=false.
+ */
+function personDocumentDelete_(ctx,q){
+  required_(q.id,'documento');
+  required_(q.pessoaId,'pessoa');
+
+  const p=get_('Pessoas',q.pessoaId);
+  const d=get_('Documentos',q.id);
+
+  version_(d,q.versao);
+
+  const owner=personOwnerKey_(p.id);
+
+  if(d.atendimentoId!==owner){
+    fail_('Somente documentos do cadastro individual da pessoa podem ser excluídos por esta operação.');
+  }
+
+  if(!bool_(d.vigente)){
+    return {
+      documento:d,
+      pessoa:p,
+      mensagem:'Documento já estava excluído.'
+    };
+  }
+
+  let file=null;
+
+  try{
+    file=DriveApp.getFileById(d.fileId);
+  }catch(e){
+    file=null;
+  }
+
+  if(file&&!file.isTrashed()){
+    file.setTrashed(true);
+    ctx.effects.push('Documento removido da pasta da pessoa: '+d.nome);
+  }
+
+  const observacaoExclusao=
+    '[EXCLUÍDO '+now_()+' por '+ctx.email+']';
+
+  const updated=change_(
+    ctx,
+    'Documentos',
+    d.id,
+    Object.assign(
+      {},
+      d,
+      {
+        vigente:false,
+        observacoes:
+          [
+            String(d.observacoes||'').trim(),
+            observacaoExclusao
+          ].filter(Boolean).join('\n')
+      }
+    ),
+    d.versao
+  );
+
+  all_('Atendimentos')
+    .filter(a=>a.pessoaId===p.id)
+    .forEach(a=>touch_(ctx,a));
+
+  return {
+    documento:updated,
+    pessoa:p,
+    mensagem:'Documento excluído e removido da pasta da pessoa.'
+  };
+}
