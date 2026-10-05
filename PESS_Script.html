@@ -7,6 +7,7 @@ window.PDA_MODULES.PESS = (()=>{
   const DOCUMENT_LABELS={
     RG_CPF:'Documento de identidade e CPF',
     RESIDENCIA:'Comprovante de residência',
+    IDENTIDADE_TITULAR_RESIDENCIA:'Carteira de identidade do titular da residência',
     PROCESSO_ADMINISTRATIVO:'Processo administrativo',
     PESCA:'Documentos de pesca',
     PROCURACAO:'Procuração',
@@ -822,6 +823,8 @@ window.PDA_MODULES.PESS = (()=>{
     const uploads={};
     let residenceDate=null;
     let residenceThird=null;
+    let residenceDeclaration=null;
+    let residenceHolderIdentity=null;
     let seguroDefesoConsulta=null;
     let apiInfoText=null;
 
@@ -873,16 +876,47 @@ window.PDA_MODULES.PESS = (()=>{
           );
         }
 
-        if(
-          !String(
+        const residenceDateValue=
+          String(
             residenceDate&&
             residenceDate.value||
             ''
-          ).trim()
-        ){
+          ).trim();
+
+        if(!residenceDateValue){
           throw new Error(
             'Informe o vencimento do comprovante de residência.'
           );
+        }
+
+        if(!App.isValidDateBR(residenceDateValue)){
+          throw new Error(
+            'Informe uma data de vencimento válida no formato DD/MM/AAAA.'
+          );
+        }
+
+        if(
+          residenceThird&&
+          residenceThird.checked
+        ){
+          if(
+            !residenceDeclaration||
+            !residenceDeclaration.checked
+          ){
+            throw new Error(
+              'Quando o comprovante estiver em nome de terceiro, confirme que há declaração de residência no documento.'
+            );
+          }
+
+          if(
+            !residenceHolderIdentity||
+            !residenceHolderIdentity.files||
+            !residenceHolderIdentity.files.length
+          ){
+            throw new Error(
+              'Quando o comprovante estiver em nome de terceiro, anexe a carteira de identidade do titular da residência.'
+            );
+          }
         }
 
         const saved=
@@ -951,6 +985,10 @@ window.PDA_MODULES.PESS = (()=>{
                   terceiro:
                     categoria==='RESIDENCIA'
                       ?!!residenceThird.checked
+                      :false,
+                  declaracaoTerceiro:
+                    categoria==='RESIDENCIA'
+                      ?!!residenceDeclaration.checked
                       :false
                 },
                 true
@@ -972,6 +1010,77 @@ window.PDA_MODULES.PESS = (()=>{
                   categoria
                 )+
                 ' — '+
+                file.name+
+                ': '+
+                (
+                  e.message||
+                  String(e)
+                )
+              );
+            }
+          }
+        }
+
+        if(
+          residenceThird&&
+          residenceThird.checked&&
+          residenceHolderIdentity&&
+          residenceHolderIdentity.files&&
+          residenceHolderIdentity.files.length
+        ){
+          const holderFiles=
+            Array.from(
+              residenceHolderIdentity.files
+            );
+
+          for(const file of holderFiles){
+            try{
+              if(file.size>5*1024*1024){
+                throw new Error(
+                  'Arquivo maior que 5 MB.'
+                );
+              }
+
+              const mime=
+                mime_(file);
+
+              if(
+                ![
+                  'application/pdf',
+                  'image/jpeg',
+                  'image/png'
+                ].includes(mime)
+              ){
+                throw new Error(
+                  'Formato não permitido. Use PDF, JPEG ou PNG.'
+                );
+              }
+
+              const base64=
+                await readFile_(file);
+
+              await call(
+                'pessoaUpload',
+                {
+                  pessoaId:saved.id,
+                  categoria:'IDENTIDADE_TITULAR_RESIDENCIA',
+                  base64,
+                  mime,
+                  vencimento:'',
+                  terceiro:false,
+                  declaracaoTerceiro:false
+                },
+                true
+              );
+
+              enviados.push(
+                'Carteira de identidade do titular da residência — '+
+                file.name
+              );
+
+            }catch(e){
+              erros.push(
+                'Carteira de identidade do titular da residência — '+
                 file.name+
                 ': '+
                 (
@@ -1638,34 +1747,180 @@ window.PDA_MODULES.PESS = (()=>{
             residenceThird
           );
 
+          const thirdPartyArea=
+            el(
+              'div',
+              undefined,
+              'card'
+            );
+
+          thirdPartyArea.hidden=
+            true;
+
+          thirdPartyArea.append(
+            el(
+              'p',
+              'Quando o comprovante estiver em nome de terceiro, é obrigatória a identidade do titular da residência e a confirmação de que há declaração de residência no documento.',
+              'hint'
+            )
+          );
+
+          const identityLabel=
+            el(
+              'label',
+              undefined,
+              'field'
+            );
+
+          identityLabel.append(
+            el(
+              'span',
+              'Carteira de identidade do titular da residência *'
+            )
+          );
+
+          residenceHolderIdentity=
+            el('input');
+
+          residenceHolderIdentity.type=
+            'file';
+
+          residenceHolderIdentity.multiple=
+            false;
+
+          residenceHolderIdentity.accept=
+            '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+
+          identityLabel.append(
+            residenceHolderIdentity
+          );
+
+          const declarationLabel=
+            el(
+              'label',
+              undefined,
+              'field'
+            );
+
+          declarationLabel.append(
+            el(
+              'span',
+              'Há declaração de residência no documento? *'
+            )
+          );
+
+          residenceDeclaration=
+            el('input');
+
+          residenceDeclaration.type=
+            'checkbox';
+
+          declarationLabel.append(
+            residenceDeclaration
+          );
+
+          thirdPartyArea.append(
+            identityLabel,
+            declarationLabel
+          );
+
           residenceGrid.append(
             dateLabel,
             thirdLabel
           );
 
           item.box.append(
-            residenceGrid
+            residenceGrid,
+            thirdPartyArea
+          );
+
+          const syncThirdParty=()=>{
+            const active=
+              !!residenceThird.checked;
+
+            thirdPartyArea.hidden=
+              !active;
+
+            residenceHolderIdentity.required=
+              active;
+
+            residenceDeclaration.required=
+              active;
+
+            if(!active){
+              residenceHolderIdentity.value='';
+              residenceDeclaration.checked=false;
+            }
+
+            item.sync();
+          };
+
+          residenceThird.addEventListener(
+            'change',
+            syncThirdParty
+          );
+
+          residenceHolderIdentity.addEventListener(
+            'change',
+            item.sync
+          );
+
+          residenceDeclaration.addEventListener(
+            'change',
+            item.sync
           );
 
           item.setExtraReady(
-            ()=>
-              /^\d{2}\/\d{2}\/\d{4}$/.test(
-                String(
-                  residenceDate.value||
-                  ''
-                )
-              )
+            ()=>{
+              const dateOk=
+                App.isValidDateBR(
+                  String(
+                    residenceDate.value||
+                    ''
+                  )
+                );
+
+              const thirdOk=
+                !residenceThird.checked||
+                (
+                  residenceHolderIdentity.files&&
+                  residenceHolderIdentity.files.length>0&&
+                  residenceDeclaration.checked
+                );
+
+              return (
+                dateOk&&
+                thirdOk
+              );
+            }
           );
 
           residenceDate.addEventListener(
             'input',
-            item.sync
+            ()=>{
+              const value=
+                String(
+                  residenceDate.value||
+                  ''
+                );
+
+              residenceDate.setCustomValidity(
+                !value||
+                App.isValidDateBR(value)
+                  ?''
+                  :'Informe uma data válida no formato DD/MM/AAAA.'
+              );
+
+              item.sync();
+            }
           );
 
           residenceDate.addEventListener(
             'blur',
             item.sync
           );
+
+          syncThirdParty();
         }
 
         documents.append(
@@ -1676,7 +1931,7 @@ window.PDA_MODULES.PESS = (()=>{
     documents.append(
       el(
         'p',
-        'O botão Salvar somente prossegue quando todos os documentos obrigatórios e o vencimento do comprovante de residência estiverem informados. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
+        'O botão Salvar somente prossegue quando todos os documentos obrigatórios e uma data válida de vencimento do comprovante de residência estiverem informados. Se o comprovante estiver em nome de terceiro, também são obrigatórias a identidade do titular da residência e a confirmação de que há declaração de residência no documento. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
         'hint'
       )
     );
