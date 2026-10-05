@@ -26,6 +26,49 @@ function personSave_(ctx,q){
   });
 }
 
+
+function personRequiredDocumentErrors_(p){
+  const owner=personOwnerKey_(p.id);
+  const docs=all_('Documentos').filter(
+    d=>d.atendimentoId===owner&&bool_(d.vigente)
+  );
+  const errors=[];
+
+  cfg_().categorias.forEach(categoria=>{
+    const categoryDocs=docs.filter(d=>d.categoria===categoria);
+    const validFiles=categoryDocs.filter(d=>{
+      try{
+        const file=DriveApp.getFileById(d.fileId);
+        return !file.isTrashed();
+      }catch(e){
+        return false;
+      }
+    });
+
+    if(!validFiles.length){
+      errors.push('Anexe '+documentLabel_(categoria)+'.');
+      return;
+    }
+
+    if(categoria==='RESIDENCIA'){
+      const residenceWithDate=validFiles.some(d=>{
+        try{
+          date_(d.vencimento);
+          return true;
+        }catch(e){
+          return false;
+        }
+      });
+
+      if(!residenceWithDate){
+        errors.push('Informe o vencimento do comprovante de residência.');
+      }
+    }
+  });
+
+  return [...new Set(errors)];
+}
+
 /**
  * Chamado pelo formulário de Pessoas somente depois que o cadastro e todos os
  * uploads selecionados já foram confirmados em operações anteriores.
@@ -35,6 +78,15 @@ function personFinalize_(ctx,q){
 
   const p=get_('Pessoas',q.pessoaId);
   parcelasDefeso_(p.parcelasNaoRecebidas);
+
+  const documentErrors=personRequiredDocumentErrors_(p);
+
+  if(documentErrors.length){
+    fail_(
+      'O cadastro não pode ser finalizado sem todos os documentos obrigatórios:\n'+
+      documentErrors.join('\n')
+    );
+  }
 
   const folder=personFolder_(p);
   const minuta=generatePersonDraft_(ctx,p);
