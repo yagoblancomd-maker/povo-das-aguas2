@@ -332,6 +332,51 @@
   font-size:10px;
   line-height:1.15
 }
+.pess-doc-summary-content{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap
+}
+.pess-doc-status-icon{
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 17px;
+  width:17px;
+  height:17px;
+  border-radius:50%;
+  font-size:10px;
+  font-weight:800;
+  line-height:1
+}
+.pess-doc-status-icon.ok{
+  color:#fff;
+  border:1px solid #238153;
+  background:#2f9a65;
+  box-shadow:0 1px 3px rgba(35,129,83,.16)
+}
+.pess-doc-status-icon.pending{
+  color:#fff;
+  border:1px solid #b83b31;
+  background:#d24d42;
+  box-shadow:0 1px 3px rgba(184,59,49,.14)
+}
+.pess-doc-summary-label{
+  color:#153e52;
+  font-weight:650
+}
+.pess-doc-summary-separator{
+  color:#81949c
+}
+.pess-doc-summary-state{
+  font-weight:700
+}
+.pess-doc-summary-state.ok{
+  color:#23734d
+}
+.pess-doc-summary-state.pending{
+  color:#b23b32
+}
 .pess-doc-card .field{font-size:9.5px}
 .pess-doc-card input[type=file]{
   min-height:29px;
