@@ -220,6 +220,16 @@ function eligibility_(a,manual){
   if(!c.anexoOrientacao)errors.push('Identificar o anexo exigido.');
 
   const docs=effectiveDocs_(a);
+  const owner=personOwnerKey_(p.id);
+  const holderIdentityDocs=
+    all_('Documentos').filter(d=>
+      bool_(d.vigente)&&
+      d.categoria==='IDENTIDADE_TITULAR_RESIDENCIA'&&
+      (
+        d.atendimentoId===a.id||
+        d.atendimentoId===owner
+      )
+    );
 
   c.categorias.forEach(cat=>{
     const ds=docs.filter(d=>d.categoria===cat);
@@ -238,8 +248,18 @@ function eligibility_(a,manual){
           errors.push('Residência: '+e.message);
         }
 
-        if(manual&&bool_(d.terceiro)&&!bool_(d.declaracaoTerceiro)){
-          errors.push('Conferir declaração de residência na própria fatura.');
+        if(bool_(d.terceiro)){
+          if(!bool_(d.declaracaoTerceiro)){
+            errors.push(
+              'Confirmar que há declaração de residência no comprovante em nome de terceiro.'
+            );
+          }
+
+          if(!holderIdentityDocs.length){
+            errors.push(
+              'Anexar carteira de identidade do titular da residência.'
+            );
+          }
         }
       }
 
