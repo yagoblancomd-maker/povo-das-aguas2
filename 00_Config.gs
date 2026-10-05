@@ -97,11 +97,11 @@ const PERMISSIONS=Object.freeze({
   },
   cadastro:{
     label:'Cadastro',
-    descricao:'Cadastrar pessoas, documentos e atendimentos e gerar documentos vinculados ao cadastro.'
+    descricao:'Criar novas pessoas e novos atendimentos, anexar documentos durante a inclusão e concluir novos cadastros. Não é necessária para editar registros já existentes.'
   },
   retificacao:{
     label:'Retificação',
-    descricao:'Editar dados já gravados, corrigir cadastros e excluir documentos quando permitido.'
+    descricao:'Editar pessoas e atendimentos já gravados, corrigir dados existentes, excluir documentos quando permitido e gerenciar pendências. Funciona independentemente da permissão Cadastro.'
   },
   conferencia:{
     label:'Conferência',
