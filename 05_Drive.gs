@@ -1,8 +1,13 @@
 const PERSON_DOC_OWNER_PREFIX='PESSOA:';
 
+const OPTIONAL_DOCUMENT_CATEGORIES=Object.freeze([
+  'IDENTIDADE_TITULAR_RESIDENCIA'
+]);
+
 const DOCUMENT_LABELS={
   RG_CPF:'Documento de identidade e CPF',
   RESIDENCIA:'Comprovante de residência',
+  IDENTIDADE_TITULAR_RESIDENCIA:'Carteira de identidade do titular da residência',
   PROCESSO_ADMINISTRATIVO:'Processo administrativo',
   PESCA:'Documentos de pesca',
   PROCURACAO:'Procuração',
@@ -52,6 +57,25 @@ function personIdFromOwner_(owner){
 
 function documentLabel_(categoria){
   return DOCUMENT_LABELS[categoria]||categoria;
+}
+
+function documentCategoryAllowed_(categoria,c){
+  return (
+    c.categorias.includes(categoria)||
+    OPTIONAL_DOCUMENT_CATEGORIES.includes(categoria)
+  );
+}
+
+function personDocumentBaseName_(categoria,p){
+  if(categoria==='IDENTIDADE_TITULAR_RESIDENCIA'){
+    return 'IDENTIDADE.TITULAR.RESIDÊNCIA';
+  }
+
+  return (
+    documentLabel_(categoria)+
+    '.'+
+    safeName_(p.nome)
+  );
 }
 
 function uniqueFileName_(folder,base,ext){
@@ -364,9 +388,10 @@ function driveFileDigest_(file){
 
 function plannedDocumentName_(folder,categoria,p,payload,committedCount){
   const base=
-    documentLabel_(categoria)+
-    '.'+
-    safeName_(p.nome);
+    personDocumentBaseName_(
+      categoria,
+      p
+    );
 
   const preferred=
     committedCount>0
@@ -424,7 +449,7 @@ function personUpload_(ctx,q){
   const p=get_('Pessoas',q.pessoaId);
   const c=cfg_();
 
-  if(!c.categorias.includes(q.categoria)){
+  if(!documentCategoryAllowed_(q.categoria,c)){
     fail_('Categoria inválida.');
   }
 
@@ -451,6 +476,15 @@ function personUpload_(ctx,q){
 
   if(q.categoria==='RESIDENCIA'){
     date_(q.vencimento);
+
+    if(
+      bool_(q.terceiro)&&
+      !bool_(q.declaracaoTerceiro)
+    ){
+      fail_(
+        'Quando o comprovante estiver em nome de terceiro, confirme que há declaração de residência no documento.'
+      );
+    }
   }
 
   const folder=personFolder_(p);
@@ -504,7 +538,7 @@ function personUpload_(ctx,q){
         vencimento:q.vencimento||'',
         terceiro:bool_(q.terceiro),
         conferido:false,
-        declaracaoTerceiro:false,
+        declaracaoTerceiro:bool_(q.declaracaoTerceiro),
         processoCompleto:false,
         anexoPresente:false,
         rogo:false,
@@ -573,7 +607,7 @@ function upload_(ctx,q){
 
   const c=cfg_();
 
-  if(!c.categorias.includes(q.categoria)){
+  if(!documentCategoryAllowed_(q.categoria,c)){
     fail_('Categoria inválida.');
   }
 
@@ -599,6 +633,15 @@ function upload_(ctx,q){
 
   if(q.categoria==='RESIDENCIA'){
     date_(q.vencimento);
+
+    if(
+      bool_(q.terceiro)&&
+      !bool_(q.declaracaoTerceiro)
+    ){
+      fail_(
+        'Quando o comprovante estiver em nome de terceiro, confirme que há declaração de residência no documento.'
+      );
+    }
   }
 
   let previous=null;
@@ -691,7 +734,7 @@ function upload_(ctx,q){
         vencimento:q.vencimento||'',
         terceiro:bool_(q.terceiro),
         conferido:false,
-        declaracaoTerceiro:false,
+        declaracaoTerceiro:bool_(q.declaracaoTerceiro),
         processoCompleto:false,
         anexoPresente:false,
         rogo:false,
