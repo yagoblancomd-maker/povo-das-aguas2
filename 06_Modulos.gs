@@ -175,11 +175,13 @@ function api(action,q){
 
   const mutations={
     pessoaSalvar:['cadastro',personSave_],
+    pessoaRetificar:['retificacao',personSave_],
     pessoaUpload:['cadastro',personUpload_],
     pessoaDocumentoExcluir:['retificacao',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
     pessoaInicialGerar:['cadastro',personInitialGenerate_],
     atendimentoSalvar:['cadastro',atendSave_],
+    atendimentoRetificar:['retificacao',atendSave_],
     upload:['cadastro',upload_],
     encaminhar:['cadastro',forward_],
     documentoConferir:['conferencia',checkDoc_],
