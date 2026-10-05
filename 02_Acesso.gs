@@ -520,6 +520,39 @@ const SELF_REGISTRATION_FUNCTIONS=Object.freeze([
   'Aluno'
 ]);
 
+function selfRegistrationAccess_(funcao){
+  const clean=String(funcao||'').trim();
+
+  if(clean==='Professor'||clean==='Residente'){
+    return {
+      perfil:'PROFESSOR_RESIDENTE',
+      permissoes:['consulta','cadastro'],
+      aprovacaoPendente:true,
+      resumo:'Consulta e Cadastro inicialmente. As demais permissões operacionais de Professor/Residente dependem de aprovação do Administrador.'
+    };
+  }
+
+  if(clean==='Colaborador'){
+    return {
+      perfil:'COLABORADOR',
+      permissoes:rolePermissions_('COLABORADOR'),
+      aprovacaoPendente:false,
+      resumo:'Consulta, Cadastro e Retificação somente dos cadastros criados pelo próprio colaborador.'
+    };
+  }
+
+  if(clean==='Aluno'){
+    return {
+      perfil:'ALUNO',
+      permissoes:rolePermissions_('ALUNO'),
+      aprovacaoPendente:false,
+      resumo:'Consulta e Distribuir processos, para receber e concluir tarefas atribuídas.'
+    };
+  }
+
+  fail_('Função de autocadastro inválida.');
+}
+
 function selfRegistrationGatewayUrl_(){
   return String(
     props_().getProperty(
