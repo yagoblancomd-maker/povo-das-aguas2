@@ -78,7 +78,9 @@
       "templateId",
       "templateModified",
       "revisor",
-      "revisadaEm"
+      "revisadaEm",
+      "pdfFileId",
+      "pdfUrl"
     ],
     "Historico": [
       "entidade",
