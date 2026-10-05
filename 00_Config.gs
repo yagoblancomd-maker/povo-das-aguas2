@@ -97,6 +97,7 @@ const DEFAULTS={
 
 const ROLES={
   CONSULTA:['consulta'],
+  NOVO_USUARIO:['consulta','cadastro'],
   CADASTRO:['consulta','cadastro'],
   CONFERENCIA:['consulta','cadastro','retificacao','conferencia'],
   JURIDICO:[
@@ -145,6 +146,7 @@ const PERMISSIONS=Object.freeze({
 
 const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
+  NOVO_USUARIO:'Perfil criado automaticamente no primeiro acesso. Permite somente consulta e novos cadastros, sem retificação, conferência, minutas, distribuição ou administração.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
   CONFERENCIA:'Cadastro, retificação e conferência documental.',
   JURIDICO:'Conferência e atividades jurídicas, incluindo minutas e execução de tarefas de distribuição.',
