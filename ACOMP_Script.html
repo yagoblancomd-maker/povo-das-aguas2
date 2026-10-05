@@ -2,7 +2,7 @@
 window.PDA_MODULES.ACOMP = (()=>{
   const {
     el,card,details,form,table,link,button,call,go,alive,
-    personFields,atendFields,searchUI,guidance,uploadForm,status
+    personFields,atendFields,searchUI,guidance,uploadForm,status,can
   }=App;
 
   const DOC_LABELS={
@@ -132,45 +132,54 @@ window.PDA_MODULES.ACOMP = (()=>{
       docs,
       d=>{
         const actions=[
-          link(d.url,'Abrir arquivo'),
-          button('Conferir',()=>{
-            checkArea.replaceChildren();
-
-            checkArea.append(
-              el(
-                'h3',
-                (DOC_LABELS[d.categoria]||d.categoria)+
-                ' · '+
-                d.nome
-              )
-            );
-
-            guidance(checkArea);
-
-            form(
-              checkArea,
-              checkFields_(d),
-              Object.assign(
-                {},
-                d,
-                a
-                  ?{atendimentoVersao:a.versao}
-                  :{}
-              ),
-              async v=>{
-                await call(
-                  'documentoConferir',
-                  v,
-                  true
-                );
-
-                await go('ACOMP',p.id);
-              }
-            );
-          })
+          link(d.url,'Abrir arquivo')
         ];
 
-        if(allowDelete&&d.vigente==='true'){
+        if(can('conferencia')){
+          actions.push(
+            button('Conferir',()=>{
+              checkArea.replaceChildren();
+
+              checkArea.append(
+                el(
+                  'h3',
+                  (DOC_LABELS[d.categoria]||d.categoria)+
+                  ' · '+
+                  d.nome
+                )
+              );
+
+              guidance(checkArea);
+
+              form(
+                checkArea,
+                checkFields_(d),
+                Object.assign(
+                  {},
+                  d,
+                  a
+                    ?{atendimentoVersao:a.versao}
+                    :{}
+                ),
+                async v=>{
+                  await call(
+                    'documentoConferir',
+                    v,
+                    true
+                  );
+
+                  await go('ACOMP',p.id);
+                }
+              );
+            })
+          );
+        }
+
+        if(
+          allowDelete&&
+          d.vigente==='true'&&
+          can('retificacao')
+        ){
           const del=button('Deletar',async()=>{
             const confirmed=window.confirm(
               'Confirma a exclusão de "'+
@@ -301,25 +310,30 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     view.append(grid);
 
-    const actions=
-      el(
-        'div',
-        undefined,
-        'actions acomp-person-view-actions'
+    let editButton=null;
+
+    if(can('retificacao')){
+      const actions=
+        el(
+          'div',
+          undefined,
+          'actions acomp-person-view-actions'
+        );
+
+      editButton=
+        button(
+          'Editar cadastro',
+          ()=>{}
+        );
+
+      editButton.classList.add(
+        'acomp-person-edit-button'
       );
 
-    const editButton=
-      button(
-        'Editar cadastro',
-        ()=>{}
-      );
+      actions.append(editButton);
+      view.append(actions);
+    }
 
-    editButton.classList.add(
-      'acomp-person-edit-button'
-    );
-
-    actions.append(editButton);
-    view.append(actions);
     parent.append(view);
 
     return {
@@ -1049,10 +1063,15 @@ window.PDA_MODULES.ACOMP = (()=>{
     );
 
     actions.append(
-      otherPerson,
-      newAttendance,
-      generateMenu
+      otherPerson
     );
+
+    if(can('cadastro')){
+      actions.append(
+        newAttendance,
+        generateMenu
+      );
+    }
 
     root.append(actions);
 
@@ -1207,19 +1226,21 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     syncOutraEntidade();
 
-    personReadOnly.editButton.onclick=()=>{
-      personReadOnly.view.hidden=true;
-      personEditor.hidden=false;
+    if(personReadOnly.editButton){
+      personReadOnly.editButton.onclick=()=>{
+        personReadOnly.view.hidden=true;
+        personEditor.hidden=false;
 
-      const first=
-        personEditForm.elements.namedItem(
-          'nome'
-        );
+        const first=
+          personEditForm.elements.namedItem(
+            'nome'
+          );
 
-      if(first){
-        first.focus();
-      }
-    };
+        if(first){
+          first.focus();
+        }
+      };
+    }
 
     const activePersonDocs=
       data.documentosPessoa.filter(
@@ -1241,7 +1262,9 @@ window.PDA_MODULES.ACOMP = (()=>{
       )
     );
 
-    personBatchUploader_(shared,p);
+    if(can('cadastro')){
+      personBatchUploader_(shared,p);
+    }
 
     docsTable_(
       shared,
@@ -1310,25 +1333,27 @@ window.PDA_MODULES.ACOMP = (()=>{
         )
       );
 
-      const edit=details(
-        area,
-        'Retificar dados do atendimento'
-      );
+      if(can('retificacao')){
+        const edit=details(
+          area,
+          'Retificar dados do atendimento'
+        );
 
-      form(
-        edit,
-        atendFields(),
-        a,
-        async v=>{
-          await call(
-            'atendimentoSalvar',
-            v,
-            true
-          );
+        form(
+          edit,
+          atendFields(),
+          a,
+          async v=>{
+            await call(
+              'atendimentoSalvar',
+              v,
+              true
+            );
 
-          await go('ACOMP',p.id);
-        }
-      );
+            await go('ACOMP',p.id);
+          }
+        );
+      }
 
       const adocs=
         data.documentos.filter(
@@ -1337,11 +1362,13 @@ window.PDA_MODULES.ACOMP = (()=>{
             d.vigente==='true'
         );
 
-      uploadForm(
-        area,
-        a,
-        adocs
-      );
+      if(can('cadastro')){
+        uploadForm(
+          area,
+          a,
+          adocs
+        );
+      }
 
       const docs=details(
         area,
@@ -1358,124 +1385,142 @@ window.PDA_MODULES.ACOMP = (()=>{
         false
       );
 
-      const pend=details(
-        area,
-        'Pendências e responsáveis'
-      );
+      if(can('retificacao')){
+        const pend=details(
+          area,
+          'Pendências e responsáveis'
+        );
+  
+        const fields=[
+          {
+            key:'descricao',
+            label:'Descrição',
+            type:'textarea',
+            required:true
+          },
+          {
+            key:'responsavel',
+            label:'E-mail do responsável'
+          },
+          {
+            key:'situacao',
+            label:'Situação',
+            options:[
+              'ABERTA',
+              'RESOLVIDA'
+            ],
+            required:true
+          }
+        ];
+  
+        data.pendencias
+          .filter(
+            x=>x.atendimentoId===a.id
+          )
+          .forEach(x=>{
+            const box=details(
+              pend,
+              x.situacao+
+              ' — '+
+              x.descricao
+            );
+  
+            form(
+              box,
+              fields,
+              {
+                ...x,
+                atendimentoVersao:a.versao
+              },
+              async v=>{
+                await call(
+                  'pendenciaSalvar',
+                  v,
+                  true
+                );
+  
+                await go('ACOMP',p.id);
+              }
+            );
+          });
+  
+        form(
+          pend,
+          fields,
+          {
+            atendimentoId:a.id,
+            atendimentoVersao:a.versao,
+            situacao:'ABERTA'
+          },
+          async v=>{
+            await call(
+              'pendenciaSalvar',
+              v,
+              true
+            );
+  
+            await go('ACOMP',p.id);
+          },
+          'Registrar pendência'
+        );
+  
+  
+      }
 
-      const fields=[
-        {
-          key:'descricao',
-          label:'Descrição',
-          type:'textarea',
-          required:true
-        },
-        {
-          key:'responsavel',
-          label:'E-mail do responsável'
-        },
-        {
-          key:'situacao',
-          label:'Situação',
-          options:[
-            'ABERTA',
-            'RESOLVIDA'
-          ],
-          required:true
-        }
-      ];
+      const acts=el('div',undefined,'actions');
 
-      data.pendencias
-        .filter(
-          x=>x.atendimentoId===a.id
-        )
-        .forEach(x=>{
-          const box=details(
-            pend,
-            x.situacao+
-            ' — '+
-            x.descricao
-          );
-
-          form(
-            box,
-            fields,
-            {
-              ...x,
-              atendimentoVersao:a.versao
-            },
-            async v=>{
+      if(can('cadastro')){
+        acts.append(
+          button(
+            'Encaminhar para conferência',
+            async()=>{
               await call(
-                'pendenciaSalvar',
-                v,
+                'encaminhar',
+                {
+                  id:a.id,
+                  versao:a.versao
+                },
                 true
               );
 
               await go('ACOMP',p.id);
             }
-          );
-        });
+          )
+        );
+      }
 
-      form(
-        pend,
-        fields,
-        {
-          atendimentoId:a.id,
-          atendimentoVersao:a.versao,
-          situacao:'ABERTA'
-        },
-        async v=>{
-          await call(
-            'pendenciaSalvar',
-            v,
-            true
-          );
+      if(can('conferencia')){
+        acts.append(
+          button(
+            'Concluir conferência',
+            async()=>{
+              await call(
+                'atendimentoConferir',
+                {
+                  id:a.id,
+                  versao:a.versao
+                },
+                true
+              );
 
-          await go('ACOMP',p.id);
-        },
-        'Registrar pendência'
-      );
+              await go('ACOMP',p.id);
+            }
+          )
+        );
+      }
 
-      const acts=el('div',undefined,'actions');
+      if(can('minuta')){
+        acts.append(
+          button(
+            'Minutas',
+            ()=>go('MIN',p.id)
+          )
+        );
+      }
 
-      acts.append(
-        button(
-          'Encaminhar para conferência',
-          async()=>{
-            await call(
-              'encaminhar',
-              {
-                id:a.id,
-                versao:a.versao
-              },
-              true
-            );
-
-            await go('ACOMP',p.id);
-          }
-        ),
-        button(
-          'Concluir conferência',
-          async()=>{
-            await call(
-              'atendimentoConferir',
-              {
-                id:a.id,
-                versao:a.versao
-              },
-              true
-            );
-
-            await go('ACOMP',p.id);
-          }
-        ),
-        button(
-          'Minutas',
-          ()=>go('MIN',p.id)
-        )
-      );
-
-      area.append(acts);
+      if(acts.children.length){
+        area.append(acts);
+      }
       root.append(area);
     });
 
