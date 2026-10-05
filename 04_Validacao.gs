@@ -15,9 +15,9 @@ function cpf_(input){
 }
 
 function cep_(input){
-  const s=String(input||'').replace(/\\D/g,'');
+  const s=String(input||'').replace(/\D/g,'');
 
-  if(!/^\\d{8}$/.test(s)){
+  if(!/^\d{8}$/.test(s)){
     fail_('CEP inválido. Use o formato 00000-000.');
   }
 
@@ -25,10 +25,10 @@ function cep_(input){
 }
 
 function cepDisplay_(input){
-  const s=String(input||'').replace(/\\D/g,'');
+  const s=String(input||'').replace(/\D/g,'');
 
-  return /^\\d{8}$/.test(s)
-    ?s.replace(/(\\d{5})(\\d{3})/,'$1-$2')
+  return /^\d{8}$/.test(s)
+    ?s.replace(/(\d{5})(\d{3})/,'$1-$2')
     :String(input||'').trim();
 }
 
