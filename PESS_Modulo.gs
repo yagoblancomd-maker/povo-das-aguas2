@@ -107,7 +107,14 @@ function personSearch_(q){
     .filter(p=>
       !term||
       p.nome.toLowerCase().includes(term)||
-      p.cpf.includes(term.replace(/[.\- ]/g,''))
+      p.cpf.includes(term.replace(/[.\- ]/g,''))||
+      String(p.cidade||'').toLowerCase().includes(term)
     )
-    .slice(0,200);
+    .sort((a,b)=>
+      String(a.nome||'').localeCompare(
+        String(b.nome||''),
+        'pt-BR',
+        {sensitivity:'base'}
+      )
+    );
 }
