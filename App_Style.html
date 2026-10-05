@@ -148,6 +148,81 @@ nav button[aria-current=page]{
   background:linear-gradient(180deg,#0b7b88,#075f6b);
   box-shadow:0 2px 8px rgba(8,121,135,.18)
 }
+.nav-group{
+  position:relative;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  box-shadow:none
+}
+.nav-group>.nav-group-summary{
+  display:flex;
+  min-height:31px;
+  align-items:center;
+  gap:6px;
+  margin:0!important;
+  padding:7px 12px;
+  border-radius:7px;
+  color:var(--navy);
+  background:transparent;
+  cursor:pointer;
+  font-size:12.5px;
+  font-weight:500;
+  list-style:none;
+  transition:background .14s ease,color .14s ease
+}
+.nav-group>.nav-group-summary::-webkit-details-marker{
+  display:none
+}
+.nav-group>.nav-group-summary::after{
+  content:"▾";
+  margin-left:2px;
+  color:#6f8791;
+  font-size:9px
+}
+.nav-group:hover>.nav-group-summary,
+.nav-group[open]>.nav-group-summary{
+  color:var(--teal-dark);
+  background:#e9f3f4
+}
+.nav-group.active>.nav-group-summary{
+  color:#fff;
+  background:linear-gradient(180deg,#0b7b88,#075f6b);
+  box-shadow:0 2px 8px rgba(8,121,135,.18)
+}
+.nav-group.active>.nav-group-summary::after{
+  color:rgba(255,255,255,.9)
+}
+.nav-submenu{
+  position:absolute;
+  z-index:120;
+  top:calc(100% + 5px);
+  left:0;
+  min-width:190px;
+  padding:6px;
+  border:1px solid #c7d9df;
+  border-radius:9px;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 12px 30px rgba(15,48,70,.18);
+  backdrop-filter:blur(12px)
+}
+.nav-submenu .nav-submenu-item{
+  display:block;
+  width:100%;
+  margin:0;
+  padding:8px 10px;
+  text-align:left;
+  white-space:nowrap
+}
+.nav-submenu .nav-submenu-item+ .nav-submenu-item{
+  margin-top:2px
+}
+.nav-submenu .nav-submenu-item[aria-current=page]{
+  color:#fff;
+  background:linear-gradient(180deg,#0b7b88,#075f6b)
+}
 main{
   width:min(1500px,calc(100% - 28px));
   margin:0 auto;
@@ -473,8 +548,15 @@ footer{
 }
 @media(max-width:800px){
   header{padding:11px 16px}
-  nav{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap}
+  nav{
+    justify-content:flex-start;
+    overflow:visible;
+    flex-wrap:wrap
+  }
   nav button{white-space:nowrap}
+  .nav-submenu{
+    min-width:180px
+  }
   main,.status,footer{width:min(100% - 20px,1500px)}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
