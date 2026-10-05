@@ -7,7 +7,7 @@ window.PDA_MODULES.MIN = (()=>{
     root.append(el('h2','Minutas'));
     root.append(el(
       'p',
-      'O modelo do Seguro-Defeso 2025 utiliza a quantidade de parcelas não recebidas registrada no cadastro da pessoa e calcula automaticamente o valor da causa. Cada geração cria uma versão editável, pendente de revisão.'
+      'O modelo do Seguro-Defeso 2025 utiliza a quantidade de parcelas não recebidas registrada no cadastro da pessoa, calcula automaticamente o valor da causa e gera simultaneamente Google Docs e PDF. Cada geração cria uma versão editável, pendente de revisão.'
     ));
 
     if(!App.state.selection){
@@ -44,7 +44,8 @@ window.PDA_MODULES.MIN = (()=>{
         ],
         data.minutas.filter(m=>m.atendimentoId===a.id),
         m=>[
-          link(m.url,'Abrir documento'),
+          link(m.url,'Abrir Google Docs'),
+          ...(m.pdfUrl?[link(m.pdfUrl,'Abrir PDF')]:[]),
           button('Registrar revisão',async()=>{
             await call('minutaRevisar',{id:m.id,versao:m.versao},true);
             await go('MIN');
