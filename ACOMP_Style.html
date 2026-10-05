@@ -77,7 +77,66 @@
   line-height:1.25;
   font-size:9px
 }
+.acomp-person-view{
+  padding:3px 1px 1px
+}
+.acomp-person-view-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px 8px
+}
+.acomp-person-view-item{
+  min-width:0;
+  padding:7px 8px;
+  border:1px solid #d5e2e6;
+  border-radius:7px;
+  background:#f8fbfc
+}
+.acomp-person-view-label{
+  display:block;
+  margin-bottom:2px;
+  color:#667c86;
+  font-size:9.5px;
+  line-height:1.15
+}
+.acomp-person-view-value{
+  display:block;
+  overflow-wrap:anywhere;
+  color:#173d50;
+  font-size:12px;
+  line-height:1.25;
+  font-weight:650
+}
+.acomp-person-view-actions{
+  justify-content:flex-end;
+  margin-top:7px
+}
+.acomp-person-edit-button{
+  min-width:110px
+}
+.acomp-person-editor{
+  padding-top:3px
+}
+.acomp-person-editor>.actions{
+  justify-content:flex-end
+}
+@media(max-width:1100px){
+  .acomp-person-view-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+}
 @media(max-width:680px){
+  .acomp-person-view-grid{
+    grid-template-columns:1fr
+  }
+  .acomp-person-view-actions,
+  .acomp-person-editor>.actions{
+    justify-content:stretch
+  }
+  .acomp-person-view-actions button,
+  .acomp-person-editor>.actions button{
+    width:100%
+  }
   .acomp-generate-menu{
     width:100%
   }
