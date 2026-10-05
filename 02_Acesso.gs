@@ -354,6 +354,448 @@ function syncAllGoogleResources_(ctx){
   };
 }
 
+const SELF_REGISTRATION_FUNCTIONS=Object.freeze([
+  'Professor',
+  'Residente',
+  'Colaborador',
+  'Aluno'
+]);
+
+function selfRegistrationGatewayUrl_(){
+  return String(
+    props_().getProperty(
+      'SELF_REGISTRATION_WEBAPP_URL'
+    )||
+    ''
+  ).trim();
+}
+
+function selfRegistrationStatus_(){
+  const url=
+    selfRegistrationGatewayUrl_();
+
+  return {
+    configurada:
+      /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(
+        url
+      ),
+    url,
+    funcoes:
+      Array.from(
+        SELF_REGISTRATION_FUNCTIONS
+      )
+  };
+}
+
+function autoCadastroGatewaySave_(ctx,q){
+  const url=String(
+    q.url||
+    ''
+  ).trim();
+
+  if(
+    !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(
+      url
+    )
+  ){
+    fail_(
+      'Informe a URL /exec da implantação de autocadastro do Apps Script.'
+    );
+  }
+
+  props_().setProperty(
+    'SELF_REGISTRATION_WEBAPP_URL',
+    url
+  );
+
+  ctx.effects.push(
+    'URL do gateway de autocadastro atualizada.'
+  );
+
+  return {
+    configurada:true,
+    url,
+    mensagem:
+      'Gateway de autocadastro configurado.'
+  };
+}
+
+function selfRegistrationSecret_(){
+  const properties=
+    props_();
+
+  let secret=String(
+    properties.getProperty(
+      'SELF_REGISTRATION_SECRET'
+    )||
+    ''
+  );
+
+  if(!secret){
+    secret=
+      Utilities.getUuid()+
+      ':'+
+      Utilities.getUuid()+
+      ':'+
+      Utilities.getUuid();
+
+    properties.setProperty(
+      'SELF_REGISTRATION_SECRET',
+      secret
+    );
+  }
+
+  return secret;
+}
+
+function base64UrlText_(text){
+  return Utilities
+    .base64EncodeWebSafe(
+      String(text),
+      Utilities.Charset.UTF_8
+    )
+    .replace(
+      /=+$/g,
+      ''
+    );
+}
+
+function hmacRegistration_(payload){
+  return Utilities
+    .base64EncodeWebSafe(
+      Utilities.computeHmacSha256Signature(
+        payload,
+        selfRegistrationSecret_(),
+        Utilities.Charset.UTF_8
+      )
+    )
+    .replace(
+      /=+$/g,
+      ''
+    );
+}
+
+function selfRegistrationToken_(email,returnUrl){
+  const payload=
+    base64UrlText_(
+      JSON.stringify({
+        email:String(email||'')
+          .trim()
+          .toLowerCase(),
+        returnUrl:String(returnUrl||'')
+          .trim(),
+        issuedAt:Date.now(),
+        nonce:Utilities.getUuid()
+      })
+    );
+
+  return (
+    payload+
+    '.'+
+    hmacRegistration_(
+      payload
+    )
+  );
+}
+
+function selfRegistrationTokenRead_(token){
+  const parts=String(
+    token||
+    ''
+  ).split('.');
+
+  if(parts.length!==2){
+    fail_(
+      'Convite de autocadastro inválido.'
+    );
+  }
+
+  const payload=parts[0];
+  const signature=parts[1];
+  const expected=
+    hmacRegistration_(
+      payload
+    );
+
+  if(signature!==expected){
+    fail_(
+      'A assinatura do autocadastro é inválida.'
+    );
+  }
+
+  let data;
+
+  try{
+    data=JSON.parse(
+      Utilities.newBlob(
+        Utilities.base64DecodeWebSafe(
+          payload
+        )
+      ).getDataAsString(
+        'UTF-8'
+      )
+    );
+  }catch(e){
+    fail_(
+      'Não foi possível validar os dados do autocadastro.'
+    );
+  }
+
+  const email=String(
+    data.email||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if(
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email
+    )
+  ){
+    fail_(
+      'Conta Google inválida no autocadastro.'
+    );
+  }
+
+  const issuedAt=
+    Number(
+      data.issuedAt||
+      0
+    );
+
+  if(
+    !issuedAt||
+    Date.now()-issuedAt>
+      30*60*1000||
+    issuedAt>Date.now()+60*1000
+  ){
+    fail_(
+      'Este convite de autocadastro expirou. Volte ao Povo das Águas e inicie novamente.'
+    );
+  }
+
+  const returnUrl=String(
+    data.returnUrl||
+    ''
+  ).trim();
+
+  if(
+    returnUrl&&
+    !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:\?.*)?$/.test(
+      returnUrl
+    )
+  ){
+    fail_(
+      'URL de retorno inválida.'
+    );
+  }
+
+  return {
+    email,
+    returnUrl
+  };
+}
+
+function selfRegistrationGatewayExecution_(){
+  const effective=String(
+    Session.getEffectiveUser().getEmail()||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  const owner=String(
+    props_().getProperty(
+      'OWNER_EMAIL'
+    )||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    !!effective&&
+    !!owner&&
+    effective===owner
+  );
+}
+
+function selfRegisterUser_(token,nome,funcao){
+  if(
+    !selfRegistrationGatewayExecution_()
+  ){
+    fail_(
+      'Esta implantação não é o gateway de autocadastro. O gateway deve ser publicado para executar como o proprietário do sistema.'
+    );
+  }
+
+  const signed=
+    selfRegistrationTokenRead_(
+      token
+    );
+
+  const cleanName=String(
+    nome||
+    ''
+  )
+    .trim()
+    .replace(
+      /\s+/g,
+      ' '
+    );
+
+  const cleanFunction=String(
+    funcao||
+    ''
+  ).trim();
+
+  if(
+    cleanName.length<3||
+    cleanName.length>140
+  ){
+    fail_(
+      'Informe seu nome completo.'
+    );
+  }
+
+  if(
+    !SELF_REGISTRATION_FUNCTIONS.includes(
+      cleanFunction
+    )
+  ){
+    fail_(
+      'Selecione Professor, Residente, Colaborador ou Aluno.'
+    );
+  }
+
+  return lock_(()=>{
+    resetData_();
+
+    const existing=
+      all_('Usuarios')
+        .find(u=>
+          String(
+            u.email||
+            ''
+          )
+            .trim()
+            .toLowerCase()===
+          signed.email
+        );
+
+    if(existing){
+      if(
+        !bool_(
+          existing.ativo
+        )
+      ){
+        fail_(
+          'Esta conta possui um cadastro desativado. A reativação deve ser feita pela Administração do projeto.'
+        );
+      }
+
+      /*
+       * Usuário já existente nunca é rebaixado pelo autocadastro.
+       * Apenas repara as permissões materiais do Google Drive.
+       */
+      syncGoogleResourcesForUser_(
+        existing,
+        {
+          effects:[]
+        }
+      );
+
+      return {
+        criado:false,
+        email:signed.email,
+        returnUrl:signed.returnUrl,
+        nome:
+          existing.nome||
+          cleanName,
+        perfil:existing.perfil,
+        mensagem:
+          'Seu acesso já estava cadastrado e foi sincronizado.'
+      };
+    }
+
+    const permissions=[
+      'consulta',
+      'cadastro'
+    ];
+
+    const ctx={
+      email:signed.email,
+      op:id_(
+        'OP',
+        'SELF_REGISTER:'+
+        signed.email+
+        ':'+
+        Utilities.getUuid()
+      ),
+      hash:hash_({
+        email:signed.email,
+        nome:cleanName,
+        funcao:cleanFunction
+      }),
+      changes:[],
+      effects:[]
+    };
+
+    const user=
+      change_(
+        ctx,
+        'Usuarios',
+        id_(
+          'USR',
+          signed.email
+        ),
+        {
+          email:signed.email,
+          perfil:'NOVO_USUARIO',
+          ativo:true,
+          nome:cleanName,
+          funcao:cleanFunction,
+          permissoes:JSON.stringify(
+            permissions
+          ),
+          permissoesVersao:2
+        }
+      );
+
+    commit_(
+      ctx,
+      {
+        email:user.email,
+        perfil:user.perfil,
+        criado:true
+      }
+    );
+
+    /*
+     * O registro é confirmado antes do compartilhamento. Se o compartilhamento
+     * falhar, uma nova tentativa de autocadastro encontra o usuário ativo e
+     * apenas refaz a sincronização do acesso Google.
+     */
+    syncGoogleResourcesForUser_(
+      user,
+      {
+        effects:[]
+      }
+    );
+
+    return {
+      criado:true,
+      email:user.email,
+      returnUrl:signed.returnUrl,
+      nome:user.nome,
+      perfil:user.perfil,
+      mensagem:
+        'Seu acesso ao Povo das Águas foi criado automaticamente.'
+    };
+  });
+}
+
 function lock_(fn){
   const lock=LockService.getScriptLock();
 
