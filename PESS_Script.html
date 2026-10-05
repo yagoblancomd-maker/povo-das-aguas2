@@ -1189,8 +1189,581 @@ window.PDA_MODULES.PESS = (()=>{
     );
 
     return {
+      root:stepper,
       showStep,
-      validateStep
+      validateStep,
+      setVisible(visible){
+        stepper.hidden=!visible;
+      }
+    };
+  }
+
+  function setImportedFormValue_(personForm,key,value){
+    const next=String(value||'').trim();
+
+    if(!next)return;
+
+    const control=
+      personForm.elements.namedItem(
+        key
+      );
+
+    if(!control)return;
+
+    control.value=next;
+
+    control.dispatchEvent(
+      new Event(
+        'input',
+        {bubbles:true}
+      )
+    );
+
+    control.dispatchEvent(
+      new Event(
+        'change',
+        {bubbles:true}
+      )
+    );
+  }
+
+  function setImportedFiles_(input,files){
+    const selected=
+      Array.from(files||[]);
+
+    if(!input||!selected.length){
+      return false;
+    }
+
+    try{
+      const transfer=
+        new DataTransfer();
+
+      selected.forEach(
+        file=>transfer.items.add(file)
+      );
+
+      input.files=
+        transfer.files;
+
+      input.dispatchEvent(
+        new Event(
+          'change',
+          {bubbles:true}
+        )
+      );
+
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function buildDocumentImportPanel_(
+    personForm,
+    personStepper,
+    uploads,
+    importedFiles,
+    residenceDate,
+    residenceThird
+  ){
+    const panel=
+      el(
+        'section',
+        undefined,
+        'pess-import-start'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'pess-import-head'
+      );
+
+    head.append(
+      el(
+        'h3',
+        'Preencher automaticamente pelos documentos'
+      ),
+      el(
+        'p',
+        'Envie a identidade e o comprovante de residência. A leitura automática pré-preenche o cadastro; os dados precisam ser conferidos antes do salvamento.',
+        'hint'
+      )
+    );
+
+    panel.append(
+      head
+    );
+
+    const grid=
+      el(
+        'div',
+        undefined,
+        'pess-import-grid'
+      );
+
+    const idLabel=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    idLabel.append(
+      el(
+        'span',
+        'Documento de identidade / CPF'
+      )
+    );
+
+    const identityInput=
+      el('input');
+
+    identityInput.type='file';
+    identityInput.multiple=true;
+    identityInput.accept=
+      '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+
+    idLabel.append(
+      identityInput,
+      el(
+        'small',
+        '1 arquivo PDF ou até 2 imagens para frente e verso.',
+        'hint'
+      )
+    );
+
+    const residenceLabel=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    residenceLabel.append(
+      el(
+        'span',
+        'Comprovante de residência'
+      )
+    );
+
+    const residenceInput=
+      el('input');
+
+    residenceInput.type='file';
+    residenceInput.multiple=false;
+    residenceInput.accept=
+      '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+
+    residenceLabel.append(
+      residenceInput,
+      el(
+        'small',
+        'PDF, JPEG ou PNG, até 5 MB.',
+        'hint'
+      )
+    );
+
+    grid.append(
+      idLabel,
+      residenceLabel
+    );
+
+    panel.append(
+      grid
+    );
+
+    const privacy=
+      el(
+        'p',
+        'Para executar a leitura, os arquivos são enviados à API DeepSeek. PDFs são convertidos temporariamente pelo OCR do Google Drive e o arquivo temporário é descartado após a leitura.',
+        'pess-import-notice'
+      );
+
+    panel.append(
+      privacy
+    );
+
+    const resultBox=
+      el(
+        'div',
+        undefined,
+        'pess-import-result'
+      );
+
+    resultBox.hidden=true;
+
+    panel.append(
+      resultBox
+    );
+
+    const actions=
+      el(
+        'div',
+        undefined,
+        'pess-import-actions'
+      );
+
+    const analyze=
+      el(
+        'button',
+        'Ler documentos e preencher cadastro'
+      );
+
+    analyze.type='button';
+
+    const manual=
+      el(
+        'button',
+        'Preencher manualmente',
+        'secondary'
+      );
+
+    manual.type='button';
+
+    actions.append(
+      analyze,
+      manual
+    );
+
+    panel.append(
+      actions
+    );
+
+    const showForm=()=>{
+      panel.hidden=true;
+
+      if(personStepper){
+        personStepper.setVisible(true);
+        personStepper.showStep(0);
+      }
+
+      const cpf=
+        personForm.elements.namedItem(
+          'cpf'
+        );
+
+      if(cpf){
+        cpf.focus();
+      }
+    };
+
+    manual.onclick=
+      ()=>{
+        showForm();
+      };
+
+    analyze.onclick=
+      async()=>{
+        const identityFiles=
+          Array.from(
+            identityInput.files||
+            []
+          );
+
+        const residenceFile=
+          residenceInput.files&&
+          residenceInput.files[0];
+
+        if(
+          !identityFiles.length||
+          identityFiles.length>2
+        ){
+          throw new Error(
+            'Selecione 1 arquivo PDF ou até 2 imagens do documento de identidade.'
+          );
+        }
+
+        if(!residenceFile){
+          throw new Error(
+            'Selecione o comprovante de residência.'
+          );
+        }
+
+        const allFiles=
+          identityFiles.concat(
+            [residenceFile]
+          );
+
+        const tooLarge=
+          allFiles.find(
+            file=>
+              file.size>
+              5*1024*1024
+          );
+
+        if(tooLarge){
+          throw new Error(
+            'Arquivo maior que 5 MB: '+
+            tooLarge.name
+          );
+        }
+
+        if(
+          !App.state.boot.deepseek||
+          !App.state.boot.deepseek.configurada
+        ){
+          throw new Error(
+            'A API DeepSeek ainda não está configurada. Salve DEEPSEEK_API_KEY em Administração ou use o preenchimento manual.'
+          );
+        }
+
+        analyze.disabled=true;
+        manual.disabled=true;
+        analyze.textContent=
+          'Lendo documentos...';
+
+        resultBox.hidden=false;
+        resultBox.className=
+          'pess-import-result';
+
+        resultBox.textContent=
+          'Preparando os documentos para leitura automática.';
+
+        try{
+          const identityPayload=[];
+
+          for(const file of identityFiles){
+            identityPayload.push({
+              nome:file.name,
+              mime:mime_(file),
+              base64:
+                await readFile_(
+                  file
+                )
+            });
+          }
+
+          const result=
+            await call(
+              'documentosImportar',
+              {
+                identidade:
+                  identityPayload,
+                residencia:{
+                  nome:residenceFile.name,
+                  mime:mime_(residenceFile),
+                  base64:
+                    await readFile_(
+                      residenceFile
+                    )
+                }
+              }
+            );
+
+          const id=
+            result.identidade||{};
+
+          const residence=
+            result.residencia||{};
+
+          setImportedFormValue_(
+            personForm,
+            'cpf',
+            id.cpf
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'nome',
+            id.nome
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'nascimento',
+            id.nascimento
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'analfabeto',
+            id.analfabeto
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'cep',
+            residence.cep
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'tipoVia',
+            residence.tipoVia
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'via',
+            residence.via
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'numero',
+            residence.numero
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'complemento',
+            residence.complemento
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'bairro',
+            residence.bairro
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'cidade',
+            residence.cidade
+          );
+
+          setImportedFormValue_(
+            personForm,
+            'uf',
+            residence.uf
+          );
+
+          importedFiles.RG_CPF=
+            identityFiles.slice();
+
+          importedFiles.RESIDENCIA=
+            [residenceFile];
+
+          setImportedFiles_(
+            uploads.RG_CPF,
+            identityFiles
+          );
+
+          setImportedFiles_(
+            uploads.RESIDENCIA,
+            [residenceFile]
+          );
+
+          if(
+            residenceDate&&
+            residence.vencimento
+          ){
+            residenceDate.value=
+              residence.vencimento;
+
+            residenceDate.dispatchEvent(
+              new Event(
+                'input',
+                {bubbles:true}
+              )
+            );
+          }
+
+          if(
+            residenceThird&&
+            residence.terceiroSugerido
+          ){
+            residenceThird.checked=true;
+
+            residenceThird.dispatchEvent(
+              new Event(
+                'change',
+                {bubbles:true}
+              )
+            );
+          }
+
+          const lines=[
+            'Leitura automática concluída.',
+            id.nome
+              ?'Nome identificado: '+id.nome
+              :'Nome não identificado.',
+            id.cpf
+              ?'CPF identificado e validado.'
+              :'CPF não identificado ou inválido.',
+            residence.cep
+              ?'CEP identificado e validado.'
+              :'CEP não identificado ou inválido.',
+            residence.fonteCep
+              ?'Endereço conferido por '+residence.fonteCep+'.'
+              :'Endereço deverá ser conferido manualmente.'
+          ];
+
+          if(
+            result.alertas&&
+            result.alertas.length
+          ){
+            lines.push(
+              '',
+              'Conferências necessárias:',
+              ...result.alertas.map(
+                item=>'• '+item
+              )
+            );
+          }
+
+          resultBox.textContent=
+            lines.join('\n');
+
+          resultBox.className=
+            'pess-import-result ok';
+
+          showForm();
+
+          status(
+            'Dados importados. Confira cada etapa antes de salvar.'
+          );
+
+        }catch(e){
+          resultBox.textContent=
+            e.message||
+            String(e);
+
+          resultBox.className=
+            'pess-import-result error';
+
+          status(
+            e.message||
+            String(e),
+            true
+          );
+
+        }finally{
+          analyze.disabled=false;
+          manual.disabled=false;
+          analyze.textContent=
+            'Ler documentos e preencher cadastro';
+        }
+      };
+
+    personForm.insertBefore(
+      panel,
+      personForm.firstChild
+    );
+
+    if(personStepper){
+      personStepper.setVisible(false);
+    }
+
+    return {
+      root:panel,
+      showStart(){
+        panel.hidden=false;
+
+        if(personStepper){
+          personStepper.setVisible(false);
+        }
+
+        requestAnimationFrame(
+          ()=>{
+            identityInput.focus();
+          }
+        );
+      },
+      showForm
     };
   }
 
