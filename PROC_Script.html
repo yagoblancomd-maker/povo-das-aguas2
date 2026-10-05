@@ -1,4 +1,104 @@
 <script>
-window.PDA_MODULES.PROC = ctx => {ctx.root.append(App.el("h2", "Processos"), App.el("p", "Módulo previsto para etapa futura. Nenhuma integração com tribunais está ativa."));
-};
+window.PDA_MODULES.PROC = (()=>{
+  const {
+    el,table,button,call,go,alive
+  }=App;
+
+  function cpf_(value){
+    const d=String(value||'')
+      .replace(/\D/g,'');
+
+    return d.length===11
+      ?d.replace(
+          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+          '$1.$2.$3-$4'
+        )
+      :String(value||'');
+  }
+
+  function date_(value){
+    const d=new Date(value);
+
+    if(Number.isNaN(d.getTime())){
+      return '—';
+    }
+
+    return d.toLocaleString(
+      'pt-BR',
+      {
+        day:'2-digit',
+        month:'2-digit',
+        year:'numeric',
+        hour:'2-digit',
+        minute:'2-digit'
+      }
+    );
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    root.append(
+      el(
+        'h2',
+        'Processos'
+      ),
+      el(
+        'p',
+        'Processos cadastrados automaticamente quando uma tarefa de distribuição é concluída.',
+        'hint'
+      )
+    );
+
+    const rows=
+      await call(
+        'processos'
+      );
+
+    if(!alive(ctx))return;
+
+    table(
+      root,
+      [
+        {
+          key:'numero',
+          label:'Processo TRF4'
+        },
+        {
+          key:'pessoa',
+          label:'Pessoa'
+        },
+        {
+          label:'CPF',
+          value:r=>cpf_(r.cpf)
+        },
+        {
+          key:'jurisdicao',
+          label:'Jurisdição'
+        },
+        {
+          label:'Distribuído em',
+          value:r=>date_(r.distribuidoEm)
+        },
+        {
+          key:'responsavel',
+          label:'Responsável'
+        }
+      ],
+      rows,
+      r=>[
+        button(
+          'Abrir cadastro',
+          ()=>{
+            App.state.selection=r.pessoaId;
+            return go(
+              'ACOMP',
+              r.pessoaId
+            );
+          }
+        )
+      ]
+    );
+  };
+})();
 </script>
