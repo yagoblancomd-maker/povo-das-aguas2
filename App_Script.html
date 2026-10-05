@@ -119,6 +119,37 @@ n.className='status '+(error?'error':'ok');
       [.55,'Validando os placeholders'],
       [.80,'Ativando o novo modelo']
     ]
+  },
+  tarefaDistribuicaoAtribuir:{
+    seconds:5,
+    title:'Atribuindo tarefa',
+    phases:[
+      [0,'Validando o usuário responsável'],
+      [.38,'Atualizando a fila de distribuição'],
+      [.78,'Vinculando a tarefa ao usuário'],
+      [.94,'Concluindo']
+    ]
+  },
+  tarefaDistribuicaoConcluir:{
+    seconds:8,
+    title:'Concluindo distribuição',
+    phases:[
+      [0,'Validando o número do processo'],
+      [.30,'Criando o registro processual'],
+      [.62,'Vinculando o processo à pessoa'],
+      [.84,'Concluindo a tarefa de distribuição'],
+      [.95,'Atualizando o sistema']
+    ]
+  },
+  tarefasDistribuicaoReconciliar:{
+    seconds:8,
+    title:'Preparando fila de distribuição',
+    phases:[
+      [0,'Localizando cadastros com petição inicial'],
+      [.35,'Conferindo processos já distribuídos'],
+      [.68,'Criando tarefas que ainda não existem'],
+      [.92,'Atualizando a fila']
+    ]
   }
  };
 
