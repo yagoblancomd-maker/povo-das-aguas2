@@ -25,6 +25,9 @@ const MODULE_PERMISSION=Object.freeze({
 const PROFILE_HOME=Object.freeze({
   CONSULTA:'PAINEL',
   NOVO_USUARIO:'PAINEL',
+  PROFESSOR_RESIDENTE:'PAINEL',
+  COLABORADOR:'PAINEL',
+  ALUNO:'PAINEL',
   CADASTRO:'PAINEL',
   CONFERENCIA:'PAINEL',
   JURIDICO:'PAINEL',
@@ -198,6 +201,21 @@ function selfRegistrationSuccessPage_(result){
     "'":'&#39;'
   })[ch]);
 
+  const safeSummary=String(
+    result.resumoAcesso||
+    (
+      Array.isArray(result.permissoes)
+        ?'Permissões concedidas: '+result.permissoes.join(', ')+'.'
+        :'Seu acesso foi configurado conforme sua função no projeto.'
+    )
+  ).replace(/[&<>"']/g,ch=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[ch]);
+
   const returnUrl=String(
     result.returnUrl||
     ''
@@ -223,9 +241,9 @@ function selfRegistrationSuccessPage_(result){
       '</style></head><body><main class="card">'+
       '<div class="check">✓</div>'+
       '<h1>Acesso criado com sucesso</h1>'+
-      '<p>Seu perfil inicial foi criado automaticamente com permissões de <strong>Consulta</strong> e <strong>Cadastro</strong>.</p>'+
+      '<p>Seu perfil inicial foi criado automaticamente conforme sua função no projeto.</p>'+
       '<div class="user"><strong>'+safeName+'</strong><span>'+safeEmail+'</span></div>'+
-      '<p>Você já pode entrar no sistema e iniciar novos cadastros. Outras permissões somente podem ser concedidas posteriormente pela Administração.</p>'+
+      '<p>'+safeSummary+'</p>'+
       (
         safeReturn
           ?'<a class="button" href="'+safeReturn+'">Entrar no Povo das Águas</a>'
