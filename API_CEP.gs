@@ -1,56 +1,112 @@
-const CEP_API_URL='https://viacep.com.br/ws';
+const CEP_BRASIL_API_URL='https://brasilapi.com.br/api/cep/v1';
+const CEP_VIACEP_URL='https://viacep.com.br/ws';
 
-function cepConsultaViaCep_(q){
-  const cep=cep_(q&&q.cep);
-  const url=
-    CEP_API_URL+
-    '/'+
-    encodeURIComponent(cep)+
-    '/json/';
-
-  const response=UrlFetchApp.fetch(
-    url,
-    {
-      method:'get',
-      headers:{
-        accept:'application/json'
-      },
-      muteHttpExceptions:true,
-      followRedirects:true
-    }
-  );
-
-  const code=response.getResponseCode();
-
-  if(code<200||code>=300){
-    fail_(
-      'Falha ao consultar o CEP. HTTP '+
-      code+
-      '.'
-    );
-  }
-
-  let data;
+function cepFetchJson_(url){
+  let response;
 
   try{
-    data=JSON.parse(
-      response.getContentText()||
-      '{}'
+    response=UrlFetchApp.fetch(
+      url,
+      {
+        method:'get',
+        headers:{
+          accept:'application/json'
+        },
+        muteHttpExceptions:true,
+        followRedirects:true
+      }
     );
   }catch(e){
-    fail_(
-      'O serviço de CEP retornou uma resposta inválida.'
-    );
+    return {
+      ok:false,
+      code:0,
+      error:e.message||String(e),
+      data:null
+    };
   }
 
+  const code=response.getResponseCode();
+  const text=response.getContentText();
+
+  let data=null;
+
+  try{
+    data=JSON.parse(text||'{}');
+  }catch(e){
+    return {
+      ok:false,
+      code,
+      error:'Resposta inválida do serviço de CEP.',
+      data:null
+    };
+  }
+
+  return {
+    ok:code>=200&&code<300,
+    code,
+    error:'',
+    data
+  };
+}
+
+function cepFromBrasilApi_(cep){
+  const result=cepFetchJson_(
+    CEP_BRASIL_API_URL+
+    '/'+
+    encodeURIComponent(cep)
+  );
+
+  if(!result.ok){
+    return null;
+  }
+
+  const data=result.data||{};
+
+  if(!data.cep){
+    return null;
+  }
+
+  return {
+    fonte:
+      data.service
+        ?'BrasilAPI ('+String(data.service)+')'
+        :'BrasilAPI',
+    cep:cepDisplay_(data.cep||cep),
+    logradouro:String(data.street||'').trim(),
+    complemento:'',
+    bairro:String(data.neighborhood||'').trim(),
+    cidade:String(data.city||'').trim(),
+    uf:String(data.state||'').trim(),
+    estado:'',
+    regiao:'',
+    ibge:
+      data.ibge&&data.ibge.city
+        ?String(data.ibge.city)
+        :'',
+    ddd:'',
+    siafi:''
+  };
+}
+
+function cepFromViaCep_(cep){
+  const result=cepFetchJson_(
+    CEP_VIACEP_URL+
+    '/'+
+    encodeURIComponent(cep)+
+    '/json/'
+  );
+
+  if(!result.ok){
+    return null;
+  }
+
+  const data=result.data||{};
+
   if(
-    !data||
     data.erro===true||
     data.erro==='true'
   ){
-    fail_(
-      'CEP não encontrado.'
-    );
+    return null;
   }
 
   return {
@@ -67,4 +123,34 @@ function cepConsultaViaCep_(q){
     ddd:String(data.ddd||'').trim(),
     siafi:String(data.siafi||'').trim()
   };
+}
+
+function cepConsultaViaCep_(q){
+  const cep=cep_(q&&q.cep);
+
+  /*
+   * BrasilAPI é a fonte principal porque já possui múltiplos provedores
+   * de fallback. ViaCEP permanece como segunda tentativa.
+   */
+  const brasilApi=
+    cepFromBrasilApi_(
+      cep
+    );
+
+  if(brasilApi){
+    return brasilApi;
+  }
+
+  const viaCep=
+    cepFromViaCep_(
+      cep
+    );
+
+  if(viaCep){
+    return viaCep;
+  }
+
+  fail_(
+    'CEP não encontrado ou temporariamente indisponível nos serviços de consulta.'
+  );
 }
