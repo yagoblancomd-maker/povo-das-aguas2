@@ -1320,30 +1320,15 @@ window.PDA_MODULES.PESS = (()=>{
     }catch(e){
       input.required=false;
       input.dataset.imported='true';
+      input.dataset.importedCount=
+        String(selected.length);
 
-      const box=
-        input.closest(
-          'details'
-        );
-
-      const summary=
-        box&&box.querySelector(
-          'summary'
-        );
-
-      if(summary){
-        const title=
-          String(
-            summary.textContent||
-            ''
-          ).split(' — ')[0];
-
-        summary.textContent=
-          title+
-          ' — Documento importado';
-
-        box.open=false;
-      }
+      input.dispatchEvent(
+        new Event(
+          'change',
+          {bubbles:true}
+        )
+      );
 
       return false;
     }
@@ -1378,7 +1363,7 @@ window.PDA_MODULES.PESS = (()=>{
       ),
       el(
         'p',
-        'Envie a identidade e o comprovante de residência. A leitura automática pré-preenche o cadastro; os dados precisam ser conferidos antes do salvamento.',
+        'Envie a identidade/CPF, o comprovante de residência ou ambos. A leitura automática funciona parcialmente com apenas um documento e pré-preenche somente os dados que puder identificar.',
         'hint'
       )
     );
@@ -1575,10 +1560,22 @@ window.PDA_MODULES.PESS = (()=>{
 
         const residenceFile=
           residenceInput.files&&
-          residenceInput.files[0];
+          residenceInput.files[0]
+            ?residenceInput.files[0]
+            :null;
 
         if(
-          !identityFiles.length||
+          !identityFiles.length&&
+          !residenceFile
+        ){
+          status(
+            'Selecione ao menos um documento: identidade/CPF ou comprovante de residência.',
+            true
+          );
+          return;
+        }
+
+        if(
           identityFiles.length>2
         ){
           status(
@@ -1588,17 +1585,11 @@ window.PDA_MODULES.PESS = (()=>{
           return;
         }
 
-        if(!residenceFile){
-          status(
-            'Selecione o comprovante de residência.',
-            true
-          );
-          return;
-        }
-
         const allFiles=
           identityFiles.concat(
-            [residenceFile]
+            residenceFile
+              ?[residenceFile]
+              :[]
           );
 
         const tooLarge=
@@ -1654,21 +1645,26 @@ window.PDA_MODULES.PESS = (()=>{
             });
           }
 
+          const payload={
+            identidade:
+              identityPayload
+          };
+
+          if(residenceFile){
+            payload.residencia={
+              nome:residenceFile.name,
+              mime:mime_(residenceFile),
+              base64:
+                await readFile_(
+                  residenceFile
+                )
+            };
+          }
+
           const result=
             await call(
               'documentosImportar',
-              {
-                identidade:
-                  identityPayload,
-                residencia:{
-                  nome:residenceFile.name,
-                  mime:mime_(residenceFile),
-                  base64:
-                    await readFile_(
-                      residenceFile
-                    )
-                }
-              }
+              payload
             );
 
           const id=
@@ -1749,23 +1745,28 @@ window.PDA_MODULES.PESS = (()=>{
             residence.uf
           );
 
-          importedFiles.RG_CPF=
-            identityFiles.slice();
+          if(identityFiles.length){
+            importedFiles.RG_CPF=
+              identityFiles.slice();
 
-          importedFiles.RESIDENCIA=
-            [residenceFile];
+            setImportedFiles_(
+              uploads.RG_CPF,
+              identityFiles
+            );
+          }
 
-          setImportedFiles_(
-            uploads.RG_CPF,
-            identityFiles
-          );
+          if(residenceFile){
+            importedFiles.RESIDENCIA=
+              [residenceFile];
 
-          setImportedFiles_(
-            uploads.RESIDENCIA,
-            [residenceFile]
-          );
+            setImportedFiles_(
+              uploads.RESIDENCIA,
+              [residenceFile]
+            );
+          }
 
           if(
+            residenceFile&&
             residenceDate&&
             residence.vencimento
           ){
@@ -1781,6 +1782,7 @@ window.PDA_MODULES.PESS = (()=>{
           }
 
           if(
+            residenceFile&&
             residenceThird&&
             residence.terceiroSugerido
           ){
@@ -1795,20 +1797,38 @@ window.PDA_MODULES.PESS = (()=>{
           }
 
           const lines=[
-            'Leitura automática concluída.',
-            id.nome
-              ?'Nome identificado: '+id.nome
-              :'Nome não identificado.',
-            id.cpf
-              ?'CPF identificado e validado.'
-              :'CPF não identificado ou inválido.',
-            residence.cep
-              ?'CEP identificado e validado.'
-              :'CEP não identificado ou inválido.',
-            residence.fonteCep
-              ?'Endereço conferido por '+residence.fonteCep+'.'
-              :'Endereço deverá ser conferido manualmente.'
+            'Leitura automática concluída.'
           ];
+
+          if(identityFiles.length){
+            lines.push(
+              id.nome
+                ?'Nome identificado: '+id.nome
+                :'Nome não identificado.',
+              id.cpf
+                ?'CPF identificado e validado.'
+                :'CPF não identificado ou inválido.'
+            );
+          }else{
+            lines.push(
+              'Documento de identidade não enviado nesta leitura.'
+            );
+          }
+
+          if(residenceFile){
+            lines.push(
+              residence.cep
+                ?'CEP identificado e validado.'
+                :'CEP não identificado ou inválido.',
+              residence.fonteCep
+                ?'Endereço conferido por '+residence.fonteCep+'.'
+                :'Endereço deverá ser conferido manualmente.'
+            );
+          }else{
+            lines.push(
+              'Comprovante de residência não enviado nesta leitura.'
+            );
+          }
 
           if(
             result.alertas&&
