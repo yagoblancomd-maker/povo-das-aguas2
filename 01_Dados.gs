@@ -6,8 +6,37 @@ function resetData_(){
 
 function ss_(){
   const id=props_().getProperty('SPREADSHEET_ID');
-  if(!id)fail_('Execute instalar pelo editor do Apps Script.');
-  return SpreadsheetApp.openById(id);
+
+  if(!id){
+    fail_(
+      'Execute instalar pelo editor do Apps Script.'
+    );
+  }
+
+  try{
+    return SpreadsheetApp.openById(
+      id
+    );
+
+  }catch(e){
+    const activeEmail=String(
+      Session.getActiveUser().getEmail()||
+      ''
+    ).trim();
+
+    fail_(
+      'A conta Google ativa'+
+      (
+        activeEmail
+          ?' ('+activeEmail+')'
+          :''
+      )+
+      ' não conseguiu acessar o banco de dados do Povo das Águas. '+
+      'Verifique se o navegador está usando exatamente o usuário Google autorizado no sistema. '+
+      'Detalhe técnico: '+
+      (e.message||String(e))
+    );
+  }
 }
 
 function headers_(entity){
