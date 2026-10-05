@@ -9,6 +9,65 @@ const MODULES={
   ADM:'Administração'
 };
 
+const MODULE_PERMISSION=Object.freeze({
+  PAINEL:'consulta',
+  PESS:'cadastro',
+  ATEND:'cadastro',
+  ACOMP:'consulta',
+  MIN:'minuta',
+  DIST:'minuta',
+  PROC:'consulta',
+  ADM:'administracao'
+});
+
+const PROFILE_HOME=Object.freeze({
+  CONSULTA:'PAINEL',
+  CADASTRO:'PESS',
+  CONFERENCIA:'ACOMP',
+  JURIDICO:'MIN',
+  ADMIN:'PAINEL'
+});
+
+function availableModules_(user){
+  const allowed={};
+
+  Object.entries(MODULES)
+    .forEach(([code,label])=>{
+      const permission=
+        MODULE_PERMISSION[code]||
+        'consulta';
+
+      if(
+        hasPermission_(
+          user,
+          permission
+        )
+      ){
+        allowed[code]=label;
+      }
+    });
+
+  return allowed;
+}
+
+function homeModule_(user){
+  const available=
+    availableModules_(user);
+
+  const preferred=
+    PROFILE_HOME[user.perfil]||
+    'PAINEL';
+
+  if(available[preferred]){
+    return preferred;
+  }
+
+  return (
+    Object.keys(available)[0]||
+    'PAINEL'
+  );
+}
+
 function doGet(){
   authorize_('consulta');
   return HtmlService
@@ -23,8 +82,12 @@ function include_(name){
 }
 
 function carregarModulo(code){
-  authorize_(code==='ADM'?'administracao':'consulta');
   if(!MODULES[code])fail_('Módulo inválido.');
+
+  authorize_(
+    MODULE_PERMISSION[code]||
+    'consulta'
+  );
 
   return {
     view:include_(code+'_View'),
@@ -44,15 +107,28 @@ function api(action,q){
   });
 
   const reads={
-    bootstrap:()=>({
-      email:identity_(),
-      perfil:all_('Usuarios').find(u=>u.email===identity_()).perfil,
-      config:cfg_(),
-      modulos:MODULES,
-      modelo:templateStatus_(),
-      portalTransparencia:portalTransparenciaStatus_(),
-      deepseek:deepseekStatus_()
-    }),
+    bootstrap:()=>{
+      const user=activeUser_();
+
+      return {
+        email:user.email,
+        usuario:{
+          id:user.id,
+          nome:user.nome||'',
+          funcao:user.funcao||'',
+          email:user.email,
+          perfil:user.perfil
+        },
+        perfil:user.perfil,
+        permissoes:effectivePermissions_(user),
+        config:cfg_(),
+        modulos:availableModules_(user),
+        home:homeModule_(user),
+        modelo:templateStatus_(),
+        portalTransparencia:portalTransparenciaStatus_(),
+        deepseek:deepseekStatus_()
+      };
+    },
     pessoas:()=>personSearch_(q),
     pessoa:()=>get_('Pessoas',q.id),
     atendimentos:()=>all_('Atendimentos'),
@@ -60,8 +136,33 @@ function api(action,q){
     painel:()=>dashboard_(),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
-      usuarios:all_('Usuarios'),
+      usuarios:all_('Usuarios').map(u=>
+        Object.assign(
+          {},
+          u,
+          {
+            permissoesEfetivas:
+              effectivePermissions_(u)
+          }
+        )
+      ),
       perfis:Object.keys(ROLES),
+      perfisDetalhes:Object.fromEntries(
+        Object.keys(ROLES).map(perfil=>[
+          perfil,
+          {
+            descricao:ROLE_DESCRIPTIONS[perfil]||'',
+            permissoes:rolePermissions_(perfil)
+          }
+        ])
+      ),
+      permissoes:Object.entries(PERMISSIONS).map(
+        ([key,value])=>({
+          key,
+          label:value.label,
+          descricao:value.descricao
+        })
+      ),
       modelo:templateStatus_(),
       portalTransparencia:portalTransparenciaStatus_(),
       deepseek:deepseekStatus_()
