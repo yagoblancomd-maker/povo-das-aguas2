@@ -186,7 +186,8 @@ function api(action,q){
     deepseekApiKeySalvar:['administracao',deepseekApiKeySave_],
     seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
-    usuarioSalvar:['administracao',userSave_]
+    usuarioSalvar:['administracao',userSave_],
+    usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_]
   };
 
   if(reads[action]){
