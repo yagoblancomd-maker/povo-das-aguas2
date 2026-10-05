@@ -1,20 +1,149 @@
 <script>
-window.PDA_MODULES.PAINEL = (()=>{const {el,card,details,form,table,link,button,call,go,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can}=App;
-return async function(ctx){const root=ctx.root;
-root.append(el('h2','Painel'));
-const d=await call('painel');
-if(!alive(ctx))return;
-const stats=el('div',undefined,'stats'),list=card('Atendimentos');
-const show=(rows)=>{list.replaceChildren(el('h3','Registros'));
-table(list,[{key:'nome',label:'Pessoa'},{key:'referencia',label:'Referência'},{key:'situacao',label:'Situação'}],rows,a=>[button('Abrir ficha',()=>go('ACOMP',a.pessoaId))]);
-};
-[['pessoas','Pessoas',()=>go(can('cadastro')?'PESS':'ACOMP')],['atendimentos','Atendimentos',()=>show(d.registros)],['pendencias','Pendências',()=>show(d.registros.filter(a=>d.pendenciasRegistros.some(p=>p.atendimentoId===a.id)))],['conferencias','A conferir',()=>show(d.registros.filter(a=>a.situacao!=='CONFERIDO'))],['minutas','Minutas',()=>show(d.registros.filter(a=>d.minutasRegistros.some(m=>m.atendimentoId===a.id)))]].forEach(([key,label,fn])=>{const b=button('',fn);
-b.className='stat';
-b.append(el('strong',String(d[key])),el('span',label));
-stats.append(b);
-});
-root.append(stats,list);
-show(d.registros);
-};
+window.PDA_MODULES.PAINEL = (()=>{
+  const {
+    el,card,table,button,call,go,alive,can
+  }=App;
+
+  function cpfDisplay_(value){
+    const d=String(value||'')
+      .replace(/\D/g,'');
+
+    return d.length===11
+      ?d.replace(
+          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+          '$1.$2.$3-$4'
+        )
+      :String(value||'');
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    root.append(
+      el(
+        'h2',
+        'Painel'
+      )
+    );
+
+    const d=
+      await call(
+        'painel'
+      );
+
+    if(!alive(ctx))return;
+
+    const stats=
+      el(
+        'div',
+        undefined,
+        'stats'
+      );
+
+    [
+      ['pessoas','Pessoas cadastradas'],
+      ['documentos','Documentos vigentes'],
+      ['aConferir','Documentos a conferir'],
+      ['iniciais','Iniciais geradas'],
+      ['relatorios','Relatórios Defeso 2025']
+    ].forEach(([key,label])=>{
+      const box=
+        el(
+          'div',
+          undefined,
+          'stat'
+        );
+
+      box.append(
+        el(
+          'strong',
+          String(d[key]||0)
+        ),
+        el(
+          'span',
+          label
+        )
+      );
+
+      stats.append(box);
+    });
+
+    root.append(stats);
+
+    const list=
+      card(
+        'Cadastros'
+      );
+
+    list.append(
+      el(
+        'p',
+        'Visão geral das pessoas cadastradas no sistema.',
+        'hint'
+      )
+    );
+
+    table(
+      list,
+      [
+        {
+          key:'nome',
+          label:'Pessoa'
+        },
+        {
+          label:'CPF',
+          value:r=>
+            cpfDisplay_(
+              r.cpf
+            )
+        },
+        {
+          key:'cidade',
+          label:'Município'
+        },
+        {
+          key:'jurisdicao',
+          label:'Jurisdição'
+        },
+        {
+          key:'documentos',
+          label:'Documentos'
+        }
+      ],
+      d.registros||[],
+      r=>[
+        button(
+          'Abrir cadastro',
+          ()=>{
+            App.state.selection=r.id;
+            return go(
+              'ACOMP',
+              r.id
+            );
+          }
+        )
+      ]
+    );
+
+    root.append(list);
+
+    if(can('cadastro')){
+      const actions=
+        el(
+          'div',
+          undefined,
+          'actions'
+        );
+
+      actions.append(
+        button(
+          'Novo Cadastro',
+          ()=>go('PESS')
+        )
+      );
+
+      root.append(actions);
+    }
+  };
 })();
 </script>
