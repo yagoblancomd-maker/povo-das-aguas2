@@ -923,7 +923,7 @@ window.PDA_MODULES.PESS = (()=>{
 
     const openDefeso=
       actionButton_(
-        'Consultar Seguro-Defeso',
+        'Consultar pagamento Seguro-Defeso',
         'Consulta rápida por CPF na base oficial.',
         'pess-action-defeso'
       );
@@ -1092,6 +1092,10 @@ window.PDA_MODULES.PESS = (()=>{
     quickDefeso.append(
       quickRow,
       quickInfo
+    );
+
+    root.append(
+      quickDefeso
     );
 
     /*
