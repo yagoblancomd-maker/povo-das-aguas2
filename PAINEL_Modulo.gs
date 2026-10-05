@@ -1,3 +1,57 @@
-function dashboard_(){const ats=all_('Atendimentos'),mins=all_('Minutas');
-return {pessoas:all_('Pessoas').length,atendimentos:ats.length,pendencias:all_('Pendencias').filter(p=>p.situacao==='ABERTA').length,conferencias:ats.filter(a=>a.situacao!=='CONFERIDO').length,minutas:mins.length,registros:ats.map(a=>Object.assign({},a,{nome:get_('Pessoas',a.pessoaId).nome})),pendenciasRegistros:all_('Pendencias').filter(p=>p.situacao==='ABERTA'),minutasRegistros:mins};
+function dashboard_(){
+  const pessoas=all_('Pessoas');
+
+  const documentos=
+    all_('Documentos')
+      .filter(d=>
+        bool_(d.vigente)&&
+        !!personIdFromOwner_(
+          d.atendimentoId
+        )
+      );
+
+  const iniciais=
+    documentos.filter(d=>
+      d.categoria==='INICIAL_SEGURO_DEFESO_2025'
+    );
+
+  const relatorios=
+    documentos.filter(d=>
+      d.categoria==='RELATORIO_SEGURO_DEFESO_2025'
+    );
+
+  const aConferir=
+    documentos.filter(d=>
+      !bool_(d.conferido)
+    );
+
+  return {
+    pessoas:pessoas.length,
+    documentos:documentos.length,
+    aConferir:aConferir.length,
+    iniciais:iniciais.length,
+    relatorios:relatorios.length,
+    registros:
+      pessoas
+        .slice()
+        .sort((a,b)=>
+          String(a.nome||'').localeCompare(
+            String(b.nome||''),
+            'pt-BR',
+            {sensitivity:'base'}
+          )
+        )
+        .map(p=>({
+          id:p.id,
+          nome:p.nome,
+          cpf:p.cpf,
+          cidade:p.cidade,
+          jurisdicao:p.jurisdicao,
+          documentos:
+            documentos.filter(d=>
+              d.atendimentoId===
+              personOwnerKey_(p.id)
+            ).length
+        }))
+  };
 }
