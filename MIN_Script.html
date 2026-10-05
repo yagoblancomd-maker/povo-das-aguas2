@@ -1,60 +1,155 @@
 <script>
 window.PDA_MODULES.MIN = (()=>{
-  const {el,card,table,link,button,call,go,alive,searchUI}=App;
+  const {
+    el,card,table,link,button,call,go,alive,searchUI,status
+  }=App;
 
   return async function(ctx){
     const root=ctx.root;
-    root.append(el('h2','Minutas'));
-    root.append(el(
-      'p',
-      'O modelo do Seguro-Defeso 2025 utiliza a quantidade de parcelas não recebidas registrada no cadastro da pessoa, calcula automaticamente o valor da causa e gera simultaneamente Google Docs e PDF. Cada geração cria uma versão editável, pendente de revisão.'
-    ));
+
+    root.append(
+      el(
+        'h2',
+        'Minutas'
+      )
+    );
+
+    root.append(
+      el(
+        'p',
+        'As minutas são vinculadas diretamente ao cadastro da pessoa. Não existe etapa de atendimento intermediária.',
+        'hint'
+      )
+    );
 
     if(!App.state.selection){
-      await searchUI(root,p=>go('MIN',p.id));
+      await searchUI(
+        root,
+        p=>go(
+          'MIN',
+          p.id
+        )
+      );
       return;
     }
 
-    const data=await call('ficha',{pessoaId:App.state.selection});
+    const data=
+      await call(
+        'ficha',
+        {
+          pessoaId:App.state.selection
+        }
+      );
+
     if(!alive(ctx))return;
 
-    root.append(el('h3',data.pessoa.nome));
-    root.append(button('Selecionar outra pessoa',()=>{
-      App.state.selection=null;
-      return go('MIN');
-    },true));
+    const p=data.pessoa;
 
-    data.atendimentos.forEach(a=>{
-      const generation=crypto.randomUUID();
-      const box=card(a.demanda+' · '+a.referencia);
-      const errors=data.aptidao.find(x=>x.id===a.id).pendencias;
+    root.append(
+      el(
+        'h3',
+        p.nome
+      )
+    );
 
-      box.append(el('p',errors.length?errors.join('\n'):'Documentação conferida.','warn'));
-      box.append(button('Gerar nova minuta',async()=>{
-        await call('minutaGerar',{id:a.id,versao:a.versao,generation},true);
-        await go('MIN');
-      }));
+    const topActions=
+      el(
+        'div',
+        undefined,
+        'actions'
+      );
 
+    topActions.append(
+      button(
+        'Selecionar outra pessoa',
+        ()=>{
+          App.state.selection=null;
+          return go('MIN');
+        },
+        true
+      )
+    );
+
+    root.append(topActions);
+
+    const box=
+      card(
+        'Petição inicial — Seguro-Defeso 2025'
+      );
+
+    const iniciais=
+      (data.documentosPessoa||[])
+        .filter(d=>
+          d.vigente==='true'&&
+          d.categoria==='INICIAL_SEGURO_DEFESO_2025'
+        );
+
+    box.append(
+      el(
+        'p',
+        iniciais.length
+          ?'Existe uma petição inicial vigente vinculada a esta pessoa.'
+          :'Ainda não há petição inicial vigente vinculada a esta pessoa.',
+        iniciais.length
+          ?'badge'
+          :'warn'
+      )
+    );
+
+    const generate=
+      button(
+        iniciais.length
+          ?'Gerar nova versão da inicial'
+          :'Gerar petição inicial',
+        async()=>{
+          await call(
+            'minutaInicialGerar',
+            {
+              pessoaId:p.id
+            },
+            true
+          );
+
+          status(
+            'Petição inicial gerada e adicionada aos documentos da pessoa.'
+          );
+
+          await go(
+            'MIN',
+            p.id
+          );
+        }
+      );
+
+    box.append(generate);
+
+    if(iniciais.length){
       table(
         box,
         [
-          {key:'numero',label:'Versão'},
-          {key:'situacao',label:'Revisão'},
-          {label:'Atualidade',value:m=>m.desatualizada?'DADOS/MODELO ALTERADOS':'Compatível com os dados'}
+          {
+            key:'nome',
+            label:'Arquivo'
+          },
+          {
+            label:'Situação',
+            value:d=>
+              d.conferido==='true'
+                ?'Vigente · Conferido'
+                :'Vigente'
+          }
         ],
-        data.minutas.filter(m=>m.atendimentoId===a.id),
-        m=>[
-          link(m.url,'Abrir Google Docs'),
-          ...(m.pdfUrl?[link(m.pdfUrl,'Abrir PDF')]:[]),
-          button('Registrar revisão',async()=>{
-            await call('minutaRevisar',{id:m.id,versao:m.versao},true);
-            await go('MIN');
-          })
+        iniciais,
+        d=>[
+          link(
+            d.url,
+            'Abrir PDF'
+          )
         ]
       );
+    }
 
-      root.append(box);
-    });
+    root.append(box);
   };
 })();
 </script>
