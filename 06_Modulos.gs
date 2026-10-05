@@ -50,7 +50,8 @@ function api(action,q){
       config:cfg_(),
       modulos:MODULES,
       modelo:templateStatus_(),
-      portalTransparencia:portalTransparenciaStatus_()
+      portalTransparencia:portalTransparenciaStatus_(),
+      deepseek:deepseekStatus_()
     }),
     pessoas:()=>personSearch_(q),
     pessoa:()=>get_('Pessoas',q.id),
@@ -62,11 +63,13 @@ function api(action,q){
       usuarios:all_('Usuarios'),
       perfis:Object.keys(ROLES),
       modelo:templateStatus_(),
-      portalTransparencia:portalTransparenciaStatus_()
+      portalTransparencia:portalTransparenciaStatus_(),
+      deepseek:deepseekStatus_()
     }),
     aptidao:()=>eligibility_(get_('Atendimentos',q.id),true),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
-    cepConsultar:()=>cepConsultaViaCep_(q)
+    cepConsultar:()=>cepConsultaViaCep_(q),
+    documentosImportar:()=>deepseekDocumentImport_(q)
   };
 
   const mutations={
@@ -84,13 +87,21 @@ function api(action,q){
     minutaRevisar:['minuta',reviewMin_],
     modeloUpload:['administracao',modelUpload_],
     portalApiKeySalvar:['administracao',portalApiKeySave_],
+    deepseekApiKeySalvar:['administracao',deepseekApiKeySave_],
     seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_]
   };
 
   if(reads[action]){
-    authorize_(action==='admin'?'administracao':'consulta');
+    const readPermission=
+      action==='admin'
+        ?'administracao'
+        :action==='documentosImportar'
+          ?'cadastro'
+          :'consulta';
+
+    authorize_(readPermission);
     return lock_(()=>{
       resetData_();
       atualizarJurisdicoes_();
