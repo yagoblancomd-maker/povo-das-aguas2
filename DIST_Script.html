@@ -1,4 +1,547 @@
 <script>
-window.PDA_MODULES.DIST = ctx => {ctx.root.append(App.el("h2", "Distribuição"), App.el("p", "Módulo previsto para etapa futura. Nenhuma integração com tribunais está ativa."));
-};
+window.PDA_MODULES.DIST = (()=>{
+  const {
+    el,button,call,alive,status
+  }=App;
+
+  function money_(value){
+    return Number(value||0).toLocaleString(
+      'pt-BR',
+      {
+        style:'currency',
+        currency:'BRL'
+      }
+    );
+  }
+
+  function cpf_(value){
+    const d=String(value||'')
+      .replace(/\D/g,'');
+
+    return d.length===11
+      ?d.replace(
+          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+          '$1.$2.$3-$4'
+        )
+      :String(value||'');
+  }
+
+  function assignmentCard_(task,users,refresh){
+    const card=
+      el(
+        'article',
+        undefined,
+        'dist-task-card '+(
+          task.situacao==='PENDENTE_ATRIBUICAO'
+            ?'unassigned'
+            :'assigned'
+        )
+      );
+
+    const top=
+      el(
+        'div',
+        undefined,
+        'dist-task-top'
+      );
+
+    const copy=
+      el(
+        'div'
+      );
+
+    copy.append(
+      el(
+        'strong',
+        task.pessoa
+      ),
+      el(
+        'small',
+        cpf_(task.cpf)+
+        (
+          task.cidade
+            ?' · '+task.cidade
+            :''
+        )
+      )
+    );
+
+    top.append(
+      copy,
+      el(
+        'span',
+        task.situacao==='PENDENTE_ATRIBUICAO'
+          ?'SEM RESPONSÁVEL'
+          :'ATRIBUÍDA',
+        'dist-task-status'
+      )
+    );
+
+    const info=
+      el(
+        'div',
+        undefined,
+        'dist-task-info'
+      );
+
+    [
+      [
+        'Jurisdição',
+        task.jurisdicao||'—'
+      ],
+      [
+        'Valor da causa',
+        money_(task.valorCausa)
+      ],
+      [
+        'Responsável atual',
+        task.responsavelNome||
+        task.responsavel||
+        'Não atribuído'
+      ]
+    ].forEach(([label,value])=>{
+      const item=el('div');
+
+      item.append(
+        el(
+          'span',
+          label
+        ),
+        el(
+          'strong',
+          value
+        )
+      );
+
+      info.append(item);
+    });
+
+    const assign=
+      el(
+        'div',
+        undefined,
+        'dist-assign-row'
+      );
+
+    const field=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    field.append(
+      el(
+        'span',
+        'Atribuir distribuição para'
+      )
+    );
+
+    const select=
+      el(
+        'select'
+      );
+
+    select.append(
+      new Option(
+        'Selecione o responsável',
+        ''
+      )
+    );
+
+    users.forEach(user=>{
+      const label=[
+        user.nome,
+        user.funcao,
+        user.email
+      ].filter(Boolean).join(' · ');
+
+      const option=
+        new Option(
+          label,
+          user.email
+        );
+
+      if(
+        String(
+          task.responsavel||
+          ''
+        ).toLowerCase()===
+        String(
+          user.email||
+          ''
+        ).toLowerCase()
+      ){
+        option.selected=true;
+      }
+
+      select.append(option);
+    });
+
+    field.append(select);
+
+    const save=
+      button(
+        task.responsavel
+          ?'Reatribuir tarefa'
+          :'Atribuir tarefa',
+        async()=>{
+          if(!select.value){
+            throw new Error(
+              'Selecione um usuário responsável pela distribuição.'
+            );
+          }
+
+          const result=
+            await call(
+              'tarefaDistribuicaoAtribuir',
+              {
+                id:task.id,
+                responsavel:select.value
+              },
+              true
+            );
+
+          status(
+            'Tarefa atribuída a '+
+            result.responsavel+
+            '.'
+          );
+
+          await refresh();
+        }
+      );
+
+    assign.append(
+      field,
+      save
+    );
+
+    card.append(
+      top,
+      info,
+      assign
+    );
+
+    return card;
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    const render=async()=>{
+      root.replaceChildren();
+
+      const data=
+        await call(
+          'distribuicaoFila'
+        );
+
+      if(!alive(ctx))return;
+
+      const head=
+        el(
+          'div',
+          undefined,
+          'dist-head'
+        );
+
+      const headCopy=
+        el(
+          'div'
+        );
+
+      headCopy.append(
+        el(
+          'h2',
+          'Distribuição'
+        ),
+        el(
+          'p',
+          'Atribua individualmente cada tarefa de distribuição aos usuários autorizados. Depois da atribuição, a tarefa aparecerá em Minhas tarefas para o responsável.',
+          'hint'
+        )
+      );
+
+      const reconcile=
+        button(
+          'Criar tarefas faltantes',
+          async()=>{
+            const result=
+              await call(
+                'tarefasDistribuicaoReconciliar',
+                {},
+                true
+              );
+
+            status(
+              result.mensagem||
+              'Tarefas reconciliadas.'
+            );
+
+            await render();
+          },
+          true
+        );
+
+      head.append(
+        headCopy,
+        reconcile
+      );
+
+      root.append(head);
+
+      const stats=
+        el(
+          'div',
+          undefined,
+          'dist-stats'
+        );
+
+      [
+        [
+          data.indicadores.semResponsavel,
+          'Sem responsável'
+        ],
+        [
+          data.indicadores.atribuidas,
+          'Atribuídas'
+        ],
+        [
+          data.indicadores.concluidas,
+          'Concluídas'
+        ],
+        [
+          data.usuarios.length,
+          'Usuários aptos a distribuir'
+        ]
+      ].forEach(([value,label])=>{
+        const box=
+          el(
+            'div',
+            undefined,
+            'dist-stat'
+          );
+
+        box.append(
+          el(
+            'strong',
+            String(value||0)
+          ),
+          el(
+            'span',
+            label
+          )
+        );
+
+        stats.append(box);
+      });
+
+      root.append(stats);
+
+      const workload=
+        el(
+          'section',
+          undefined,
+          'dist-workload'
+        );
+
+      workload.append(
+        el(
+          'h3',
+          'Equipe de distribuição'
+        )
+      );
+
+      const workloadGrid=
+        el(
+          'div',
+          undefined,
+          'dist-workload-grid'
+        );
+
+      data.usuarios.forEach(user=>{
+        const assigned=
+          data.tarefas.filter(t=>
+            t.situacao!=='CONCLUIDA'&&
+            String(t.responsavel||'').toLowerCase()===
+            String(user.email||'').toLowerCase()
+          ).length;
+
+        const item=
+          el(
+            'div',
+            undefined,
+            'dist-user'
+          );
+
+        item.append(
+          el(
+            'strong',
+            user.nome
+          ),
+          el(
+            'small',
+            (user.funcao||user.email)+
+            ' · '+
+            assigned+
+            (
+              assigned===1
+                ?' tarefa pendente'
+                :' tarefas pendentes'
+            )
+          )
+        );
+
+        workloadGrid.append(item);
+      });
+
+      if(!data.usuarios.length){
+        workloadGrid.append(
+          el(
+            'p',
+            'Nenhum usuário possui a permissão "Distribuir processos". Configure essa permissão em Administração.',
+            'warn'
+          )
+        );
+      }
+
+      workload.append(workloadGrid);
+      root.append(workload);
+
+      const active=
+        data.tarefas.filter(t=>
+          t.situacao!=='CONCLUIDA'
+        );
+
+      const section=
+        el(
+          'section',
+          undefined,
+          'dist-section'
+        );
+
+      const sectionHead=
+        el(
+          'div',
+          undefined,
+          'dist-section-head'
+        );
+
+      sectionHead.append(
+        el(
+          'h3',
+          'Fila de distribuição'
+        ),
+        el(
+          'span',
+          active.length+
+          (
+            active.length===1
+              ?' tarefa'
+              :' tarefas'
+          ),
+          'hint'
+        )
+      );
+
+      section.append(sectionHead);
+
+      const grid=
+        el(
+          'div',
+          undefined,
+          'dist-grid'
+        );
+
+      if(!active.length){
+        grid.append(
+          el(
+            'div',
+            'Não existem tarefas pendentes de distribuição.',
+            'dist-empty'
+          )
+        );
+      }else{
+        active.forEach(task=>
+          grid.append(
+            assignmentCard_(
+              task,
+              data.usuarios,
+              render
+            )
+          )
+        );
+      }
+
+      section.append(grid);
+      root.append(section);
+
+      const completed=
+        data.tarefas.filter(t=>
+          t.situacao==='CONCLUIDA'
+        );
+
+      if(completed.length){
+        const done=
+          el(
+            'details',
+            undefined,
+            'dist-completed'
+          );
+
+        done.append(
+          el(
+            'summary',
+            'Distribuições concluídas ('+
+            completed.length+
+            ')'
+          )
+        );
+
+        const doneGrid=
+          el(
+            'div',
+            undefined,
+            'dist-done-grid'
+          );
+
+        completed
+          .slice(0,30)
+          .forEach(task=>{
+            const row=
+              el(
+                'div',
+                undefined,
+                'dist-done-row'
+              );
+
+            row.append(
+              el(
+                'strong',
+                task.pessoa
+              ),
+              el(
+                'span',
+                task.jurisdicao||'—'
+              ),
+              el(
+                'span',
+                task.responsavelNome||
+                task.responsavel||
+                '—'
+              )
+            );
+
+            doneGrid.append(row);
+          });
+
+        done.append(doneGrid);
+        root.append(done);
+      }
+    };
+
+    await render();
+  };
+})();
 </script>
