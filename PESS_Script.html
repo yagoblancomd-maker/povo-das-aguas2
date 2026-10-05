@@ -1551,6 +1551,11 @@ window.PDA_MODULES.PESS = (()=>{
         if(outraWrap){
           outraWrap.hidden=
             !show;
+
+          outraWrap.style.display=
+            show
+              ?''
+              :'none';
         }
 
         outraEntidade.required=
