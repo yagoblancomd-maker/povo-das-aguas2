@@ -1,26 +1,191 @@
-function adminSave_(ctx,q){const allowed=['rascunhos','vencimentoFuturo','anexoOrientacao','templateId','templateAprovado','entidades','municipios','demandas','categorias','situacoes'];
-if(!allowed.includes(q.chave))fail_('Configuração não editável.');
-if(q.chave==='rascunhos'&&!['PENDENTE','PERMITIR','PROIBIR'].includes(q.valor))fail_('Política inválida.');
-if(q.chave==='vencimentoFuturo'&&!['PENDENTE','ACEITAR','RECUSAR'].includes(q.valor))fail_('Política inválida.');
-if(['entidades','municipios','demandas','categorias','situacoes'].includes(q.chave)){if(!Array.isArray(q.valor)||!q.valor.length||q.valor.some(v=>typeof v!=='string'||!v.trim()))fail_('Informe uma lista não vazia.');
-if(q.chave==='situacoes'&&DEFAULTS.situacoes.some(x=>!q.valor.includes(x)))fail_('Situações do fluxo inicial não podem ser removidas.');
-if(q.chave==='categorias'&&DEFAULTS.categorias.some(x=>!q.valor.includes(x)))fail_('Categorias iniciais obrigatórias não podem ser removidas.');
-}if(q.chave==='templateId'&&q.valor){const f=DriveApp.getFileById(q.valor);
-if(f.getMimeType()!==MimeType.GOOGLE_DOCS)fail_('Modelo deve ser Google Docs.');
-validateTemplate_(q.valor);
-}if(q.chave==='templateAprovado'){q.valor=bool_(q.valor);
-if(q.valor)validateTemplate_(cfg_().templateId);
-}const old=all_('Configuracoes').find(r=>r.chave===q.chave);
-const result=change_(ctx,'Configuracoes',old.id,{chave:q.chave,valor:JSON.stringify(q.valor)},q.versao);
-if(q.chave==='templateId'){const approval=all_('Configuracoes').find(r=>r.chave==='templateAprovado');
-change_(ctx,'Configuracoes',approval.id,{chave:'templateAprovado',valor:'false'},approval.versao);
-}return result;
+function setConfigValue_(ctx,chave,valor){
+  const old=all_('Configuracoes').find(r=>r.chave===chave);
+
+  return change_(
+    ctx,
+    'Configuracoes',
+    old?old.id:id_('CFG',chave),
+    {chave,valor:JSON.stringify(valor)},
+    old?old.versao:undefined
+  );
 }
-function userSave_(ctx,q){const email=String(q.email||'').trim().toLowerCase();
-if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!ROLES[q.perfil])fail_('E-mail ou perfil inválido.');
-const old=all_('Usuarios').find(u=>u.email===email);
-if(q.id&&get_('Usuarios',q.id).email!==email)fail_('O e-mail identifica o usuário e não pode ser alterado. Desative o antigo e cadastre outro.');
-if(old&&old.id!==q.id)fail_('Abra o usuário existente.');
-if(old&&old.email===ctx.email&&(!bool_(q.ativo)||q.perfil!=='ADMIN'))fail_('Não remova seu próprio acesso administrativo.');
-return change_(ctx,'Usuarios',old?old.id:id_('USR',email),{email,perfil:q.perfil,ativo:bool_(q.ativo)},q.versao);
+
+function adminSave_(ctx,q){
+  const allowed=[
+    'rascunhos','vencimentoFuturo','anexoOrientacao','templateId','templateAprovado',
+    'entidades','municipios','demandas','categorias','situacoes'
+  ];
+
+  if(!allowed.includes(q.chave))fail_('Configuração não editável.');
+
+  if(q.chave==='rascunhos'&&!['PENDENTE','PERMITIR','PROIBIR'].includes(q.valor)){
+    fail_('Política inválida.');
+  }
+
+  if(q.chave==='vencimentoFuturo'&&!['PENDENTE','ACEITAR','RECUSAR'].includes(q.valor)){
+    fail_('Política inválida.');
+  }
+
+  if(['entidades','municipios','demandas','categorias','situacoes'].includes(q.chave)){
+    if(!Array.isArray(q.valor)||!q.valor.length||q.valor.some(v=>typeof v!=='string'||!v.trim())){
+      fail_('Informe uma lista não vazia.');
+    }
+
+    if(q.chave==='situacoes'&&DEFAULTS.situacoes.some(x=>!q.valor.includes(x))){
+      fail_('Situações do fluxo inicial não podem ser removidas.');
+    }
+
+    if(q.chave==='categorias'&&DEFAULTS.categorias.some(x=>!q.valor.includes(x))){
+      fail_('Categorias iniciais obrigatórias não podem ser removidas.');
+    }
+  }
+
+  if(q.chave==='templateId'&&q.valor){
+    const f=DriveApp.getFileById(q.valor);
+    if(f.getMimeType()!==MimeType.GOOGLE_DOCS)fail_('Modelo deve ser Google Docs.');
+    validatePersonTemplate_(q.valor);
+  }
+
+  if(q.chave==='templateAprovado'){
+    q.valor=bool_(q.valor);
+    if(q.valor)validatePersonTemplate_(cfg_().templateId);
+  }
+
+  const old=all_('Configuracoes').find(r=>r.chave===q.chave);
+  const result=change_(
+    ctx,
+    'Configuracoes',
+    old.id,
+    {chave:q.chave,valor:JSON.stringify(q.valor)},
+    q.versao
+  );
+
+  if(q.chave==='templateId'){
+    const approval=all_('Configuracoes').find(r=>r.chave==='templateAprovado');
+    change_(
+      ctx,
+      'Configuracoes',
+      approval.id,
+      {chave:'templateAprovado',valor:'false'},
+      approval.versao
+    );
+  }
+
+  return result;
+}
+
+function findConvertedModelByOperation_(folder,op){
+  const marker='PDA_MODEL_OP:'+op;
+  const iterator=folder.getFiles();
+
+  while(iterator.hasNext()){
+    const file=iterator.next();
+    if(
+      !file.isTrashed()&&
+      file.getMimeType()===MimeType.GOOGLE_DOCS&&
+      String(file.getDescription()||'')===marker
+    ){
+      return file;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Recebe DOCX pela tela de Administração, converte para Google Docs,
+ * normaliza os placeholders conhecidos e ativa o modelo sem exigir IDs manuais.
+ */
+function modelUpload_(ctx,q){
+  const expectedMime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const mime=String(q.mime||'').trim();
+  const originalName=String(q.nome||'').trim();
+
+  if(mime!==expectedMime&&!/\.docx$/i.test(originalName)){
+    fail_('Envie um arquivo DOCX.');
+  }
+
+  if(typeof q.base64!=='string'||q.base64.length>14*1024*1024){
+    fail_('O modelo DOCX deve ter no máximo 10 MB.');
+  }
+
+  const bytes=Utilities.base64Decode(q.base64);
+  if(!bytes.length||bytes.length>10*1024*1024){
+    fail_('O modelo DOCX está vazio ou excede 10 MB.');
+  }
+
+  const sig=bytes.slice(0,4).map(x=>(x+256)%256);
+  if(sig.join(',')!=='80,75,3,4')fail_('O arquivo não corresponde a um DOCX válido.');
+
+  const folder=templatesFolder_();
+  let converted=findConvertedModelByOperation_(folder,ctx.op);
+
+  if(!converted){
+    const blob=Utilities.newBlob(bytes,expectedMime,originalName||'modelo.docx');
+
+    const created=Drive.Files.create(
+      {
+        name:SEGURO_DEFESO_2025.modeloNome+' - EM PROCESSAMENTO',
+        mimeType:'application/vnd.google-apps.document',
+        parents:[folder.getId()]
+      },
+      blob,
+      {fields:'id,name,mimeType,webViewLink'}
+    );
+
+    converted=DriveApp.getFileById(created.id);
+    converted.setDescription('PDA_MODEL_OP:'+ctx.op);
+    ctx.effects.push('Modelo convertido para Google Docs: '+converted.getUrl());
+  }
+
+  validatePersonTemplate_(converted.getId());
+
+  const sameName=folder.getFilesByName(SEGURO_DEFESO_2025.modeloNome);
+  const old=[];
+
+  while(sameName.hasNext()){
+    const file=sameName.next();
+    if(file.getId()!==converted.getId())old.push(file);
+  }
+
+  old.forEach(file=>file.setTrashed(true));
+  converted.setName(SEGURO_DEFESO_2025.modeloNome);
+
+  setConfigValue_(ctx,'templateId',converted.getId());
+  setConfigValue_(ctx,'templateAprovado',true);
+
+  return {
+    id:converted.getId(),
+    nome:converted.getName(),
+    url:converted.getUrl(),
+    mensagem:'Modelo convertido, validado e ativado.'
+  };
+}
+
+function userSave_(ctx,q){
+  const email=String(q.email||'').trim().toLowerCase();
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!ROLES[q.perfil]){
+    fail_('E-mail ou perfil inválido.');
+  }
+
+  const old=all_('Usuarios').find(u=>u.email===email);
+
+  if(q.id&&get_('Usuarios',q.id).email!==email){
+    fail_('O e-mail identifica o usuário e não pode ser alterado. Desative o antigo e cadastre outro.');
+  }
+
+  if(old&&old.id!==q.id)fail_('Abra o usuário existente.');
+
+  if(old&&old.email===ctx.email&&(!bool_(q.ativo)||q.perfil!=='ADMIN')){
+    fail_('Não remova seu próprio acesso administrativo.');
+  }
+
+  return change_(
+    ctx,
+    'Usuarios',
+    old?old.id:id_('USR',email),
+    {email,perfil:q.perfil,ativo:bool_(q.ativo)},
+    q.versao
+  );
 }
