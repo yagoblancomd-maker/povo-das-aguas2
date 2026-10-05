@@ -1,1 +1,134 @@
-<style>#adm-root { min-height: 300px; }</style>
+<style>
+#adm-root{
+  min-height:300px
+}
+.adm-users-card{
+  margin-top:12px
+}
+.adm-profile-guide{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin:9px 0 12px
+}
+.adm-profile-card{
+  min-width:0;
+  padding:9px;
+  border:1px solid #cbdde2;
+  border-radius:8px;
+  background:#f7fbfc
+}
+.adm-profile-card strong{
+  display:block;
+  margin-bottom:3px;
+  color:#123e52;
+  font-size:11px
+}
+.adm-profile-card>.hint{
+  display:block;
+  min-height:44px;
+  line-height:1.2;
+  font-size:9.5px
+}
+.adm-profile-defaults{
+  display:block;
+  margin-top:6px;
+  padding-top:5px;
+  border-top:1px solid #e0eaed;
+  color:#56717c;
+  font-size:8.8px;
+  line-height:1.25
+}
+.adm-user-list{
+  margin-top:8px
+}
+.adm-user-box{
+  margin:6px 0;
+  border-color:#c5d9df;
+  background:rgba(250,253,253,.97)
+}
+.adm-user-box>summary{
+  color:#173e51;
+  font-weight:700
+}
+.adm-user-add{
+  margin-top:10px;
+  border-color:#8eb9c2;
+  background:#f2f9fa
+}
+.adm-user-editor{
+  margin-top:5px
+}
+.adm-selected-profile{
+  margin:5px 0 7px;
+  padding:6px 8px;
+  border-left:3px solid #178394;
+  border-radius:4px;
+  color:#315865;
+  background:#eef7f8;
+  font-size:10px
+}
+.adm-permission-help{
+  margin:3px 0 7px;
+  color:#5c737d;
+  font-size:9.5px;
+  line-height:1.25
+}
+.adm-user-form>.grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px
+}
+.adm-user-form>.grid>.field[data-field="nome"],
+.adm-user-form>.grid>.field[data-field="funcao"]{
+  grid-column:span 2
+}
+.adm-user-form>.grid>.field[data-field^="perm_"]{
+  min-height:62px;
+  padding:7px 8px;
+  border:1px solid #d5e3e7;
+  border-radius:7px;
+  background:#f9fcfc
+}
+.adm-user-form>.grid>.field[data-field^="perm_"]>span{
+  min-height:30px;
+  color:#31525f;
+  font-size:9.3px;
+  line-height:1.2
+}
+.adm-user-form>.grid>.field[data-field^="perm_"] input[type="checkbox"]{
+  margin-top:4px
+}
+.adm-user-form input[readonly]{
+  color:#536a74;
+  background:#edf3f5;
+  cursor:not-allowed
+}
+.adm-user-form>.actions{
+  justify-content:flex-end
+}
+@media(max-width:1150px){
+  .adm-profile-guide{
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+  .adm-user-form>.grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+@media(max-width:680px){
+  .adm-profile-guide,
+  .adm-user-form>.grid{
+    grid-template-columns:1fr
+  }
+  .adm-user-form>.grid>.field[data-field="nome"],
+  .adm-user-form>.grid>.field[data-field="funcao"]{
+    grid-column:auto
+  }
+  .adm-user-form>.actions{
+    justify-content:stretch
+  }
+  .adm-user-form>.actions button{
+    width:100%
+  }
+}
+</style>
