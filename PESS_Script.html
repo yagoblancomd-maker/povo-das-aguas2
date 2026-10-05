@@ -1932,11 +1932,11 @@ window.PDA_MODULES.PESS = (()=>{
     pageTitle.append(
       el(
         'h2',
-        'Pessoas'
+        'Novo Cadastro'
       ),
       el(
         'p',
-        'Consulte o Seguro-Defeso ou inicie um novo cadastro.',
+        'Cadastre uma nova pessoa, importe dados dos documentos e conclua a documentação inicial.',
         'pess-page-subtitle'
       )
     );
@@ -1950,268 +1950,6 @@ window.PDA_MODULES.PESS = (()=>{
     );
 
     let edit=null;
-    let quickDefeso=null;
-
-    const workPanels=()=>[
-      edit,
-      quickDefeso
-    ].filter(Boolean);
-
-    const showPanel_=panel=>{
-      workPanels().forEach(item=>{
-        item.hidden=
-          item!==panel;
-      });
-
-      if(panel){
-        if(panel.tagName==='DETAILS'){
-          panel.open=true;
-        }
-
-        requestAnimationFrame(()=>{
-          panel.scrollIntoView({
-            behavior:'smooth',
-            block:'start'
-          });
-        });
-      }
-    };
-
-    const actionButton_=(title,description,kind,icon)=>{
-      const b=
-        el(
-          'button',
-          undefined,
-          'pess-action-card '+kind
-        );
-
-      b.type='button';
-
-      const iconBox=
-        el(
-          'span',
-          undefined,
-          'pess-action-icon'
-        );
-
-      iconBox.innerHTML=icon;
-
-      const copy=
-        el(
-          'span',
-          undefined,
-          'pess-action-copy'
-        );
-
-      const titleEl=
-        el(
-          'strong',
-          title
-        );
-
-      const descriptionEl=
-        el(
-          'span',
-          description
-        );
-
-      copy.append(
-        titleEl,
-        descriptionEl
-      );
-
-      b.append(
-        iconBox,
-        copy
-      );
-
-      return b;
-    };
-
-    const actionBar=
-      el(
-        'section',
-        undefined,
-        'pess-home-actions'
-      );
-
-    const openDefeso=
-      actionButton_(
-        'Consultar pagamento do Seguro-Defeso',
-        'Consulte rapidamente o CPF na base oficial de 2025.',
-        'pess-action-defeso',
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="M15 15l5 5"></path><path d="M8.2 10.5h4.6"></path><path d="M10.5 8.2v4.6"></path></svg>'
-      );
-
-    const openNew=
-      actionButton_(
-        'Incluir nova pessoa',
-        'Inicie um novo cadastro com documentos e geração da inicial.',
-        'pess-action-new',
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"></circle><path d="M3.8 18.2c.7-3.1 2.6-4.8 5.2-4.8s4.5 1.7 5.2 4.8"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>'
-      );
-
-    actionBar.append(
-      openDefeso,
-      openNew
-    );
-
-    root.append(
-      actionBar
-    );
-
-    quickDefeso=
-      card(
-        'Consultar pagamento do Seguro-Defeso'
-      );
-
-    quickDefeso.classList.add(
-      'pess-work-panel',
-      'pess-quick-panel'
-    );
-
-    quickDefeso.hidden=true;
-
-    quickDefeso.append(
-      el(
-        'p',
-        'Informe o CPF para consultar os registros de 2025 no Portal da Transparência. Esta consulta avulsa não altera nenhum cadastro.',
-        'hint'
-      )
-    );
-
-    const quickRow=
-      el(
-        'div',
-        undefined,
-        'pess-inline-query'
-      );
-
-    const quickCpfLabel=
-      el(
-        'label',
-        undefined,
-        'field'
-      );
-
-    quickCpfLabel.append(
-      el(
-        'span',
-        'CPF'
-      )
-    );
-
-    const quickCpf=
-      el(
-        'input'
-      );
-
-    quickCpf.type='text';
-    quickCpf.placeholder='000.000.000-00';
-    quickCpf.maxLength=14;
-    quickCpf.inputMode='numeric';
-
-    maskCpfInput_(
-      quickCpf
-    );
-
-    quickCpfLabel.append(
-      quickCpf
-    );
-
-    const quickButton=
-      el(
-        'button',
-        'Consultar pagamento'
-      );
-
-    quickButton.type='button';
-    quickButton.disabled=
-      !(
-        App.state.boot.portalTransparencia&&
-        App.state.boot.portalTransparencia.configurada
-      );
-
-    const quickInfo=
-      el(
-        'small',
-        App.state.boot.portalTransparencia&&
-        App.state.boot.portalTransparencia.configurada
-          ?'API oficial disponível.'
-          :'API não configurada. Cadastre a chave em Administração.',
-        App.state.boot.portalTransparencia&&
-        App.state.boot.portalTransparencia.configurada
-          ?'hint'
-          :'warn'
-      );
-
-    quickButton.onclick=
-      async()=>{
-        try{
-          const codigo=
-            String(
-              quickCpf.value||
-              ''
-            ).replace(/\D/g,'');
-
-          if(!/^\d{11}$/.test(codigo)){
-            throw new Error(
-              'Informe um CPF completo no formato 000.000.000-00.'
-            );
-          }
-
-          quickInfo.textContent=
-            'Consultando a base oficial...';
-
-          quickInfo.className=
-            'hint';
-
-          const result=
-            await call(
-              'seguroDefesoConsultar',
-              {
-                codigo
-              }
-            );
-
-          quickInfo.textContent=
-            'Consulta concluída: '+
-            result.quantidade+
-            ' registro(s) de 2025 localizado(s).';
-
-          showSeguroDefesoDialog_(
-            result
-          );
-
-        }catch(e){
-          quickInfo.textContent=
-            e.message||
-            String(e);
-
-          quickInfo.className=
-            'warn';
-
-          status(
-            e.message||
-            String(e),
-            true
-          );
-        }
-      };
-
-    quickRow.append(
-      quickCpfLabel,
-      quickButton
-    );
-
-    quickDefeso.append(
-      quickRow,
-      quickInfo
-    );
-
-    root.append(
-      quickDefeso
-    );
 
     /*
      * Cadastro completo. Mantém as consultas de CPF/Seguro-Defeso e CEP
@@ -2228,7 +1966,7 @@ window.PDA_MODULES.PESS = (()=>{
     );
 
     edit.open=true;
-    edit.hidden=true;
+    edit.hidden=false;
 
     edit.append(
       el(
@@ -3449,26 +3187,12 @@ window.PDA_MODULES.PESS = (()=>{
         residenceThird
       );
 
-    openDefeso.onclick=()=>{
-      showPanel_(
-        quickDefeso
-      );
-
-      quickCpf.focus();
-    };
-
-    openNew.onclick=()=>{
-      showPanel_(
-        edit
-      );
-
-      if(importFlow){
-        importFlow.showStart();
-      }else if(personStepper){
-        personStepper.setVisible(true);
-        personStepper.showStep(0);
-      }
-    };
+    if(importFlow){
+      importFlow.showStart();
+    }else if(personStepper){
+      personStepper.setVisible(true);
+      personStepper.showStep(0);
+    }
   };
 })();
 </script>
