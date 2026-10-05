@@ -52,3 +52,30 @@ O modelo ativo fica na pasta `MODELOS` da raiz do Povo das Águas. A interface d
 
 
 **O campo Município já existente recebe os 36 municípios informados. A coluna jurisdicao é acrescentada ao final de Pessoas, preservando as colunas anteriores, inclusive parcelasNaoRecebidas. Ao abrir a versão atualizada do aplicativo, os cadastros antigos recebem a jurisdição correspondente e a lista de municípios salva é atualizada. As alterações dos registros recebem auditoria e os atendimentos afetados voltam à preparação para nova conferência. A atualização é idempotente.**
+
+
+## Nome dos arquivos gerados
+
+A petição inicial é gerada simultaneamente em Google Docs e PDF. O nome-base dos dois arquivos segue:
+
+`INI.<JURISDICAO>.<NOME>`
+
+Exemplo:
+
+`INI.PELOTAS.JOÃO DA SILVA`
+
+O nome da pessoa inserido no corpo da petição também é convertido para letras maiúsculas.
+
+O PDF recebe o mesmo nome-base acrescido de `.pdf`.
+
+## Valor da causa
+
+O marcador `<<VALOR_CAUSA>>` recebe o valor total e a memória sintética do cálculo.
+
+Exemplo para três parcelas:
+
+`4.554,00 (3 parcelas não pagas × R$ 1.518,00 por parcela)`
+
+Como o modelo mantém `R$ ` antes do marcador, o texto final fica:
+
+`R$ 4.554,00 (3 parcelas não pagas × R$ 1.518,00 por parcela)`
