@@ -14,6 +14,49 @@ function personSave_(ctx,q){
 
   ctx.effects.push('Pasta da pessoa preservada no Drive: '+folder.getUrl());
 
+  const distributionTask=
+    distributionTaskForPerson_(
+      saved.id
+    );
+
+  if(
+    distributionTask&&
+    distributionTask.situacao!==
+      DISTRIBUTION_TASK_DONE
+  ){
+    change_(
+      ctx,
+      'Tarefas',
+      distributionTask.id,
+      {
+        tipo:distributionTask.tipo,
+        pessoaId:saved.id,
+        responsavel:
+          distributionTask.responsavel||
+          '',
+        situacao:distributionTask.situacao,
+        jurisdicao:
+          saved.jurisdicao||
+          jurisdicaoPessoa_(saved)||
+          '',
+        valorCausa:String(
+          valorCausaDefeso_(
+            saved.parcelasNaoRecebidas
+          )
+        ),
+        atribuidaEm:
+          distributionTask.atribuidaEm||
+          '',
+        concluidaEm:'',
+        processoId:'',
+        observacoes:
+          distributionTask.observacoes||
+          ''
+      },
+      distributionTask.versao
+    );
+  }
+
   if(before){
     all_('Atendimentos')
       .filter(a=>a.pessoaId===before.id)
