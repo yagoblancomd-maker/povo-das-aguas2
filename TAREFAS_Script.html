@@ -547,11 +547,110 @@ window.PDA_MODULES.TAREFAS = (()=>{
         'task-dialog-section'
       );
 
-    docs.append(
+    const docsHead=
+      el(
+        'div',
+        undefined,
+        'task-docs-head'
+      );
+
+    docsHead.append(
       el(
         'h4',
         'Documentos da pessoa'
       )
+    );
+
+    if(
+      detail.documentos&&
+      detail.documentos.length
+    ){
+      const downloadAll=
+        button(
+          'Baixar todos os documentos',
+          async()=>{
+            /*
+             * Abre a aba imediatamente para evitar bloqueio de pop-up
+             * enquanto o servidor monta/recupera o ZIP.
+             */
+            const downloadTab=
+              window.open(
+                '',
+                '_blank'
+              );
+
+            if(downloadTab){
+              downloadTab.document.title=
+                'Preparando documentos…';
+
+              downloadTab.document.body.innerHTML=
+                '<div style="font:14px system-ui;padding:24px;color:#173f51">Preparando o arquivo ZIP dos documentos…</div>';
+            }
+
+            try{
+              const result=
+                await call(
+                  'tarefaDocumentosZipGerar',
+                  {
+                    id:detail.tarefa.id
+                  },
+                  true
+                );
+
+              status(
+                result.mensagem||
+                'Documentos preparados para download.'
+              );
+
+              if(downloadTab){
+                downloadTab.location.replace(
+                  result.downloadUrl
+                );
+              }else{
+                const a=
+                  document.createElement(
+                    'a'
+                  );
+
+                a.href=
+                  result.downloadUrl;
+
+                a.target='_blank';
+                a.rel='noopener noreferrer';
+
+                document.body.append(a);
+                a.click();
+                a.remove();
+              }
+
+            }catch(e){
+              if(
+                downloadTab&&
+                !downloadTab.closed
+              ){
+                downloadTab.close();
+              }
+
+              throw e;
+            }
+          },
+          true
+        );
+
+      downloadAll.classList.add(
+        'task-download-all'
+      );
+
+      downloadAll.title=
+        'Cria um arquivo ZIP com todos os documentos vigentes desta pessoa.';
+
+      docsHead.append(
+        downloadAll
+      );
+    }
+
+    docs.append(
+      docsHead
     );
 
     const docGrid=
