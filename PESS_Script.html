@@ -1255,6 +1255,33 @@ window.PDA_MODULES.PESS = (()=>{
 
       return true;
     }catch(e){
+      input.required=false;
+      input.dataset.imported='true';
+
+      const box=
+        input.closest(
+          'details'
+        );
+
+      const summary=
+        box&&box.querySelector(
+          'summary'
+        );
+
+      if(summary){
+        const title=
+          String(
+            summary.textContent||
+            ''
+          ).split(' — ')[0];
+
+        summary.textContent=
+          title+
+          ' — Documento importado';
+
+        box.open=false;
+      }
+
       return false;
     }
   }
@@ -1386,6 +1413,24 @@ window.PDA_MODULES.PESS = (()=>{
       privacy
     );
 
+    const deepseekReady=
+      !!(
+        App.state.boot.deepseek&&
+        App.state.boot.deepseek.configurada
+      );
+
+    panel.append(
+      el(
+        'p',
+        deepseekReady
+          ?'Leitura automática disponível · '+App.state.boot.deepseek.modelo
+          :'Leitura automática indisponível: configure DEEPSEEK_API_KEY em Administração.',
+        deepseekReady
+          ?'badge'
+          :'warn'
+      )
+    );
+
     const resultBox=
       el(
         'div',
@@ -1413,6 +1458,8 @@ window.PDA_MODULES.PESS = (()=>{
       );
 
     analyze.type='button';
+    analyze.disabled=
+      !deepseekReady;
 
     const manual=
       el(
@@ -1471,15 +1518,19 @@ window.PDA_MODULES.PESS = (()=>{
           !identityFiles.length||
           identityFiles.length>2
         ){
-          throw new Error(
-            'Selecione 1 arquivo PDF ou até 2 imagens do documento de identidade.'
+          status(
+            'Selecione 1 arquivo PDF ou até 2 imagens do documento de identidade.',
+            true
           );
+          return;
         }
 
         if(!residenceFile){
-          throw new Error(
-            'Selecione o comprovante de residência.'
+          status(
+            'Selecione o comprovante de residência.',
+            true
           );
+          return;
         }
 
         const allFiles=
@@ -1495,19 +1546,23 @@ window.PDA_MODULES.PESS = (()=>{
           );
 
         if(tooLarge){
-          throw new Error(
+          status(
             'Arquivo maior que 5 MB: '+
-            tooLarge.name
+            tooLarge.name,
+            true
           );
+          return;
         }
 
         if(
           !App.state.boot.deepseek||
           !App.state.boot.deepseek.configurada
         ){
-          throw new Error(
-            'A API DeepSeek ainda não está configurada. Salve DEEPSEEK_API_KEY em Administração ou use o preenchimento manual.'
+          status(
+            'A API DeepSeek ainda não está configurada. Salve DEEPSEEK_API_KEY em Administração ou use o preenchimento manual.',
+            true
           );
+          return;
         }
 
         analyze.disabled=true;
@@ -1713,8 +1768,17 @@ window.PDA_MODULES.PESS = (()=>{
 
           showForm();
 
+          const warningText=
+            result.alertas&&
+            result.alertas.length
+              ?'\n'+result.alertas.map(
+                  item=>'• '+item
+                ).join('\n')
+              :'';
+
           status(
-            'Dados importados. Confira cada etapa antes de salvar.'
+            'Dados importados. Confira cada etapa antes de salvar.'+
+            warningText
           );
 
         }catch(e){
