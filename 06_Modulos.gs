@@ -465,7 +465,7 @@ function api(action,q){
 
   const mutations={
     pessoaSalvar:['cadastro',personSave_],
-    pessoaRetificar:['consulta',personSave_],
+    pessoaRetificar:['consulta',personRetify_],
     pessoaUpload:['cadastro',personUpload_],
     pessoaDocumentoExcluir:['consulta',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
