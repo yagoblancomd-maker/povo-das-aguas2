@@ -526,10 +526,19 @@ function selfRegistrationTokenRead_(token){
   let data;
 
   try{
+    const paddedPayload=
+      payload+
+      '='.repeat(
+        (
+          4-
+          payload.length%4
+        )%4
+      );
+
     data=JSON.parse(
       Utilities.newBlob(
         Utilities.base64DecodeWebSafe(
-          payload
+          paddedPayload
         )
       ).getDataAsString(
         'UTF-8'
