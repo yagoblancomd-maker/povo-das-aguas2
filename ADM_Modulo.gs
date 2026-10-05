@@ -299,6 +299,65 @@ function userDelete_(ctx,q){
   };
 }
 
+function userApproveProfessorResident_(ctx,q){
+  required_(
+    q.id,
+    'usuário'
+  );
+
+  const user=
+    get_(
+      'Usuarios',
+      q.id
+    );
+
+  const funcao=String(
+    user.funcao||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  if(
+    funcao!=='professor'&&
+    funcao!=='residente'
+  ){
+    fail_(
+      'A aprovação funcional completa está disponível somente para Professor ou Residente.'
+    );
+  }
+
+  const permissions=
+    rolePermissions_(
+      'PROFESSOR_RESIDENTE'
+    );
+
+  const userData={
+    email:user.email,
+    perfil:'PROFESSOR_RESIDENTE',
+    ativo:bool_(user.ativo),
+    nome:user.nome,
+    funcao:user.funcao,
+    permissoes:JSON.stringify(
+      permissions
+    ),
+    permissoesVersao:2
+  };
+
+  syncGoogleResourcesForUser_(
+    userData,
+    ctx
+  );
+
+  return change_(
+    ctx,
+    'Usuarios',
+    user.id,
+    userData,
+    q.versao
+  );
+}
+
 function userSave_(ctx,q){
   const nome=String(
     q.nome||''
