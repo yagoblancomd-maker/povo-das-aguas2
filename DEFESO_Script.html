@@ -1,0 +1,381 @@
+<script>
+window.PDA_MODULES.DEFESO = (()=>{
+  const {
+    el,card,call,status
+  }=App;
+
+  function moneyBR_(value){
+    return Number(value||0).toLocaleString(
+      'pt-BR',
+      {
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      }
+    );
+  }
+
+  function dateBR_(value){
+    const s=String(value||'').slice(0,10);
+
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      return String(value||'');
+    }
+
+    return s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4);
+  }
+
+  function maskCpf_(input){
+    const sync=()=>{
+      const d=String(input.value||'')
+        .replace(/\D/g,'')
+        .slice(0,11);
+
+      input.value=
+        d
+          .replace(/^(\d{3})(\d)/,'$1.$2')
+          .replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3')
+          .replace(
+            /^(\d{3})\.(\d{3})\.(\d{3})(\d{1,2}).*$/,
+            '$1.$2.$3-$4'
+          );
+    };
+
+    input.addEventListener('input',sync);
+    input.addEventListener('blur',sync);
+  }
+
+  function recordText_(r){
+    return [
+      'ID: '+(r.id||'—'),
+      'CPF: '+(r.cpfFormatado||'—'),
+      'NIS: '+(r.nis||'—'),
+      'Nome: '+(r.nome||'—'),
+      'Município: '+(r.nomeIBGE||'—'),
+      'UF: '+(r.ufSigla||'—'),
+      'RGP: '+(r.rgp||'—'),
+      'Portaria: '+(r.portaria||'—'),
+      'Mês de referência: '+(dateBR_(r.dataMesReferencia)||'—'),
+      'Data de emissão: '+(dateBR_(r.dataEmissaoParcela)||'—'),
+      'Data do saque: '+(dateBR_(r.dataSaque)||'—'),
+      'Parcela: '+(r.parcela||'—'),
+      'Situação: '+(r.situacao||'—'),
+      'Valor: R$ '+moneyBR_(r.valor)
+    ].join('\n');
+  }
+
+  function renderResult_(area,result){
+    area.replaceChildren();
+
+    const stats=
+      el(
+        'div',
+        undefined,
+        'stats'
+      );
+
+    [
+      [
+        String(result.quantidade||0),
+        'registros de 2025'
+      ],
+      [
+        'R$ '+moneyBR_(result.valorTotal),
+        'valor total localizado'
+      ],
+      [
+        String(result.registrosForaPeriodo||0),
+        'registros fora de 2025'
+      ]
+    ].forEach(([value,label])=>{
+      const box=
+        el(
+          'div',
+          undefined,
+          'stat'
+        );
+
+      box.append(
+        el(
+          'strong',
+          value
+        ),
+        el(
+          'span',
+          label
+        )
+      );
+
+      stats.append(box);
+    });
+
+    area.append(stats);
+
+    if(!result.registros||!result.registros.length){
+      area.append(
+        el(
+          'p',
+          'Nenhum registro com mês de referência em 2025 foi localizado para o CPF informado.',
+          'warn'
+        )
+      );
+
+      return;
+    }
+
+    result.registros.forEach((r,index)=>{
+      const box=
+        el(
+          'details'
+        );
+
+      box.append(
+        el(
+          'summary',
+          (
+            r.parcela
+              ?'Parcela '+r.parcela
+              :'Registro '+(index+1)
+          )+
+          ' — '+
+          (
+            dateBR_(r.dataMesReferencia)||
+            'sem mês de referência'
+          )+
+          ' — R$ '+
+          moneyBR_(r.valor)
+        )
+      );
+
+      box.append(
+        el(
+          'pre',
+          recordText_(r)
+        )
+      );
+
+      area.append(box);
+    });
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'defeso-page-head'
+      );
+
+    head.append(
+      el(
+        'h2',
+        'Consultar Defeso 2025'
+      ),
+      el(
+        'p',
+        'Consulta avulsa à API oficial do Portal da Transparência. Nenhum cadastro é criado ou alterado.',
+        'hint'
+      )
+    );
+
+    root.append(head);
+
+    const search=
+      card();
+
+    search.classList.add(
+      'defeso-search-card'
+    );
+
+    const icon=
+      el(
+        'div',
+        undefined,
+        'defeso-search-icon'
+      );
+
+    icon.innerHTML=
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="M15 15l5 5"></path><path d="M8.2 10.5h4.6"></path><path d="M10.5 8.2v4.6"></path></svg>';
+
+    const content=
+      el(
+        'div'
+      );
+
+    content.append(
+      el(
+        'h3',
+        'Consultar pagamento do Seguro-Defeso'
+      ),
+      el(
+        'p',
+        'Informe o CPF para localizar os registros cujo mês de referência esteja entre 01/01/2025 e 31/12/2025.',
+        'hint'
+      )
+    );
+
+    const row=
+      el(
+        'div',
+        undefined,
+        'defeso-query-row'
+      );
+
+    const field=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    field.append(
+      el(
+        'span',
+        'CPF'
+      )
+    );
+
+    const cpf=
+      el(
+        'input'
+      );
+
+    cpf.type='text';
+    cpf.placeholder='000.000.000-00';
+    cpf.maxLength=14;
+    cpf.inputMode='numeric';
+    cpf.autocomplete='off';
+
+    maskCpf_(cpf);
+    field.append(cpf);
+
+    const consult=
+      el(
+        'button',
+        'Consultar Defeso 2025'
+      );
+
+    consult.type='button';
+
+    const configured=
+      !!(
+        App.state.boot.portalTransparencia&&
+        App.state.boot.portalTransparencia.configurada
+      );
+
+    consult.disabled=!configured;
+
+    row.append(
+      field,
+      consult
+    );
+
+    const apiState=
+      el(
+        'small',
+        configured
+          ?'API oficial disponível.'
+          :'API do Portal da Transparência não configurada. Solicite a configuração a um administrador.',
+        configured
+          ?'hint defeso-api-state'
+          :'warn defeso-api-state'
+      );
+
+    content.append(
+      row,
+      apiState
+    );
+
+    search.append(
+      icon,
+      content
+    );
+
+    root.append(search);
+
+    const resultArea=
+      el(
+        'section',
+        undefined,
+        'defeso-result'
+      );
+
+    root.append(resultArea);
+
+    consult.onclick=async()=>{
+      const codigo=
+        String(cpf.value||'')
+          .replace(/\D/g,'');
+
+      if(!/^\d{11}$/.test(codigo)){
+        status(
+          'Informe um CPF completo no formato 000.000.000-00.',
+          true
+        );
+
+        cpf.focus();
+        return;
+      }
+
+      apiState.textContent=
+        'Consultando a base oficial...';
+
+      apiState.className=
+        'hint defeso-api-state';
+
+      try{
+        const result=
+          await call(
+            'seguroDefesoConsultar',
+            {
+              codigo
+            }
+          );
+
+        apiState.textContent=
+          'Consulta concluída em '+
+          String(result.consultadoEm||'')+
+          '.';
+
+        renderResult_(
+          resultArea,
+          result
+        );
+
+        status(
+          'Consulta do Seguro-Defeso 2025 concluída.'
+        );
+
+      }catch(e){
+        apiState.textContent=
+          e.message||
+          String(e);
+
+        apiState.className=
+          'warn defeso-api-state';
+
+        status(
+          e.message||
+          String(e),
+          true
+        );
+      }
+    };
+
+    cpf.addEventListener(
+      'keydown',
+      event=>{
+        if(event.key==='Enter'){
+          event.preventDefault();
+          consult.click();
+        }
+      }
+    );
+
+    requestAnimationFrame(
+      ()=>cpf.focus()
+    );
+  };
+})();
+</script>
