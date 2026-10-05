@@ -737,7 +737,7 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     const actions=el('div',undefined,'actions');
 
-    actions.append(
+    const otherPerson=
       button(
         'Outra pessoa',
         ()=>{
@@ -745,80 +745,58 @@ window.PDA_MODULES.ACOMP = (()=>{
           return go('ACOMP');
         },
         true
-      ),
+      );
+
+    const newAttendance=
       button(
         'Novo atendimento',
         ()=>go('ATEND',p.id)
-      )
-    );
-
-    root.append(actions);
+      );
 
     /*
-     * Relatório oficial do Seguro-Defeso 2025.
-     * O bloco permanece retraído por padrão e sempre usa o CPF da pessoa
-     * atualmente aberta na Ficha e conferência.
+     * Menu único para documentos produzidos pelo próprio sistema.
+     * Os dois documentos são gerados para a pessoa atualmente aberta e,
+     * ao final, integram "Documentos da pessoa".
      */
-    const defesoReport=details(
-      root,
-      'Relatório Seguro-Defeso 2025'
+    const generateMenu=
+      el(
+        'details',
+        undefined,
+        'acomp-generate-menu'
+      );
+
+    const generateMenuSummary=
+      el(
+        'summary',
+        'Gerar documentos'
+      );
+
+    generateMenu.append(
+      generateMenuSummary
     );
 
-    defesoReport.classList.add(
-      'acomp-defeso-report'
-    );
+    const generateMenuPanel=
+      el(
+        'div',
+        undefined,
+        'acomp-generate-menu-panel'
+      );
 
-    defesoReport.open=false;
-
-    const cpfDigits=
-      String(p.cpf||'')
-        .replace(/\D/g,'');
-
-    const cpfDisplay=
-      cpfDigits.length===11
-        ?cpfDigits.replace(
-            /(\d{3})(\d{3})(\d{3})(\d{2})/,
-            '$1.$2.$3-$4'
-          )
-        :String(p.cpf||'');
-
-    defesoReport.append(
+    generateMenuPanel.append(
       el(
         'p',
-        'A consulta será realizada pelo CPF '+cpfDisplay+' da pessoa atualmente aberta nesta ficha, considerando os registros de referência de 2025.',
-        'hint'
+        'Gerar para '+p.nome,
+        'acomp-generate-menu-title'
       )
     );
 
-    const defesoReportResult=
-      el(
-        'div',
-        undefined,
-        'acomp-defeso-report-result'
-      );
-
-    const defesoReportActions=
-      el(
-        'div',
-        undefined,
-        'actions'
-      );
-
-    const generateDefesoReport=
+    const reportButton=
       button(
-        'Gerar relatório do Seguro-Defeso 2025',
+        'Relatório do Seguro-Defeso 2025',
         async()=>{
-          generateDefesoReport.disabled=true;
-          generateDefesoReport.textContent=
+          reportButton.disabled=true;
+          reportButton.textContent=
             'Gerando relatório...';
-
-          defesoReportResult.replaceChildren(
-            el(
-              'p',
-              'Consultando o Portal da Transparência e preparando o relatório...',
-              'hint'
-            )
-          );
 
           try{
             const result=
@@ -830,73 +808,20 @@ window.PDA_MODULES.ACOMP = (()=>{
                 true
               );
 
-            const report=
-              result.relatorio||{};
-
-            defesoReportResult.replaceChildren();
-
-            const summary=
-              el(
-                'div',
-                undefined,
-                'acomp-defeso-report-summary'
-              );
-
-            summary.append(
-              el(
-                'strong',
-                String(result.quantidade||0)
-              ),
-              el(
-                'span',
-                ' registro(s) de 2025 · R$ '+
-                Number(result.valorTotal||0).toLocaleString(
-                  'pt-BR',
-                  {
-                    minimumFractionDigits:2,
-                    maximumFractionDigits:2
-                  }
-                )
-              )
-            );
-
-            defesoReportResult.append(
-              summary
-            );
-
-            const reportLinks=
-              el(
-                'div',
-                undefined,
-                'actions'
-              );
-
-            if(report.url){
-              reportLinks.append(
-                link(
-                  report.url,
-                  'Abrir Google Docs'
-                )
-              );
-            }
-
-            if(report.pdfUrl){
-              reportLinks.append(
-                link(
-                  report.pdfUrl,
-                  'Abrir PDF'
-                )
-              );
-            }
-
-            if(reportLinks.children.length){
-              defesoReportResult.append(
-                reportLinks
-              );
-            }
-
             status(
-              'Relatório do Seguro-Defeso 2025 gerado e adicionado aos documentos de '+p.nome+'.'
+              'Relatório do Seguro-Defeso 2025 gerado e adicionado aos documentos de '+
+              p.nome+
+              '. Registros de 2025: '+
+              String(result.quantidade||0)+
+              ' · Valor localizado: R$ '+
+              Number(result.valorTotal||0).toLocaleString(
+                'pt-BR',
+                {
+                  minimumFractionDigits:2,
+                  maximumFractionDigits:2
+                }
+              )+
+              '.'
             );
 
             await go(
@@ -905,50 +830,108 @@ window.PDA_MODULES.ACOMP = (()=>{
             );
 
           }catch(e){
-            defesoReportResult.replaceChildren(
-              el(
-                'p',
-                e.message||String(e),
-                'warn'
-              )
-            );
-
             status(
               e.message||String(e),
               true
             );
 
           }finally{
-            generateDefesoReport.disabled=false;
-            generateDefesoReport.textContent=
-              'Gerar relatório do Seguro-Defeso 2025';
+            reportButton.disabled=false;
+            reportButton.textContent=
+              'Relatório do Seguro-Defeso 2025';
           }
         }
       );
+
+    reportButton.classList.add(
+      'acomp-generate-option'
+    );
 
     if(
       !App.state.boot.portalTransparencia||
       !App.state.boot.portalTransparencia.configurada
     ){
-      generateDefesoReport.disabled=true;
-
-      defesoReport.append(
-        el(
-          'p',
-          'A API do Portal da Transparência não está configurada. Cadastre a chave em Administração antes de gerar o relatório.',
-          'warn'
-        )
-      );
+      reportButton.disabled=true;
+      reportButton.title=
+        'Configure a API do Portal da Transparência em Administração.';
     }
 
-    defesoReportActions.append(
-      generateDefesoReport
+    const initialButton=
+      button(
+        'Petição inicial — Seguro-Defeso 2025',
+        async()=>{
+          initialButton.disabled=true;
+          initialButton.textContent=
+            'Gerando inicial...';
+
+          try{
+            await call(
+              'pessoaInicialGerar',
+              {
+                pessoaId:p.id
+              },
+              true
+            );
+
+            status(
+              'Petição inicial gerada e adicionada aos documentos de '+
+              p.nome+
+              '.'
+            );
+
+            await go(
+              'ACOMP',
+              p.id
+            );
+
+          }catch(e){
+            status(
+              e.message||String(e),
+              true
+            );
+
+          }finally{
+            initialButton.disabled=false;
+            initialButton.textContent=
+              'Petição inicial — Seguro-Defeso 2025';
+          }
+        }
+      );
+
+    initialButton.classList.add(
+      'acomp-generate-option'
     );
 
-    defesoReport.append(
-      defesoReportActions,
-      defesoReportResult
+    if(
+      !App.state.boot.modelo||
+      !App.state.boot.modelo.configurado
+    ){
+      initialButton.disabled=true;
+      initialButton.title=
+        'Configure o modelo da petição inicial em Administração.';
+    }
+
+    generateMenuPanel.append(
+      reportButton,
+      initialButton,
+      el(
+        'small',
+        'Os PDFs gerados são salvos na pasta individual e adicionados a Documentos da pessoa.',
+        'hint'
+      )
     );
+
+    generateMenu.append(
+      generateMenuPanel
+    );
+
+    actions.append(
+      otherPerson,
+      newAttendance,
+      generateMenu
+    );
+
+    root.append(actions);
 
     const person=details(
       root,
