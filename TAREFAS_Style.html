@@ -293,6 +293,32 @@
   background:#f8fbfc;
   font-size:9px
 }
+.task-docs-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px
+}
+.task-docs-head h4{
+  margin:0
+}
+.task-download-all{
+  min-height:28px;
+  padding:5px 9px;
+  border-color:#b8d5da;
+  color:#0b6572;
+  background:#edf7f8;
+  box-shadow:none;
+  font-size:8.8px;
+  white-space:nowrap
+}
+.task-download-all:hover{
+  color:#fff;
+  border-color:#0b7884;
+  background:#0b7884;
+  box-shadow:none
+}
 .task-docs{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -381,6 +407,13 @@
     flex-direction:column
   }
   .task-dialog-actions button{
+    width:100%
+  }
+  .task-docs-head{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .task-download-all{
     width:100%
   }
 }
