@@ -302,133 +302,284 @@ function findSeguroDefesoReportFile_(folder,marker,mime){
   return null;
 }
 
-function seguroDefesoRecordRows_(r){
+function uniqueSeguroDefesoValues_(registros,key){
+  const values=[];
+
+  (registros||[]).forEach(r=>{
+    const value=String(r&&r[key]||'').trim();
+
+    if(
+      value&&
+      !values.includes(value)
+    ){
+      values.push(value);
+    }
+  });
+
+  return values;
+}
+
+function seguroDefesoJoin_(values,separator){
+  return (values||[])
+    .filter(Boolean)
+    .join(separator||' · ');
+}
+
+function seguroDefesoBeneficiaryRows_(consulta){
+  const registros=consulta.registros||[];
+  const first=registros[0]||{};
+
+  const nomes=uniqueSeguroDefesoValues_(registros,'nome');
+  const cpfs=uniqueSeguroDefesoValues_(registros,'cpfFormatado');
+  const nis=uniqueSeguroDefesoValues_(registros,'nis');
+  const rgps=uniqueSeguroDefesoValues_(registros,'rgp');
+  const municipios=uniqueSeguroDefesoValues_(registros,'nomeIBGE');
+  const ufs=uniqueSeguroDefesoValues_(registros,'ufSigla');
+  const ufNomes=uniqueSeguroDefesoValues_(registros,'ufNome');
+  const ibges=uniqueSeguroDefesoValues_(registros,'codigoIBGE');
+  const regioes=uniqueSeguroDefesoValues_(registros,'nomeRegiao');
+  const codigosRegiao=uniqueSeguroDefesoValues_(registros,'codigoRegiao');
+  const paises=uniqueSeguroDefesoValues_(registros,'pais');
+  const portarias=uniqueSeguroDefesoValues_(registros,'portaria');
+
   return [
-    ['ID',r.id],
-    ['CPF',r.cpfFormatado],
-    ['NIS',r.nis],
-    ['Nome',r.nome],
-    ['Código IBGE',r.codigoIBGE],
-    ['Município',r.nomeIBGE],
-    ['Código da região',r.codigoRegiao],
-    ['Região',r.nomeRegiao],
-    ['País',r.pais],
-    ['UF',r.ufSigla],
-    ['Nome da UF',r.ufNome],
-    ['Portaria',r.portaria],
-    ['Mês de referência',reportDateBR_(r.dataMesReferencia)],
-    ['Data do saque',reportDateBR_(r.dataSaque)],
-    ['Data de emissão da parcela',reportDateBR_(r.dataEmissaoParcela)],
-    ['Situação',r.situacao],
-    ['RGP',r.rgp],
-    ['Parcela',r.parcela],
-    ['Valor',reportMoneyBR_(r.valor)]
-  ].map(row=>[
-    String(row[0]||''),
-    String(row[1]||'—')
+    ['Nome',seguroDefesoJoin_(nomes)||first.nome||'—'],
+    [
+      'CPF / NIS',
+      [
+        seguroDefesoJoin_(cpfs),
+        seguroDefesoJoin_(nis)
+      ].filter(Boolean).join(' / ')||'—'
+    ],
+    ['RGP',seguroDefesoJoin_(rgps)||'—'],
+    [
+      'Município / UF',
+      [
+        seguroDefesoJoin_(municipios),
+        seguroDefesoJoin_(ufs)
+      ].filter(Boolean).join(' / ')||'—'
+    ],
+    [
+      'UF / Região / País',
+      [
+        seguroDefesoJoin_(ufNomes),
+        [
+          seguroDefesoJoin_(codigosRegiao),
+          seguroDefesoJoin_(regioes)
+        ].filter(Boolean).join(' - '),
+        seguroDefesoJoin_(paises)
+      ].filter(Boolean).join(' · ')||'—'
+    ],
+    ['Código IBGE',seguroDefesoJoin_(ibges)||'—'],
+    ['Portaria',seguroDefesoJoin_(portarias,' | ')||'—']
+  ];
+}
+
+function seguroDefesoPaymentRows_(consulta){
+  return (consulta.registros||[]).map(r=>[
+    String(r.parcela||'—'),
+    reportDateBR_(r.dataMesReferencia)||'—',
+    reportDateBR_(r.dataEmissaoParcela)||'—',
+    reportDateBR_(r.dataSaque)||'—',
+    String(r.situacao||'—'),
+    reportMoneyBR_(r.valor),
+    String(r.id||'—')
   ]);
+}
+
+function styleSeguroDefesoTable_(table,header){
+  for(let r=0;r<table.getNumRows();r++){
+    const row=table.getRow(r);
+
+    for(let c=0;c<row.getNumCells();c++){
+      const cell=row.getCell(c);
+      const text=cell.editAsText();
+
+      text.setFontSize(8.5);
+
+      if(header&&r===0){
+        text.setBold(true);
+        cell.setBackgroundColor('#E8F2F4');
+      }
+
+      if(!header&&c===0){
+        text.setBold(true);
+        cell.setBackgroundColor('#F4F8F9');
+      }
+    }
+  }
+}
+
+function appendCompactParagraph_(body,text,size,bold){
+  const p=body.appendParagraph(String(text||''));
+
+  p.setSpacingBefore(0);
+  p.setSpacingAfter(2);
+  p.setLineSpacing(1);
+
+  const t=p.editAsText();
+  t.setFontSize(size||9);
+
+  if(bold){
+    t.setBold(true);
+  }
+
+  return p;
 }
 
 function renderSeguroDefesoReport_(doc,p,consulta){
   const body=doc.getBody();
   body.clear();
 
-  body.appendParagraph(
+  body.setMarginTop(28);
+  body.setMarginBottom(28);
+  body.setMarginLeft(34);
+  body.setMarginRight(34);
+
+  const title=body.appendParagraph(
     'RELATÓRIO DE CONSULTA — SEGURO-DEFESO 2025'
-  ).setHeading(
-    DocumentApp.ParagraphHeading.HEADING1
   );
 
-  body.appendParagraph(
-    'Pessoa: '+
-    String(p.nome||'').toUpperCase()
+  title.setSpacingBefore(0);
+  title.setSpacingAfter(4);
+
+  title
+    .editAsText()
+    .setBold(true)
+    .setFontSize(15)
+    .setForegroundColor('#123E52');
+
+  appendCompactParagraph_(
+    body,
+    String(p.nome||'').toUpperCase()+
+      ' · CPF '+
+      cpfDisplay_(p.cpf),
+    10,
+    true
   );
 
-  body.appendParagraph(
-    'CPF: '+
-    cpfDisplay_(p.cpf)
+  appendCompactParagraph_(
+    body,
+    'Período analisado: 01/01/2025 a 31/12/2025. Consulta realizada em '+
+      Utilities.formatDate(
+        new Date(consulta.consultadoEm),
+        PDA.tz,
+        'dd/MM/yyyy HH:mm:ss'
+      )+
+      ' por meio da API oficial do Portal da Transparência do Governo Federal, mantido pela Controladoria-Geral da União.',
+    8.5,
+    false
   );
 
-  body.appendParagraph(
-    'Período de referência considerado: 01/01/2025 a 31/12/2025.'
-  );
+  const summary=body.appendTable([
+    [
+      'Registros 2025',
+      String(consulta.quantidade),
+      'Valor localizado',
+      reportMoneyBR_(consulta.valorTotal),
+      'Fora do período',
+      String(consulta.registrosForaPeriodo)
+    ]
+  ]);
 
-  body.appendParagraph(
-    'Consulta realizada em '+
-    Utilities.formatDate(
-      new Date(consulta.consultadoEm),
-      PDA.tz,
-      'dd/MM/yyyy HH:mm:ss'
-    )+
-    ' por meio da API oficial do Portal da Transparência do Governo Federal, '+
-    'mantido pela Controladoria-Geral da União. Os valores, situações, datas e '+
-    'demais informações abaixo reproduzem os registros disponibilizados pelos '+
-    'portais oficiais na data e hora desta consulta.'
-  );
+  for(let c=0;c<summary.getRow(0).getNumCells();c++){
+    const cell=summary.getRow(0).getCell(c);
+    const text=cell.editAsText();
 
-  body.appendParagraph(
-    'Endpoint oficial consultado: '+
-    consulta.endpoint
-  );
+    text.setFontSize(8.5);
 
-  body.appendParagraph(
-    'Registros recebidos pela API: '+
-    consulta.registrosRecebidos+
-    '. Registros dentro do período de referência de 2025: '+
-    consulta.quantidade+
-    '. Registros fora do período de 2025 desconsiderados neste relatório: '+
-    consulta.registrosForaPeriodo+
-    '.'
-  );
+    if(c%2===0){
+      text.setBold(true);
+      cell.setBackgroundColor('#E8F2F4');
+    }
+  }
 
-  body.appendParagraph(
-    'Valor total dos registros de 2025 localizados: '+
-    reportMoneyBR_(consulta.valorTotal)+
-    '.'
-  ).setHeading(
-    DocumentApp.ParagraphHeading.HEADING2
+  body.appendParagraph('').setSpacingAfter(0);
+
+  appendCompactParagraph_(
+    body,
+    'DADOS RETORNADOS PELA BASE OFICIAL',
+    9.5,
+    true
   );
 
   if(!consulta.registros.length){
-    body.appendParagraph(
-      'Nenhum registro com data de mês de referência entre 01/01/2025 e 31/12/2025 foi localizado nesta consulta.'
+    appendCompactParagraph_(
+      body,
+      'Nenhum registro com mês de referência entre 01/01/2025 e 31/12/2025 foi localizado para o CPF consultado.',
+      9,
+      false
     );
 
   }else{
-    consulta.registros.forEach((r,index)=>{
-      body.appendParagraph(
-        (
-          r.parcela
-            ?'Parcela '+r.parcela
-            :'Registro '+(index+1)
-        )+
-        ' — '+
-        (
-          reportDateBR_(r.dataMesReferencia)||
-          'sem mês de referência'
-        )+
-        ' — '+
-        reportMoneyBR_(r.valor)
-      ).setHeading(
-        DocumentApp.ParagraphHeading.HEADING2
-      );
+    const beneficiaryTable=body.appendTable(
+      seguroDefesoBeneficiaryRows_(consulta)
+    );
 
-      const table=body.appendTable(
-        seguroDefesoRecordRows_(r)
-      );
+    styleSeguroDefesoTable_(
+      beneficiaryTable,
+      false
+    );
 
-      for(let i=0;i<table.getNumRows();i++){
-        table
-          .getRow(i)
-          .getCell(0)
-          .editAsText()
-          .setBold(true);
-      }
-    });
+    body.appendParagraph('').setSpacingAfter(0);
+
+    appendCompactParagraph_(
+      body,
+      'PARCELAS LOCALIZADAS EM 2025',
+      9.5,
+      true
+    );
+
+    const paymentTable=body.appendTable(
+      [
+        [
+          'Parcela',
+          'Mês ref.',
+          'Emissão',
+          'Saque',
+          'Situação',
+          'Valor',
+          'ID API'
+        ]
+      ].concat(
+        seguroDefesoPaymentRows_(consulta)
+      )
+    );
+
+    styleSeguroDefesoTable_(
+      paymentTable,
+      true
+    );
   }
 
-  body.appendParagraph(
-    'Observação: a inexistência de registro nesta consulta, isoladamente, não é tratada pelo sistema como prova conclusiva de ausência de pagamento. O relatório registra apenas o conteúdo disponibilizado pela API oficial no momento da consulta.'
+  body.appendParagraph('').setSpacingAfter(0);
+
+  appendCompactParagraph_(
+    body,
+    'Fonte oficial: '+
+      consulta.endpoint,
+    7.5,
+    false
+  );
+
+  appendCompactParagraph_(
+    body,
+    'Foram recebidos '+
+      consulta.registrosRecebidos+
+      ' registro(s) pela API; '+
+      consulta.quantidade+
+      ' pertencem ao período de referência de 2025 e '+
+      consulta.registrosForaPeriodo+
+      ' registro(s) de outros períodos foram desconsiderados neste relatório.',
+    7.5,
+    false
+  );
+
+  appendCompactParagraph_(
+    body,
+    'Observação: a ausência de registro nesta consulta, isoladamente, não constitui prova conclusiva de ausência de pagamento. Este relatório reproduz os dados disponibilizados pela API oficial na data e hora da consulta.',
+    7.5,
+    false
   );
 
   doc.saveAndClose();
