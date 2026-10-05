@@ -229,17 +229,32 @@ function userDelete_(ctx,q){
           DISTRIBUTION_TASK_DONE
       );
 
-  if(pendingTasks.length){
-    fail_(
-      'Este usuário possui '+
-      pendingTasks.length+
-      (
-        pendingTasks.length===1
-          ?' tarefa de distribuição pendente. Reatribua a tarefa antes de excluir o usuário.'
-          :' tarefas de distribuição pendentes. Reatribua as tarefas antes de excluir o usuário.'
-      )
+  /*
+   * Tarefas ainda não concluídas voltam automaticamente para a fila sem
+   * responsável. Assim a exclusão do usuário não interrompe o fluxo de
+   * distribuição e outro responsável poderá recebê-las depois.
+   */
+  pendingTasks.forEach(task=>{
+    change_(
+      ctx,
+      'Tarefas',
+      task.id,
+      {
+        tipo:task.tipo,
+        pessoaId:task.pessoaId,
+        responsavel:'',
+        situacao:DISTRIBUTION_TASK_PENDING,
+        jurisdicao:task.jurisdicao,
+        valorCausa:task.valorCausa,
+        atribuidaEm:'',
+        concluidaEm:'',
+        processoId:'',
+        observacoes:
+          'Tarefa devolvida à fila porque o usuário responsável foi excluído.'
+      },
+      task.versao
     );
-  }
+  });
 
   /*
    * Remove primeiro as permissões materiais do Google. Caso o commit da
@@ -267,8 +282,20 @@ function userDelete_(ctx,q){
     id:user.id,
     email,
     nome:user.nome||email,
+    tarefasLiberadas:pendingTasks.length,
     mensagem:
-      'Usuário excluído definitivamente do sistema. O histórico de operações já realizadas foi preservado.'
+      'Usuário excluído definitivamente do sistema. '+
+      (
+        pendingTasks.length
+          ?pendingTasks.length+
+            (
+              pendingTasks.length===1
+                ?' tarefa pendente voltou para a fila de distribuição. '
+                :' tarefas pendentes voltaram para a fila de distribuição. '
+            )
+          :''
+      )+
+      'O histórico de operações já realizadas foi preservado.'
   };
 }
 
