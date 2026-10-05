@@ -263,6 +263,7 @@ function api(action,q){
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
+    tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
     tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_]
   };
 
