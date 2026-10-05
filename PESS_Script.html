@@ -2079,6 +2079,28 @@ window.PDA_MODULES.PESS = (()=>{
     );
 
     const uploads={};
+    const importedFiles={
+      RG_CPF:[],
+      RESIDENCIA:[]
+    };
+
+    const selectedFiles_=(categoria,input)=>{
+      const direct=
+        Array.from(
+          input&&input.files||
+          []
+        );
+
+      if(direct.length){
+        return direct;
+      }
+
+      return Array.from(
+        importedFiles[categoria]||
+        []
+      );
+    };
+
     let residenceDate=null;
     let residenceThird=null;
     let residenceDeclaration=null;
@@ -2117,9 +2139,11 @@ window.PDA_MODULES.PESS = (()=>{
 
         const faltantes=
           Object.entries(uploads)
-            .filter(([,input])=>
-              !input.files||
-              !input.files.length
+            .filter(([categoria,input])=>
+              !selectedFiles_(
+                categoria,
+                input
+              ).length
             )
             .map(([categoria])=>
               DOCUMENT_LABELS[categoria]||
@@ -2192,9 +2216,9 @@ window.PDA_MODULES.PESS = (()=>{
           of Object.entries(uploads)
         ){
           const files=
-            Array.from(
-              input.files||
-              []
+            selectedFiles_(
+              categoria,
+              input
             );
 
           for(const file of files){
@@ -3255,6 +3279,16 @@ window.PDA_MODULES.PESS = (()=>{
         documents
       );
 
+    const importFlow=
+      buildDocumentImportPanel_(
+        personForm,
+        personStepper,
+        uploads,
+        importedFiles,
+        residenceDate,
+        residenceThird
+      );
+
     /*
      * Consulta de cadastros fica disponível como ação principal.
      */
@@ -3309,19 +3343,11 @@ window.PDA_MODULES.PESS = (()=>{
         edit
       );
 
-      if(personStepper){
-        personStepper.showStep(
-          0
-        );
-      }
-
-      const first=
-        personForm.elements.namedItem(
-          'cpf'
-        );
-
-      if(first){
-        first.focus();
+      if(importFlow){
+        importFlow.showStart();
+      }else if(personStepper){
+        personStepper.setVisible(true);
+        personStepper.showStep(0);
       }
     };
   };
