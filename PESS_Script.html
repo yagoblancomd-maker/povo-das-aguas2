@@ -36,6 +36,26 @@ window.PDA_MODULES.PESS = (()=>{
     return s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4);
   }
 
+  function maskCpfInput_(input){
+    const sync=()=>{
+      const d=String(input.value||'')
+        .replace(/\D/g,'')
+        .slice(0,11);
+
+      input.value=
+        d
+          .replace(/^(\d{3})(\d)/,'$1.$2')
+          .replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3')
+          .replace(
+            /^(\d{3})\.(\d{3})\.(\d{3})(\d{1,2}).*$/,
+            '$1.$2.$3-$4'
+          );
+    };
+
+    input.addEventListener('input',sync);
+    input.addEventListener('blur',sync);
+  }
+
   function maskDateInput_(input){
     const sync=()=>{
       const d=String(input.value||'')
@@ -795,22 +815,301 @@ window.PDA_MODULES.PESS = (()=>{
   return async function(ctx){
     const root=ctx.root;
 
-    root.append(
+    const pageHead=
+      el(
+        'div',
+        undefined,
+        'pess-page-head'
+      );
+
+    const pageTitle=
+      el(
+        'div'
+      );
+
+    pageTitle.append(
       el(
         'h2',
         'Pessoas'
+      ),
+      el(
+        'p',
+        'Cadastro, consultas públicas e organização documental.',
+        'pess-page-subtitle'
       )
     );
 
+    pageHead.append(
+      pageTitle
+    );
+
+    root.append(
+      pageHead
+    );
+
+    let edit=null;
+    let search=null;
+    let quickDefeso=null;
+
+    const workPanels=()=>[
+      edit,
+      search,
+      quickDefeso
+    ].filter(Boolean);
+
+    const showPanel_=panel=>{
+      workPanels().forEach(item=>{
+        item.hidden=
+          item!==panel;
+      });
+
+      if(panel){
+        if(panel.tagName==='DETAILS'){
+          panel.open=true;
+        }
+
+        requestAnimationFrame(()=>{
+          panel.scrollIntoView({
+            behavior:'smooth',
+            block:'start'
+          });
+        });
+      }
+    };
+
+    const actionButton_=(title,description,kind)=>{
+      const b=
+        el(
+          'button',
+          undefined,
+          'pess-action-card '+kind
+        );
+
+      b.type='button';
+
+      const titleEl=
+        el(
+          'strong',
+          title
+        );
+
+      const descriptionEl=
+        el(
+          'span',
+          description
+        );
+
+      b.append(
+        titleEl,
+        descriptionEl
+      );
+
+      return b;
+    };
+
+    const actionBar=
+      el(
+        'section',
+        undefined,
+        'pess-home-actions'
+      );
+
+    const openSearch=
+      actionButton_(
+        'Consultar cadastro',
+        'Localizar por nome, CPF ou município.',
+        'pess-action-search'
+      );
+
+    const openDefeso=
+      actionButton_(
+        'Consultar Seguro-Defeso',
+        'Consulta rápida por CPF na base oficial.',
+        'pess-action-defeso'
+      );
+
+    const openNew=
+      actionButton_(
+        'Incluir nova pessoa',
+        'Novo cadastro com documentos e minuta.',
+        'pess-action-new'
+      );
+
+    actionBar.append(
+      openSearch,
+      openDefeso,
+      openNew
+    );
+
+    root.append(
+      actionBar
+    );
+
+    quickDefeso=
+      card(
+        'Consultar pagamento do Seguro-Defeso'
+      );
+
+    quickDefeso.classList.add(
+      'pess-work-panel',
+      'pess-quick-panel'
+    );
+
+    quickDefeso.hidden=true;
+
+    quickDefeso.append(
+      el(
+        'p',
+        'Informe o CPF para consultar os registros de 2025 no Portal da Transparência. Esta consulta avulsa não altera nenhum cadastro.',
+        'hint'
+      )
+    );
+
+    const quickRow=
+      el(
+        'div',
+        undefined,
+        'pess-inline-query'
+      );
+
+    const quickCpfLabel=
+      el(
+        'label',
+        undefined,
+        'field'
+      );
+
+    quickCpfLabel.append(
+      el(
+        'span',
+        'CPF'
+      )
+    );
+
+    const quickCpf=
+      el(
+        'input'
+      );
+
+    quickCpf.type='text';
+    quickCpf.placeholder='000.000.000-00';
+    quickCpf.maxLength=14;
+    quickCpf.inputMode='numeric';
+
+    maskCpfInput_(
+      quickCpf
+    );
+
+    quickCpfLabel.append(
+      quickCpf
+    );
+
+    const quickButton=
+      el(
+        'button',
+        'Consultar pagamento'
+      );
+
+    quickButton.type='button';
+    quickButton.disabled=
+      !(
+        App.state.boot.portalTransparencia&&
+        App.state.boot.portalTransparencia.configurada
+      );
+
+    const quickInfo=
+      el(
+        'small',
+        App.state.boot.portalTransparencia&&
+        App.state.boot.portalTransparencia.configurada
+          ?'API oficial disponível.'
+          :'API não configurada. Cadastre a chave em Administração.',
+        App.state.boot.portalTransparencia&&
+        App.state.boot.portalTransparencia.configurada
+          ?'hint'
+          :'warn'
+      );
+
+    quickButton.onclick=
+      async()=>{
+        try{
+          const codigo=
+            String(
+              quickCpf.value||
+              ''
+            ).replace(/\D/g,'');
+
+          if(!/^\d{11}$/.test(codigo)){
+            throw new Error(
+              'Informe um CPF completo no formato 000.000.000-00.'
+            );
+          }
+
+          quickInfo.textContent=
+            'Consultando a base oficial...';
+
+          quickInfo.className=
+            'hint';
+
+          const result=
+            await call(
+              'seguroDefesoConsultar',
+              {
+                codigo
+              }
+            );
+
+          quickInfo.textContent=
+            'Consulta concluída: '+
+            result.quantidade+
+            ' registro(s) de 2025 localizado(s).';
+
+          showSeguroDefesoDialog_(
+            result
+          );
+
+        }catch(e){
+          quickInfo.textContent=
+            e.message||
+            String(e);
+
+          quickInfo.className=
+            'warn';
+
+          status(
+            e.message||
+            String(e),
+            true
+          );
+        }
+      };
+
+    quickRow.append(
+      quickCpfLabel,
+      quickButton
+    );
+
+    quickDefeso.append(
+      quickRow,
+      quickInfo
+    );
+
     /*
-     * O cadastro vem primeiro.
+     * Cadastro completo. Mantém as consultas de CPF/Seguro-Defeso e CEP
+     * dentro do próprio formulário.
      */
-    const edit=details(
+    edit=details(
       root,
-      'Cadastrar pessoa'
+      'Incluir nova pessoa'
+    );
+
+    edit.classList.add(
+      'pess-work-panel',
+      'pess-register-panel'
     );
 
     edit.open=true;
+    edit.hidden=true;
 
     edit.append(
       el(
@@ -1209,6 +1508,10 @@ window.PDA_MODULES.PESS = (()=>{
       'Salvar cadastro, documentos e gerar minuta'
     );
 
+    personForm.classList.add(
+      'pess-person-form'
+    );
+
     /*
      * Outra entidade só existe visualmente quando a opção Outro estiver ativa.
      */
@@ -1552,6 +1855,10 @@ window.PDA_MODULES.PESS = (()=>{
       'Cálculo do Seguro-Defeso 2025'
     );
 
+    defeso.classList.add(
+      'pess-defeso-card'
+    );
+
     defeso.append(
       el(
         'p',
@@ -1639,7 +1946,7 @@ window.PDA_MODULES.PESS = (()=>{
     const documents=el(
       'section',
       undefined,
-      'card'
+      'card pess-documents'
     );
 
     documents.append(
@@ -1671,6 +1978,16 @@ window.PDA_MODULES.PESS = (()=>{
           documentBox_(
             categoria
           );
+
+        item.box.classList.add(
+          'pess-doc-card'
+        );
+
+        if(categoria==='RESIDENCIA'){
+          item.box.classList.add(
+            'pess-doc-residence'
+          );
+        }
 
         uploads[categoria]=
           item.input;
@@ -1960,11 +2277,18 @@ window.PDA_MODULES.PESS = (()=>{
     }
 
     /*
-     * Consulta de cadastros fica abaixo do cadastro novo.
+     * Consulta de cadastros fica disponível como ação principal.
      */
-    const search=card(
+    search=card(
       'Consultar cadastro'
     );
+
+    search.classList.add(
+      'pess-work-panel',
+      'pess-search-panel'
+    );
+
+    search.hidden=true;
 
     root.append(
       search
@@ -1977,6 +2301,44 @@ window.PDA_MODULES.PESS = (()=>{
         p.id
       )
     );
+
+    openSearch.onclick=()=>{
+      showPanel_(
+        search
+      );
+
+      const input=
+        search.querySelector(
+          'input'
+        );
+
+      if(input){
+        input.focus();
+      }
+    };
+
+    openDefeso.onclick=()=>{
+      showPanel_(
+        quickDefeso
+      );
+
+      quickCpf.focus();
+    };
+
+    openNew.onclick=()=>{
+      showPanel_(
+        edit
+      );
+
+      const first=
+        personForm.elements.namedItem(
+          'nome'
+        );
+
+      if(first){
+        first.focus();
+      }
+    };
   };
 })();
 </script>
