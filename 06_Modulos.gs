@@ -2,7 +2,7 @@ const MODULES={
   PAINEL:'Painel',
   PESS:'Pessoas',
   ATEND:'Atendimentos',
-  ACOMP:'Ficha e conferência',
+  ACOMP:'Cadastros',
   MIN:'Minutas',
   DIST:'Distribuição',
   PROC:'Processos',
