@@ -20,6 +20,7 @@
   --radius:10px
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth}
 body{
   margin:0;
@@ -180,20 +181,26 @@ p{
 .field{
   display:flex;
   flex-direction:column;
-  gap:3px;
+  gap:2px;
   min-width:0;
-  font-size:12px;
-  font-weight:520
+  font-size:11.5px;
+  font-weight:560
+}
+.field>span{
+  line-height:1.15
 }
 .field small{
+  margin:1px 0 0;
+  line-height:1.15;
+  font-size:9.8px;
   font-weight:400
 }
 input,select,textarea{
   width:100%;
-  min-height:35px;
+  min-height:32px;
   border:1px solid var(--line-strong);
   border-radius:7px;
-  padding:7px 9px;
+  padding:6px 8px;
   color:var(--navy);
   background:rgba(255,255,255,.98);
   font:400 13px/1.25 inherit;
@@ -320,8 +327,8 @@ a{
   font-size:22px
 }
 details{
-  margin:8px 0;
-  padding:9px 10px;
+  margin:6px 0;
+  padding:7px 9px;
   border:1px solid var(--line);
   border-radius:8px;
   background:rgba(255,255,255,.91);
@@ -333,7 +340,7 @@ summary{
   font-weight:650
 }
 details[open]>summary{
-  margin-bottom:8px
+  margin-bottom:5px
 }
 pre{
   overflow-wrap:anywhere;
