@@ -234,4 +234,52 @@
   }
 }
 
+
+.adm-function-approval{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:10px 0;
+  padding:10px 11px;
+  border-radius:9px
+}
+.adm-function-approval.pending{
+  border:1px solid #dec78e;
+  background:#fff9e8
+}
+.adm-function-approval.approved{
+  border:1px solid #b8d8cf;
+  background:#eef8f5
+}
+.adm-function-approval>div{
+  min-width:0
+}
+.adm-function-approval strong{
+  display:block;
+  color:#274d59;
+  font-size:10px
+}
+.adm-function-approval span{
+  display:block;
+  margin-top:2px;
+  color:#647b84;
+  font-size:8.8px;
+  line-height:1.35
+}
+.adm-function-approval button{
+  flex:0 0 auto;
+  min-height:31px;
+  font-size:9px
+}
+@media(max-width:680px){
+  .adm-function-approval{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .adm-function-approval button{
+    width:100%
+  }
+}
+
 </style>
