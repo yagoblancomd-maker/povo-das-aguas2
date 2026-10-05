@@ -1,68 +1,46 @@
 function dossier_(q){
   const p=get_('Pessoas',q.pessoaId);
-  const ats=all_('Atendimentos').filter(a=>a.pessoaId===p.id);
-  const ids=ats.map(a=>a.id);
   const owner=personOwnerKey_(p.id);
 
-  const docs=all_('Documentos').filter(d=>
-    ids.includes(d.atendimentoId)||
-    d.atendimentoId===owner
-  );
+  const docs=
+    all_('Documentos')
+      .filter(d=>
+        d.atendimentoId===owner
+      );
 
-  let activeTemplate=null;
+  const processos=
+    all_('Processos')
+      .filter(x=>
+        x.pessoaId===p.id
+      );
 
-  try{
-    activeTemplate=activeTemplate_();
-  }catch(e){
-    activeTemplate=null;
-  }
-
-  const mins=
-    all_('Minutas')
-      .filter(d=>ids.includes(d.atendimentoId))
-      .map(m=>{
-        const a=ats.find(item=>item.id===m.atendimentoId);
-
-        const stale=
-          !activeTemplate||
-          m.snapshot!==snapshot_(a,p)||
-          activeTemplate.getId()!==m.templateId||
-          String(activeTemplate.getLastUpdated().getTime())!==m.templateModified;
-
-        return Object.assign({},m,{desatualizada:stale});
-      });
-
-  const related=[p.id].concat(
-    ids,
-    docs.map(d=>d.id),
-    mins.map(m=>m.id)
-  );
-
-  const pend=
-    all_('Pendencias')
-      .filter(d=>ids.includes(d.atendimentoId));
-
-  pend.forEach(x=>related.push(x.id));
+  const related=[
+    p.id,
+    ...docs.map(d=>d.id),
+    ...processos.map(x=>x.id)
+  ];
 
   return {
     pessoa:p,
-    atendimentos:ats,
     documentos:docs,
-    documentosPessoa:
-      docs.filter(d=>d.atendimentoId===owner),
-    pendencias:pend,
-    minutas:mins,
+    documentosPessoa:docs,
+    processos,
     historico:
       all_('Historico')
-        .filter(h=>related.includes(h.registroId)),
-    processos:
-      all_('Processos')
-        .filter(x=>x.pessoaId===p.id),
-    aptidao:
-      ats.map(a=>({
-        id:a.id,
-        pendencias:eligibility_(a,true)
-      }))
+        .filter(h=>
+          related.includes(
+            h.registroId
+          )
+        ),
+
+    /*
+     * Campos legados vazios mantidos temporariamente para compatibilidade
+     * com versões já publicadas durante a transição do modelo antigo.
+     */
+    atendimentos:[],
+    pendencias:[],
+    minutas:[],
+    aptidao:[]
   };
 }
 
