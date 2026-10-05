@@ -873,11 +873,14 @@ f.insertBefore(file,f.firstChild);
   };
 
   /*
-   * Estrutura principal:
-   * Novo Cadastro -> inclusão de pessoas, sem submenu
-   * Consultas -> cadastros existentes + consulta avulsa do Defeso 2025
-   * Distribuição -> distribuição + processos + minutas
+   * Início é o portal universal.
+   * Os demais itens são exibidos conforme as permissões efetivas.
    */
+  appendDirect(
+    'PAINEL',
+    'Início'
+  );
+
   appendDirect(
     'PESS',
     'Novo Cadastro'
@@ -913,11 +916,6 @@ f.insertBefore(file,f.firstChild);
         label:'Minutas'
       }
     ]
-  );
-
-  appendDirect(
-    'PAINEL',
-    'Painel'
   );
 
   appendDirect(
