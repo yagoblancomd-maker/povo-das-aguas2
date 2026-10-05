@@ -13,20 +13,436 @@ n.textContent=text||'';
 n.className='status '+(error?'error':'ok');
 };
  const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
+
+ const PROCESSING_PROFILES={
+  documentosImportar:{
+    seconds:22,
+    title:'Lendo documentos',
+    phases:[
+      [0,'Preparando os arquivos para análise'],
+      [.16,'Lendo o conteúdo dos documentos'],
+      [.40,'Extraindo os dados com inteligência artificial'],
+      [.68,'Validando CPF, datas, CEP e endereço'],
+      [.88,'Organizando os dados para o cadastro']
+    ]
+  },
+  seguroDefesoConsultar:{
+    seconds:9,
+    title:'Consultando Seguro-Defeso',
+    phases:[
+      [0,'Preparando a consulta pelo CPF'],
+      [.20,'Consultando o Portal da Transparência'],
+      [.60,'Filtrando os registros de 2025'],
+      [.84,'Organizando o resultado da consulta']
+    ]
+  },
+  seguroDefesoRelatorioGerar:{
+    seconds:16,
+    title:'Gerando relatório do Seguro-Defeso',
+    phases:[
+      [0,'Consultando o CPF no Portal da Transparência'],
+      [.28,'Conferindo e filtrando os registros de 2025'],
+      [.50,'Montando o relatório institucional'],
+      [.72,'Gerando o PDF'],
+      [.88,'Salvando na pasta e nos documentos da pessoa']
+    ]
+  },
+  pessoaInicialGerar:{
+    seconds:14,
+    title:'Gerando petição inicial',
+    phases:[
+      [0,'Validando cadastro e documentos obrigatórios'],
+      [.24,'Preenchendo o modelo da petição inicial'],
+      [.55,'Gerando a versão em PDF'],
+      [.78,'Salvando na pasta individual'],
+      [.90,'Registrando em Documentos da pessoa']
+    ]
+  },
+  pessoaFinalizarCadastro:{
+    seconds:15,
+    title:'Finalizando cadastro',
+    phases:[
+      [0,'Validando o cadastro e os documentos'],
+      [.28,'Preparando a petição inicial'],
+      [.56,'Gerando o PDF da inicial'],
+      [.80,'Salvando os documentos finais'],
+      [.91,'Concluindo o cadastro']
+    ]
+  },
+  pessoaUpload:{
+    seconds:7,
+    title:'Salvando documento',
+    phases:[
+      [0,'Validando o arquivo'],
+      [.26,'Enviando para a pasta da pessoa'],
+      [.68,'Registrando o documento no sistema'],
+      [.88,'Concluindo o envio']
+    ]
+  },
+  upload:{
+    seconds:7,
+    title:'Salvando documento',
+    phases:[
+      [0,'Validando o arquivo'],
+      [.28,'Enviando o arquivo para o Drive'],
+      [.70,'Atualizando a ficha'],
+      [.90,'Concluindo o envio']
+    ]
+  },
+  pessoaSalvar:{
+    seconds:5,
+    title:'Salvando cadastro',
+    phases:[
+      [0,'Validando os dados informados'],
+      [.34,'Atualizando o cadastro da pessoa'],
+      [.72,'Sincronizando a pasta individual'],
+      [.90,'Concluindo']
+    ]
+  },
+  atendimentoSalvar:{
+    seconds:5,
+    title:'Salvando atendimento',
+    phases:[
+      [0,'Validando os dados'],
+      [.40,'Atualizando o atendimento'],
+      [.82,'Concluindo']
+    ]
+  },
+  minutaGerar:{
+    seconds:13,
+    title:'Gerando minuta',
+    phases:[
+      [0,'Validando a documentação'],
+      [.25,'Preenchendo o modelo'],
+      [.58,'Gerando o PDF'],
+      [.82,'Registrando a nova versão']
+    ]
+  },
+  modeloUpload:{
+    seconds:16,
+    title:'Processando modelo',
+    phases:[
+      [0,'Recebendo o arquivo'],
+      [.25,'Convertendo para Google Docs'],
+      [.55,'Validando os placeholders'],
+      [.80,'Ativando o novo modelo']
+    ]
+  }
+ };
+
+ let processingState=null;
+ let processingTimer=null;
+ let processingHideTimer=null;
+
+ function ensureProcessingOverlay_(){
+  let overlay=document.getElementById('pda-processing-overlay');
+
+  if(overlay)return overlay;
+
+  overlay=el('div',undefined,'processing-overlay');
+  overlay.id='pda-processing-overlay';
+  overlay.hidden=true;
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-labelledby','pda-processing-title');
+  overlay.setAttribute('aria-describedby','pda-processing-message');
+
+  const panel=el('div',undefined,'processing-panel');
+  const visual=el('div',undefined,'processing-visual');
+
+  const spinner=el('div',undefined,'processing-spinner');
+  spinner.setAttribute('aria-hidden','true');
+
+  const percent=el('strong','0%','processing-percent');
+  percent.id='pda-processing-percent';
+
+  visual.append(spinner,percent);
+
+  const copy=el('div',undefined,'processing-copy');
+  const title=el('h2','Processando','processing-title');
+  title.id='pda-processing-title';
+
+  const message=el('p','Aguarde…','processing-message');
+  message.id='pda-processing-message';
+
+  const remaining=el('p','Calculando tempo restante…','processing-remaining');
+  remaining.id='pda-processing-remaining';
+
+  const progress=el('div',undefined,'processing-progress');
+  progress.setAttribute('role','progressbar');
+  progress.setAttribute('aria-valuemin','0');
+  progress.setAttribute('aria-valuemax','100');
+  progress.setAttribute('aria-valuenow','0');
+
+  const bar=el('div',undefined,'processing-progress-bar');
+  bar.id='pda-processing-bar';
+  progress.append(bar);
+
+  const note=el(
+    'small',
+    'Progresso e tempo restante são estimativas enquanto o servidor conclui a operação.',
+    'processing-note'
+  );
+
+  copy.append(title,message,remaining,progress,note);
+  panel.append(visual,copy);
+  overlay.append(panel);
+  document.body.append(overlay);
+
+  return overlay;
+ }
+
+ function processingProfile_(action,write){
+  if(PROCESSING_PROFILES[action]){
+    return PROCESSING_PROFILES[action];
+  }
+
+  if(!write){
+    return null;
+  }
+
+  return {
+    seconds:6,
+    title:'Salvando alterações',
+    phases:[
+      [0,'Preparando os dados'],
+      [.35,'Gravando as alterações'],
+      [.75,'Atualizando o sistema'],
+      [.92,'Concluindo']
+    ]
+  };
+ }
+
+ function processingPercent_(elapsed,seconds){
+  const expected=Math.max(2,Number(seconds)||6);
+  const ratio=elapsed/expected;
+
+  if(ratio<=.12){
+    return Math.max(3,Math.round(ratio/.12*14));
+  }
+
+  if(ratio<=.72){
+    return Math.round(
+      14+
+      ((ratio-.12)/.60)*62
+    );
+  }
+
+  if(ratio<=1){
+    return Math.round(
+      76+
+      ((ratio-.72)/.28)*15
+    );
+  }
+
+  return Math.min(
+    96,
+    91+Math.floor((ratio-1)*2)
+  );
+ }
+
+ function phaseForProgress_(profile,progress){
+  const normalized=progress/100;
+  let message=profile.phases[0][1];
+
+  profile.phases.forEach(item=>{
+    if(normalized>=item[0]){
+      message=item[1];
+    }
+  });
+
+  return message;
+ }
+
+ function renderProcessing_(){
+  if(!processingState)return;
+
+  const overlay=ensureProcessingOverlay_();
+  const now=performance.now();
+  const elapsed=(now-processingState.started)/1000;
+  const profile=processingState.profile;
+  const progress=
+    processingState.complete
+      ?100
+      :processingPercent_(
+        elapsed,
+        profile.seconds
+      );
+
+  const message=
+    processingState.complete
+      ?'Operação concluída'
+      :phaseForProgress_(
+        profile,
+        progress
+      );
+
+  const estimatedLeft=
+    Math.max(
+      0,
+      Math.ceil(
+        profile.seconds-elapsed
+      )
+    );
+
+  overlay.querySelector('#pda-processing-title').textContent=
+    processingState.complete
+      ?'Concluído'
+      :profile.title;
+
+  overlay.querySelector('#pda-processing-message').textContent=
+    message;
+
+  overlay.querySelector('#pda-processing-percent').textContent=
+    progress+'%';
+
+  overlay.querySelector('#pda-processing-bar').style.width=
+    progress+'%';
+
+  const progressNode=
+    overlay.querySelector(
+      '.processing-progress'
+    );
+
+  progressNode.setAttribute(
+    'aria-valuenow',
+    String(progress)
+  );
+
+  let remainingText='';
+
+  if(processingState.complete){
+    remainingText='Finalizado.';
+  }else if(elapsed<1){
+    remainingText=
+      'Estimando o tempo restante…';
+  }else if(estimatedLeft>1){
+    remainingText=
+      'Aproximadamente '+
+      estimatedLeft+
+      ' segundos restantes';
+  }else{
+    remainingText=
+      'Concluindo — menos de alguns segundos';
+  }
+
+  overlay.querySelector('#pda-processing-remaining').textContent=
+    remainingText;
+ }
+
+ function beginProcessing_(action,write){
+  const profile=
+    processingProfile_(
+      action,
+      write
+    );
+
+  if(!profile)return null;
+
+  if(processingHideTimer){
+    clearTimeout(processingHideTimer);
+    processingHideTimer=null;
+  }
+
+  const id=
+    crypto.randomUUID();
+
+  processingState={
+    id,
+    action,
+    profile,
+    started:performance.now(),
+    complete:false
+  };
+
+  const overlay=
+    ensureProcessingOverlay_();
+
+  overlay.hidden=false;
+  document.body.classList.add(
+    'processing-active'
+  );
+
+  renderProcessing_();
+
+  if(processingTimer){
+    clearInterval(processingTimer);
+  }
+
+  processingTimer=
+    setInterval(
+      renderProcessing_,
+      350
+    );
+
+  return id;
+ }
+
+ function endProcessing_(id,success=true){
+  if(
+    !id||
+    !processingState||
+    processingState.id!==id
+  ){
+    return;
+  }
+
+  if(processingTimer){
+    clearInterval(processingTimer);
+    processingTimer=null;
+  }
+
+  if(success){
+    processingState.complete=true;
+    renderProcessing_();
+  }
+
+  const delay=
+    success
+      ?360
+      :80;
+
+  processingHideTimer=
+    setTimeout(
+      ()=>{
+        const overlay=
+          document.getElementById(
+            'pda-processing-overlay'
+          );
+
+        if(overlay){
+          overlay.hidden=true;
+        }
+
+        document.body.classList.remove(
+          'processing-active'
+        );
+
+        processingState=null;
+        processingHideTimer=null;
+      },
+      delay
+    );
+ }
+
  async function call(action,data={},write=false){const token=epoch;
 let payload={...data};
+let processingId=null;
 if(write){const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({action,data}))))).map(x=>x.toString(16).padStart(2,'0')).join('');
 const key='pda.operation.'+digest;
 payload.op=sessionStorage.getItem(key)||crypto.randomUUID();
 sessionStorage.setItem(key,payload.op);
 busy++;
 document.querySelectorAll('button').forEach(b=>b.disabled=true);
-status('Gravando…');
-}try{const result=await raw('api',action,payload);
+}
+processingId=beginProcessing_(action,write);
+try{const result=await raw('api',action,payload);
 if(token!==epoch)throw new Error('Resposta de tela anterior descartada.');
-if(write)status('Gravação concluída.');
+if(write)status('Operação concluída.');
+endProcessing_(processingId,true);
 return result;
-}catch(e){if(token===epoch)status((e.message||String(e))+(write?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.':''),true);
+}catch(e){endProcessing_(processingId,false);
+if(token===epoch)status((e.message||String(e))+(write?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.':''),true);
 throw e;
 }finally{if(write){busy--;
 document.querySelectorAll('button').forEach(b=>b.disabled=false);
