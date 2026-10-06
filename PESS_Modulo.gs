@@ -194,6 +194,11 @@ function personFinalize_(ctx,q){
   required_(q.pessoaId,'pessoa');
 
   const p=get_('Pessoas',q.pessoaId);
+
+  authorizePersonContentWrite_(
+    p
+  );
+
   parcelasDefeso_(p.parcelasNaoRecebidas);
 
   const documentErrors=personRequiredDocumentErrors_(p);
@@ -235,6 +240,11 @@ function personInitialGenerate_(ctx,q){
   required_(q.pessoaId,'pessoa');
 
   const p=get_('Pessoas',q.pessoaId);
+
+  authorizePersonContentWrite_(
+    p
+  );
+
   parcelasDefeso_(p.parcelasNaoRecebidas);
 
   const documentErrors=
