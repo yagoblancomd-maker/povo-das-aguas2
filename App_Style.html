@@ -2139,4 +2139,35 @@ body::before{
     animation:none!important
   }
 }
+
+
+/* Navegação otimizada entre módulos */
+#app{
+  position:relative
+}
+.app-module-stage[hidden]{
+  display:none!important
+}
+#app.app-module-enter>section,
+#app.app-module-enter>.module,
+#app.app-module-enter>[data-module]{
+  animation:pda-module-enter .20s cubic-bezier(.2,.8,.2,1) both
+}
+@keyframes pda-module-enter{
+  from{
+    opacity:.36;
+    transform:translateY(4px)
+  }
+  to{
+    opacity:1;
+    transform:none
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  #app.app-module-enter>section,
+  #app.app-module-enter>.module,
+  #app.app-module-enter>[data-module]{
+    animation:none!important
+  }
+}
 </style>
