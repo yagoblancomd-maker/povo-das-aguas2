@@ -4,7 +4,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import {getPool,closeDb} from './db.mjs';
 import {ensureSchema} from './schema.mjs';
-import {login,logout,bearer,requireAuth} from './auth.mjs';
+import {login,register,logout,bearer,requireAuth} from './auth.mjs';
 import {modules,permissions,publicUser,has} from './access.mjs';
 import {coreRoutes} from './modules.mjs';
 
@@ -25,6 +25,11 @@ app.get('/readyz',async(req,reply)=>{
     req.log.error(e);
     return reply.code(503).send({ok:false,database:'unavailable'});
   }
+});
+
+app.post('/api/v1/auth/register',async(req,reply)=>{
+  try{return reply.code(201).send(await register(req.body||{}));}
+  catch(e){return reply.code(e.statusCode||500).send({error:'AUTH',message:e.message});}
 });
 
 app.post('/api/v1/auth/login',async(req,reply)=>{
