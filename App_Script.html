@@ -3,6 +3,29 @@
 window.PDA_MODULES={};
 const App=(()=>{
  let epoch=0,busy=0,boot=null,current='PAINEL',selection=null,authSessionToken='',headerProfilePhoto='';
+ let navigationLoading=0;
+ let cacheSessionToken='';
+ let bulkModulePromise=null;
+ let bulkModuleCodes=new Set();
+ const MODULE_CACHE=new Map();
+ const MODULE_REQUESTS=new Map();
+ const READ_CACHE=new Map();
+ const READ_REQUESTS=new Map();
+ const READ_CACHE_TTL_MS=8000;
+ const CACHEABLE_READS=new Set([
+  'painel',
+  'tarefasMinhas',
+  'distribuicaoFila',
+  'processos',
+  'admin'
+ ]);
+ const MODULE_INITIAL_READ=Object.freeze({
+  PAINEL:['painel',{}],
+  TAREFAS:['tarefasMinhas',{}],
+  DIST:['distribuicaoFila',{}],
+  PROC:['processos',{}],
+  ADM:['admin',{}]
+ });
  const el=(tag,text,cls)=>{const n=document.createElement(tag);
 if(text!==undefined)n.textContent=text;
 if(cls)n.className=cls;
@@ -13,6 +36,290 @@ n.textContent=text||'';
 n.className='status '+(error?'error':'ok');
 };
  const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
+
+ function resetClientCaches_(){
+  MODULE_CACHE.clear();
+  MODULE_REQUESTS.clear();
+  READ_CACHE.clear();
+  READ_REQUESTS.clear();
+  bulkModulePromise=null;
+  bulkModuleCodes=new Set();
+ }
+
+ function ensureSessionCaches_(){
+  if(cacheSessionToken!==authSessionToken){
+    resetClientCaches_();
+    cacheSessionToken=authSessionToken;
+  }
+ }
+
+ function readKey_(action,data){
+  return action+'|'+JSON.stringify(data||{});
+ }
+
+ function clearReadCaches_(){
+  READ_CACHE.clear();
+  READ_REQUESTS.clear();
+ }
+
+ function cachedRead_(action,data){
+  if(!CACHEABLE_READS.has(action))return null;
+  const key=readKey_(action,data);
+  const item=READ_CACHE.get(key);
+  if(!item)return null;
+  if((performance.now()-item.at)>READ_CACHE_TTL_MS){
+    READ_CACHE.delete(key);
+    return null;
+  }
+  return item.value;
+ }
+
+ function readRequest_(action,data){
+  if(!CACHEABLE_READS.has(action)){
+    return raw('api',action,data,authSessionToken);
+  }
+
+  const key=readKey_(action,data);
+  const cached=cachedRead_(action,data);
+
+  if(cached!==null){
+    return Promise.resolve(cached);
+  }
+
+  if(READ_REQUESTS.has(key)){
+    return READ_REQUESTS.get(key);
+  }
+
+  const request=
+    raw(
+      'api',
+      action,
+      data,
+      authSessionToken
+    )
+      .then(result=>{
+        READ_CACHE.set(
+          key,
+          {
+            value:result,
+            at:performance.now()
+          }
+        );
+        return result;
+      })
+      .finally(()=>{
+        if(READ_REQUESTS.get(key)===request){
+          READ_REQUESTS.delete(key);
+        }
+      });
+
+  READ_REQUESTS.set(key,request);
+  return request;
+ }
+
+ function installModuleScript_(code,module){
+  if(window.PDA_MODULES[code])return;
+  const s=document.createElement('script');
+  s.textContent=
+    module.script
+      .replace(/^\s*<script>/,'')
+      .replace(/<\/script>\s*$/,'');
+  document.head.append(s);
+  s.remove();
+ }
+
+ async function getModule_(code){
+  ensureSessionCaches_();
+
+  if(MODULE_CACHE.has(code)){
+    return MODULE_CACHE.get(code);
+  }
+
+  if(
+    bulkModulePromise&&
+    bulkModuleCodes.has(code)
+  ){
+    try{
+      await bulkModulePromise;
+    }catch(e){}
+
+    if(MODULE_CACHE.has(code)){
+      return MODULE_CACHE.get(code);
+    }
+  }
+
+  if(MODULE_REQUESTS.has(code)){
+    return MODULE_REQUESTS.get(code);
+  }
+
+  const request=
+    raw(
+      'carregarModulo',
+      code,
+      authSessionToken
+    )
+      .then(module=>{
+        MODULE_CACHE.set(code,module);
+        return module;
+      })
+      .finally(()=>{
+        if(MODULE_REQUESTS.get(code)===request){
+          MODULE_REQUESTS.delete(code);
+        }
+      });
+
+  MODULE_REQUESTS.set(code,request);
+  return request;
+ }
+
+ function prefetchRead_(action,data={}){
+  if(!CACHEABLE_READS.has(action)){
+    return Promise.resolve();
+  }
+
+  return readRequest_(action,data).catch(()=>{});
+ }
+
+ function prefetchModule_(code,withData=true){
+  if(
+    !boot||
+    !boot.modulos||
+    !Object.prototype.hasOwnProperty.call(
+      boot.modulos,
+      code
+    )
+  ){
+    return Promise.resolve();
+  }
+
+  const asset=getModule_(code).catch(()=>null);
+  const initial=MODULE_INITIAL_READ[code];
+
+  if(
+    withData&&
+    initial
+  ){
+    prefetchRead_(
+      initial[0],
+      initial[1]
+    );
+  }
+
+  return asset;
+ }
+
+ function bindModulePrefetch_(node,code){
+  let timer=null;
+
+  const start=()=>{
+    if(timer)return;
+    timer=setTimeout(
+      ()=>{
+        timer=null;
+        prefetchModule_(code,true);
+      },
+      90
+    );
+  };
+
+  const cancel=()=>{
+    if(timer){
+      clearTimeout(timer);
+      timer=null;
+    }
+  };
+
+  node.addEventListener(
+    'pointerenter',
+    start,
+    {passive:true}
+  );
+  node.addEventListener(
+    'pointerleave',
+    cancel,
+    {passive:true}
+  );
+  node.addEventListener(
+    'focus',
+    ()=>prefetchModule_(code,true)
+  );
+  node.addEventListener(
+    'pointerdown',
+    ()=>prefetchModule_(code,true),
+    {passive:true}
+  );
+ }
+
+ function scheduleModuleWarmup_(){
+  if(
+    !boot||
+    !boot.modulos
+  ){
+    return;
+  }
+
+  const run=()=>{
+    ensureSessionCaches_();
+
+    const codes=
+      Object.keys(boot.modulos)
+        .filter(code=>
+          code!==current&&
+          !MODULE_CACHE.has(code)
+        );
+
+    if(!codes.length)return;
+
+    const session=authSessionToken;
+    bulkModuleCodes=new Set(codes);
+
+    const promise=
+      raw(
+        'carregarModulos',
+        codes,
+        session
+      )
+        .then(bundles=>{
+          if(
+            session!==authSessionToken||
+            !bundles
+          ){
+            return;
+          }
+
+          Object.entries(bundles)
+            .forEach(([code,module])=>{
+              if(module){
+                MODULE_CACHE.set(
+                  code,
+                  module
+                );
+              }
+            });
+        })
+        .catch(()=>{})
+        .finally(()=>{
+          if(bulkModulePromise===promise){
+            bulkModulePromise=null;
+            bulkModuleCodes=new Set();
+          }
+        });
+
+    bulkModulePromise=promise;
+  };
+
+  if('requestIdleCallback' in window){
+    window.requestIdleCallback(
+      run,
+      {timeout:1300}
+    );
+  }else{
+    setTimeout(
+      run,
+      700
+    );
+  }
+ }
 
  const PROCESSING_PROFILES={
   bootstrap:{
@@ -591,32 +898,160 @@ n.className='status '+(error?'error':'ok');
     );
  }
 
- async function call(action,data={},write=false){const token=epoch;
-let payload={...data};
-let processingId=null;
-if(write){const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({action,data}))))).map(x=>x.toString(16).padStart(2,'0')).join('');
-const key='pda.operation.'+digest;
-payload.op=sessionStorage.getItem(key)||crypto.randomUUID();
-sessionStorage.setItem(key,payload.op);
-busy++;
-document.querySelectorAll('button').forEach(b=>b.disabled=true);
-}
-processingId=beginProcessing_(action,write);
-try{const result=await raw('api',action,payload,authSessionToken);
-if(token!==epoch)throw new Error('Resposta de tela anterior descartada.');
-if(write)status('Operação concluída.');
-endProcessing_(processingId,true);
-return result;
-}catch(e){endProcessing_(processingId,false);
-const message=e.message||String(e);
-if(/AUTH:/.test(message)&&window.PDA_AUTH){
-  window.PDA_AUTH.sessionExpired(message.replace(/^Exception:\s*/,''));
-}
-if(token===epoch)status(message+(write?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.':''),true);
-throw e;
-}finally{if(write){busy--;
-document.querySelectorAll('button').forEach(b=>b.disabled=false);
-}}}
+ async function call(action,data={},write=false){
+  const token=epoch;
+  let payload={...data};
+  let processingId=null;
+  let processingDelay=null;
+
+  if(write){
+    const digest=
+      Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest(
+            'SHA-256',
+            new TextEncoder().encode(
+              JSON.stringify({action,data})
+            )
+          )
+        )
+      )
+        .map(x=>
+          x.toString(16).padStart(2,'0')
+        )
+        .join('');
+
+    const key='pda.operation.'+digest;
+    payload.op=
+      sessionStorage.getItem(key)||
+      crypto.randomUUID();
+    sessionStorage.setItem(
+      key,
+      payload.op
+    );
+
+    /*
+     * Qualquer mutação invalida imediatamente resultados de leitura
+     * guardados no navegador.
+     */
+    clearReadCaches_();
+
+    busy++;
+    document
+      .querySelectorAll('button')
+      .forEach(b=>b.disabled=true);
+
+    processingId=
+      beginProcessing_(
+        action,
+        true
+      );
+
+  }else if(!navigationLoading){
+    /*
+     * Operações rápidas não piscam o loader. Ele só aparece se a leitura
+     * realmente ultrapassar a janela de resposta imediata.
+     */
+    processingDelay=
+      setTimeout(
+        ()=>{
+          processingId=
+            beginProcessing_(
+              action,
+              false
+            );
+        },
+        380
+      );
+  }
+
+  try{
+    const result=
+      write
+        ?await raw(
+            'api',
+            action,
+            payload,
+            authSessionToken
+          )
+        :await readRequest_(
+            action,
+            payload
+          );
+
+    if(token!==epoch){
+      throw new Error(
+        'Resposta de tela anterior descartada.'
+      );
+    }
+
+    if(write){
+      clearReadCaches_();
+      status('Operação concluída.');
+    }
+
+    if(processingDelay){
+      clearTimeout(processingDelay);
+      processingDelay=null;
+    }
+
+    endProcessing_(
+      processingId,
+      true
+    );
+
+    return result;
+
+  }catch(e){
+    if(processingDelay){
+      clearTimeout(processingDelay);
+      processingDelay=null;
+    }
+
+    endProcessing_(
+      processingId,
+      false
+    );
+
+    const message=
+      e.message||
+      String(e);
+
+    if(
+      /AUTH:/.test(message)&&
+      window.PDA_AUTH
+    ){
+      window.PDA_AUTH.sessionExpired(
+        message.replace(
+          /^Exception:\s*/,
+          ''
+        )
+      );
+    }
+
+    if(token===epoch){
+      status(
+        message+
+        (
+          write
+            ?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.'
+            :''
+        ),
+        true
+      );
+    }
+
+    throw e;
+
+  }finally{
+    if(write){
+      busy--;
+      document
+        .querySelectorAll('button')
+        .forEach(b=>b.disabled=false);
+    }
+  }
+ }
  const button=(text,fn,secondary=false)=>{const b=el('button',text,secondary?'secondary':'');
 b.type='button';
 b.onclick=()=>Promise.resolve().then(fn).catch(e=>status(e.message||String(e),true));
@@ -814,44 +1249,225 @@ d.append(el('summary',title));
 parent.append(d);
 return d;
 }
- async function go(code,pessoaId){if(busy)return;
-if(
-  boot&&
-  boot.modulos&&
-  !Object.prototype.hasOwnProperty.call(
-    boot.modulos,
-    code
-  )
-){
-  status(
-    'Este módulo não está disponível para suas permissões atuais.',
-    true
+ async function go(code,pessoaId){
+  if(busy)return;
+
+  if(
+    boot&&
+    boot.modulos&&
+    !Object.prototype.hasOwnProperty.call(
+      boot.modulos,
+      code
+    )
+  ){
+    status(
+      'Este módulo não está disponível para suas permissões atuais.',
+      true
+    );
+    return;
+  }
+
+  const previousCode=current;
+
+  if(pessoaId){
+    selection=pessoaId;
+  }else if(code==='ACOMP'){
+    selection=null;
+  }
+
+  current=code;
+  const token=++epoch;
+  status('Carregando…');
+
+  const root=
+    document.getElementById('app');
+
+  root.setAttribute(
+    'aria-busy',
+    'true'
   );
-  return;
-}
-if(pessoaId)selection=pessoaId;
-else if(code==='ACOMP')selection=null;
-current=code;
-const token=++epoch;
-status('Carregando…');
-const root=document.getElementById('app');
-root.replaceChildren();
-root.setAttribute('aria-busy','true');
-const moduleProcessingId=beginProcessing_('carregarModulo',false);
-try{const m=await raw('carregarModulo',code,authSessionToken);
-if(token!==epoch){endProcessing_(moduleProcessingId,false);return;}
-root.innerHTML=m.style+m.view;
-if(!window.PDA_MODULES[code]){const s=document.createElement('script');
-s.textContent=m.script.replace(/^\s*<script>/,'').replace(/<\/script>\s*$/,'');
-document.head.append(s);
-s.remove();
-}renderNavigation_();
-status('');
-await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
-endProcessing_(moduleProcessingId,true);
-}catch(e){endProcessing_(moduleProcessingId,false);if(/AUTH:/.test(e.message)&&window.PDA_AUTH)window.PDA_AUTH.sessionExpired(e.message);if(token===epoch)status(e.message||String(e),true);
-}finally{if(token===epoch)root.setAttribute('aria-busy','false');
-}}
+
+  let moduleProcessingId=null;
+  let moduleProcessingDelay=null;
+  let stage=null;
+
+  navigationLoading++;
+
+  /*
+   * Mantém a tela anterior visível. O loader grande só entra se a troca
+   * ultrapassar 460 ms.
+   */
+  moduleProcessingDelay=
+    setTimeout(
+      ()=>{
+        if(token===epoch){
+          moduleProcessingId=
+            beginProcessing_(
+              'carregarModulo',
+              false
+            );
+        }
+      },
+      460
+    );
+
+  try{
+    const module=
+      await getModule_(code);
+
+    if(token!==epoch){
+      return;
+    }
+
+    installModuleScript_(
+      code,
+      module
+    );
+
+    stage=
+      el(
+        'div',
+        undefined,
+        'app-module-stage'
+      );
+
+    stage.hidden=true;
+    stage.innerHTML=
+      module.style+
+      module.view;
+
+    /*
+     * Em troca entre módulos diferentes, a tela anterior permanece
+     * utilizável visualmente até a nova estar pronta. Ao recarregar o
+     * mesmo módulo, removemos o conteúdo antigo para evitar IDs duplicados.
+     */
+    if(previousCode===code){
+      root.replaceChildren();
+    }
+
+    root.append(stage);
+
+    const section=
+      stage.querySelector(
+        'section'
+      );
+
+    if(!section){
+      throw new Error(
+        'Estrutura inválida do módulo '+code+'.'
+      );
+    }
+
+    await window.PDA_MODULES[code]({
+      root:section,
+      token
+    });
+
+    if(token!==epoch){
+      stage.remove();
+      return;
+    }
+
+    if(moduleProcessingDelay){
+      clearTimeout(
+        moduleProcessingDelay
+      );
+      moduleProcessingDelay=null;
+    }
+
+    /*
+     * Troca atômica: só agora o conteúdo anterior é removido.
+     */
+    const nodes=
+      Array.from(
+        stage.childNodes
+      );
+
+    stage.remove();
+    root.replaceChildren(
+      ...nodes
+    );
+
+    root.classList.remove(
+      'app-module-enter'
+    );
+
+    void root.offsetWidth;
+
+    root.classList.add(
+      'app-module-enter'
+    );
+
+    setTimeout(
+      ()=>root.classList.remove(
+        'app-module-enter'
+      ),
+      220
+    );
+
+    renderNavigation_();
+    status('');
+
+    endProcessing_(
+      moduleProcessingId,
+      true
+    );
+
+    /*
+     * Depois da primeira tela pronta, aquece silenciosamente os demais
+     * módulos permitidos em uma única chamada ao Apps Script.
+     */
+    scheduleModuleWarmup_();
+
+  }catch(e){
+    if(stage&&stage.isConnected){
+      stage.remove();
+    }
+
+    if(moduleProcessingDelay){
+      clearTimeout(
+        moduleProcessingDelay
+      );
+      moduleProcessingDelay=null;
+    }
+
+    endProcessing_(
+      moduleProcessingId,
+      false
+    );
+
+    if(
+      /AUTH:/.test(e.message)&&
+      window.PDA_AUTH
+    ){
+      window.PDA_AUTH.sessionExpired(
+        e.message
+      );
+    }
+
+    if(token===epoch){
+      status(
+        e.message||
+        String(e),
+        true
+      );
+    }
+
+  }finally{
+    navigationLoading=
+      Math.max(
+        0,
+        navigationLoading-1
+      );
+
+    if(token===epoch){
+      root.setAttribute(
+        'aria-busy',
+        'false'
+      );
+    }
+  }
+ }
  const alive=ctx=>ctx.token===epoch;
  const personFields=()=>[{key:'nome',label:'Nome completo',required:true},{key:'cpf',label:'CPF',required:true,placeholder:'000.000.000-00',mask:'cpf',maxLength:14,inputMode:'numeric'},{key:'nascimento',label:'Nascimento',required:true,placeholder:'DD/MM/AAAA',mask:'date',maxLength:10,inputMode:'numeric',birthDate:true,hint:'Aceita datas entre 01/01/1910 e hoje.'},{key:'telefone',label:'Telefone',required:true,placeholder:'(53) 99999-9999',mask:'phone',maxLength:15,inputMode:'numeric',pattern:'\\(\\d{2}\\) \\d{5}-\\d{4}',title:'Use o formato (DDD) XXXXX-XXXX'},{key:'email',label:'E-mail (opcional)',type:'email',placeholder:'nome@exemplo.com'},{key:'tipoVia',label:'Tipo de via',required:true,placeholder:'Rua',suggestions:['Rua','Avenida','Travessa','Estrada','Rodovia','Praça','Alameda','Beco','Servidão','Vila','Loteamento','Linha','Acesso']},{key:'via',label:'Nome da via',required:true},{key:'numero',label:'Número',required:true},{key:'complemento',label:'Complemento'},{key:'cep',label:'CEP',required:true,placeholder:'00000-000',mask:'cep',maxLength:9,inputMode:'numeric'},{key:'bairro',label:'Bairro ou localidade',required:true},{key:'cidade',label:'Município',required:true,options:boot.config.municipios},{key:'uf',label:'UF',required:true,options:'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ')},{key:'entidade',label:'Colônia ou entidade',required:true,options:boot.config.entidades},{key:'outraEntidade',label:'Especificar outra entidade'},{key:'analfabeto',label:'Consta condição de não alfabetizado no documento de identidade?',required:true,options:[{value:'SIM',label:'Sim'},{value:'NAO',label:'Não'}]},{key:'parcelasNaoRecebidas',label:'Quantas parcelas do seguro-defeso de 2025 não recebeu?',required:true,options:[{value:'1',label:'1 parcela'},{value:'2',label:'2 parcelas'},{value:'3',label:'3 parcelas'},{value:'4',label:'4 parcelas'}]}];
  const atendFields=()=>[{key:'demanda',label:'Demanda',options:boot.config.demandas,required:true},{key:'referencia',label:'Referência que identifica a demanda',required:true,hint:'Ex.: Defeso 2025 — requerimento 123. Nova referência somente para demanda distinta.'},{key:'parcelas',label:'Parcelas não recebidas no atendimento',options:['Todas de 2025','Somente a última de 2025','Outros casos'],required:true},{key:'outrosCasos',label:'Descrição de outros casos',type:'textarea'},{key:'responsavel',label:'E-mail do responsável'},{key:'observacoes',label:'Observações',type:'textarea'},{key:'enderecamento',label:'Endereçamento completo',placeholder:'AO JUÍZO DA …'},{key:'secaoJudiciaria',label:'Seção judiciária',placeholder:'SEÇÃO JUDICIÁRIA DO ESTADO …'},{key:'localData',label:'Local e data da petição',placeholder:'Rio Grande, data da distribuição'}];
@@ -1082,6 +1698,7 @@ f.insertBefore(file,f.firstChild);
     );
 
     b.dataset.code=code;
+    bindModulePrefetch_(b,code);
 
     b.append(
       navIcon_(code),
@@ -1164,6 +1781,11 @@ f.insertBefore(file,f.firstChild);
 
       b.dataset.code=
         item.code;
+
+      bindModulePrefetch_(
+        b,
+        item.code
+      );
 
       b.append(
         navIcon_(item.code),
@@ -1273,6 +1895,20 @@ f.insertBefore(file,f.firstChild);
     }
 
     boot=await call('bootstrap');
+
+    ensureSessionCaches_();
+
+    if(
+      boot.initialModule&&
+      boot.initialModule.code&&
+      boot.initialModule.bundle
+    ){
+      MODULE_CACHE.set(
+        boot.initialModule.code,
+        boot.initialModule.bundle
+      );
+    }
+
     renderNavigation_();
 
     window.PDA_AUTH
