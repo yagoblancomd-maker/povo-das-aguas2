@@ -80,8 +80,16 @@ function doGet(e){
       'Index'
     );
 
-  template.authBootstrap=
+  const authBootstrap=
     authPageBootstrap_(e);
+
+  template.authBootstrapJson=
+    JSON.stringify(
+      authBootstrap
+    ).replace(
+      /</g,
+      '\\u003c'
+    );
 
   template.authView=
     include_(
