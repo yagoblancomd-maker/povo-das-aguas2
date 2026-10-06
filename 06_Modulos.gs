@@ -185,6 +185,14 @@ function apiAuthenticated_(action,q){
     bootstrap:()=>{
       const user=activeUser_();
       const home=homeModule_(user);
+      const initialData=
+        home==='PAINEL'
+          ?{
+              action:'painel',
+              query:{},
+              result:dashboard_()
+            }
+          :null;
 
       return {
         email:user.email,
@@ -198,6 +206,7 @@ function apiAuthenticated_(action,q){
           code:home,
           bundle:carregarModulo_(home)
         },
+        initialData,
         modelo:templateStatus_(),
         portalTransparencia:portalTransparenciaStatus_(),
         deepseek:deepseekStatus_()
@@ -297,7 +306,7 @@ function apiAuthenticated_(action,q){
        * Novos cadastros continuam calculando a jurisdição em validatePerson_.
        */
       if(action==='bootstrap'){
-        atualizarJurisdicoes_();
+        atualizarJurisdicoesSeNecessario_();
         resetData_();
       }
 
