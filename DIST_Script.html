@@ -60,15 +60,42 @@ window.PDA_MODULES.DIST = (()=>{
     return field;
   }
 
-  function fileBase64_(file){
-    return new Promise((resolve,reject)=>{
-      if(!file||file.type!=='application/pdf'){
-        reject(new Error('Somente arquivos PDF podem ser anexados.'));
-        return;
+  function validatePdfFiles_(files){
+    const list=Array.from(files||[]);
+
+    list.forEach(file=>{
+      const name=String(file&&file.name||'');
+      const mime=String(file&&file.type||'').toLowerCase();
+
+      if(
+        !file||
+        !/\.pdf$/i.test(name)||
+        (
+          mime&&
+          mime!=='application/pdf'
+        )
+      ){
+        throw new Error(
+          'Somente arquivos PDF podem ser anexados.'
+        );
       }
 
       if(file.size>MAX_FILE_BYTES){
-        reject(new Error('Cada PDF deve ter no máximo 5 MB.'));
+        throw new Error(
+          'Cada PDF deve ter no máximo 5 MB: '+name
+        );
+      }
+    });
+
+    return list;
+  }
+
+  function fileBase64_(file){
+    return new Promise((resolve,reject)=>{
+      try{
+        validatePdfFiles_([file]);
+      }catch(e){
+        reject(e);
         return;
       }
 
@@ -102,7 +129,7 @@ window.PDA_MODULES.DIST = (()=>{
         {
           id:taskId,
           nome:file.name,
-          mime:file.type,
+          mime:'application/pdf',
           base64:await fileBase64_(file)
         },
         true
@@ -751,6 +778,11 @@ window.PDA_MODULES.DIST = (()=>{
             throw new Error('Selecione o responsável.');
           }
 
+          const selectedFiles=
+            validatePdfFiles_(
+              files.files
+            );
+
           const result=await call(
             'tarefaGeralCriar',
             {
@@ -763,20 +795,53 @@ window.PDA_MODULES.DIST = (()=>{
             true
           );
 
-          if(files.files&&files.files.length){
-            await uploadFiles_(
-              result.tarefa.id,
-              files.files
+          let uploadError=null;
+
+          if(selectedFiles.length){
+            try{
+              await uploadFiles_(
+                result.tarefa.id,
+                selectedFiles
+              );
+            }catch(e){
+              uploadError=e;
+            }
+          }
+
+          dialog.close();
+
+          if(uploadError){
+            status(
+              'A tarefa foi criada, mas um PDF não pôde ser anexado: '+
+              (uploadError.message||String(uploadError))+
+              '. Abra a tarefa para tentar o anexo novamente.',
+              true
+            );
+          }else{
+            status(
+              result.mensagem||
+              'Tarefa criada.'
             );
           }
 
-          status(
-            result.mensagem||
-            'Tarefa criada.'
-          );
+          /*
+           * O salvamento já terminou. A lista é atualizada em segundo
+           * plano para que uma leitura lenta não faça a tela parecer
+           * travada nem converta um salvamento concluído em falso erro.
+           */
+          refresh()
+            .catch(e=>
+              status(
+                'A tarefa foi criada, mas a lista não pôde ser atualizada agora: '+
+                (e.message||String(e))+
+                '. Reabra a aba para atualizar.',
+                true
+              )
+            );
 
-          dialog.close();
-          await refresh();
+          if(App.refreshTaskNotifications){
+            App.refreshTaskNotifications();
+          }
         }
       )
     );
