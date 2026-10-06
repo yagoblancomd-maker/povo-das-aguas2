@@ -449,6 +449,11 @@ function createOrReuseDocumentFile_(folder,name,payload){
 
 function personUpload_(ctx,q){
   const p=get_('Pessoas',q.pessoaId);
+
+  authorizePersonContentWrite_(
+    p
+  );
+
   const c=cfg_();
 
   if(!documentCategoryAllowed_(q.categoria,c)){
