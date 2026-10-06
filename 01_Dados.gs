@@ -352,6 +352,15 @@ function commit_(ctx,result){
   SpreadsheetApp.flush();
   resetData_();
 
+  /*
+   * Invalida logicamente caches de leitura compartilhados. As chaves
+   * antigas expiram sozinhas; novas leituras passam a usar outra revisão.
+   */
+  props_().setProperty(
+    'PDA_DATA_REVISION',
+    uid_()
+  );
+
   return result;
 }
 
