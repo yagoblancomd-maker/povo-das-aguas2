@@ -64,15 +64,42 @@ window.PDA_MODULES.TAREFAS = (()=>{
     return (n/(1024*1024)).toFixed(1)+' MB';
   }
 
-  function fileBase64_(file){
-    return new Promise((resolve,reject)=>{
-      if(!file||file.type!=='application/pdf'){
-        reject(new Error('Somente arquivos PDF podem ser anexados.'));
-        return;
+  function validatePdfFiles_(files){
+    const list=Array.from(files||[]);
+
+    list.forEach(file=>{
+      const name=String(file&&file.name||'');
+      const mime=String(file&&file.type||'').toLowerCase();
+
+      if(
+        !file||
+        !/\.pdf$/i.test(name)||
+        (
+          mime&&
+          mime!=='application/pdf'
+        )
+      ){
+        throw new Error(
+          'Somente arquivos PDF podem ser anexados.'
+        );
       }
 
       if(file.size>MAX_FILE_BYTES){
-        reject(new Error('Cada PDF deve ter no máximo 5 MB.'));
+        throw new Error(
+          'Cada PDF deve ter no máximo 5 MB: '+name
+        );
+      }
+    });
+
+    return list;
+  }
+
+  function fileBase64_(file){
+    return new Promise((resolve,reject)=>{
+      try{
+        validatePdfFiles_([file]);
+      }catch(e){
+        reject(e);
         return;
       }
 
@@ -107,7 +134,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
         {
           id:taskId,
           nome:file.name,
-          mime:file.type,
+          mime:'application/pdf',
           base64:await fileBase64_(file)
         },
         true
