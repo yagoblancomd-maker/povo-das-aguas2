@@ -185,8 +185,9 @@ function apiAuthenticated_(action,q){
     bootstrap:()=>{
       const user=activeUser_();
       const home=homeModule_(user);
+      const light=bool_(q.light);
       const initialData=
-        home==='PAINEL'
+        !light&&home==='PAINEL'
           ?{
               action:'painel',
               query:{},
@@ -202,10 +203,13 @@ function apiAuthenticated_(action,q){
         config:cfg_(),
         modulos:availableModules_(user),
         home,
-        initialModule:{
-          code:home,
-          bundle:carregarModulo_(home)
-        },
+        initialModule:
+          light
+            ?null
+            :{
+                code:home,
+                bundle:carregarModulo_(home)
+              },
         initialData,
         modelo:templateStatus_(),
         portalTransparencia:portalTransparenciaStatus_(),
