@@ -230,7 +230,7 @@ function serverCachedRead_(action,q,producer){
   return result;
 }
 
-function apiAuthenticated_(action,q){
+function apiAuthenticated_(action,q,sessionToken){
   resetData_();
   q=q||{};
 
@@ -382,6 +382,26 @@ function apiAuthenticated_(action,q){
   if(!mutations[action])fail_('Operação desconhecida.');
 
   return lock_(()=>{
+    /*
+     * Revalida a sessão dentro do mesmo lock da escrita. Assim uma sessão
+     * revogada/desativada enquanto aguardava o lock não consegue gravar.
+     */
+    if(sessionToken){
+      const fresh=
+        authSessionRead_(
+          sessionToken
+        );
+
+      if(
+        String(fresh.email||'').toLowerCase()!==
+        String(identity_()||'').toLowerCase()
+      ){
+        fail_(
+          'AUTH: sua sessão mudou. Entre novamente.'
+        );
+      }
+    }
+
     resetData_();
 
     const email=authorize_(mutations[action][0]);
@@ -429,7 +449,11 @@ function apiAuthenticated_(action,q){
 function api(action,q,sessionToken){
   return withAuthSession_(
     sessionToken,
-    ()=>apiAuthenticated_(action,q)
+    ()=>apiAuthenticated_(
+      action,
+      q,
+      sessionToken
+    )
   );
 }
 
