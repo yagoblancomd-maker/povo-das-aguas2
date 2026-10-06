@@ -230,139 +230,20 @@ n.className='status '+(error?'error':'ok');
  }
 
  function bindModulePrefetch_(node,code){
-  if(
-    !node||
-    typeof node.addEventListener!=='function'
-  ){
-    return;
-  }
-
-  let timer=null;
-
-  const start=()=>{
-    if(timer)return;
-    timer=setTimeout(
-      ()=>{
-        timer=null;
-        prefetchModule_(code,true);
-      },
-      90
-    );
-  };
-
-  const cancel=()=>{
-    if(timer){
-      clearTimeout(timer);
-      timer=null;
-    }
-  };
-
-  node.addEventListener(
-    'pointerenter',
-    start,
-    {passive:true}
-  );
-  node.addEventListener(
-    'pointerleave',
-    cancel,
-    {passive:true}
-  );
-  node.addEventListener(
-    'focus',
-    ()=>prefetchModule_(code,true)
-  );
-  node.addEventListener(
-    'pointerdown',
-    ()=>prefetchModule_(code,true),
-    {passive:true}
-  );
+  /*
+   * Intencionalmente sem preload automático. O módulo será carregado no
+   * primeiro clique e permanecerá no MODULE_CACHE durante toda a página.
+   * Isso elimina chamadas de fundo e concorrência desnecessária.
+   */
+  return;
  }
 
  function scheduleModuleWarmup_(){
-  if(
-    !boot||
-    !boot.modulos||
-    warmupScheduled||
-    bulkModulePromise
-  ){
-    return;
-  }
-
-  warmupScheduled=true;
-
-  const run=()=>{
-    warmupScheduled=false;
-    ensureSessionCaches_();
-
-    if(bulkModulePromise){
-      return;
-    }
-
-    const codes=
-      Object.keys(boot.modulos)
-        .filter(code=>
-          code!==current&&
-          !MODULE_CACHE.has(code)&&
-          !MODULE_REQUESTS.has(code)
-        );
-
-    if(!codes.length)return;
-
-    const session=authSessionToken;
-    bulkModuleCodes=new Set(codes);
-
-    /*
-     * Um único round-trip aquece os bundles. Não pré-carrega dados de
-     * todos os módulos: esses continuam sob demanda/hover para evitar
-     * explosão de execuções simultâneas no Apps Script.
-     */
-    const promise=
-      raw(
-        'carregarModulos',
-        codes,
-        session
-      )
-        .then(bundles=>{
-          if(
-            session!==authSessionToken||
-            !bundles
-          ){
-            return;
-          }
-
-          Object.entries(bundles)
-            .forEach(([code,module])=>{
-              if(module){
-                MODULE_CACHE.set(
-                  code,
-                  module
-                );
-              }
-            });
-        })
-        .catch(()=>{})
-        .finally(()=>{
-          if(bulkModulePromise===promise){
-            bulkModulePromise=null;
-            bulkModuleCodes=new Set();
-          }
-        });
-
-    bulkModulePromise=promise;
-  };
-
-  if('requestIdleCallback' in window){
-    window.requestIdleCallback(
-      run,
-      {timeout:1600}
-    );
-  }else{
-    setTimeout(
-      run,
-      950
-    );
-  }
+  // Sem preload em segundo plano: evita execuções Apps Script que o usuário
+  // não pediu. Módulos já visitados continuam instantâneos pelo MODULE_CACHE.
+  return;
  }
+
  function ensureProcessingOverlay_(){
   let overlay=document.getElementById('pda-processing-overlay');
   if(overlay)return overlay;
