@@ -1,33 +1,77 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Povo das Águas — Cloud</title>
-<style>
-:root{font-family:system-ui,sans-serif;color:#173f51;background:#061923}*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 5%,#159d9c55,transparent 30%),linear-gradient(135deg,#03111b,#075568)}
-main{width:min(980px,calc(100% - 32px));margin:auto;padding:56px 0}.hero{color:white}.hero h1{font-size:52px;margin:5px 0}.hero span{color:#72e2dc}
-.card{margin-top:24px;padding:24px;border-radius:18px;background:#f9ffff;box-shadow:0 24px 70px #0005}
-form{display:grid;gap:12px;max-width:440px}label{display:grid;gap:5px;font-weight:700}input,button{min-height:44px;border-radius:10px;padding:10px 12px;font:inherit}
-input{border:1px solid #bdd2d6}button{border:0;background:#0b8792;color:#fff;font-weight:800;cursor:pointer}.mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.mod{padding:12px;border:1px solid #d8e5e6;border-radius:10px}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07171e">
+  <title>Povo das Águas</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
-<body><main>
-<section class="hero"><small>CIDIJUS · EMAJ · FURG</small><h1>Povo <span>das Águas</span></h1><p>Ambiente paralelo de migração para Google Cloud.</p></section>
-<section class="card" id="login"><h2>Entrar</h2><form id="form"><label>E-mail<input name="email" type="email" required></label><label>Senha<input name="senha" type="password" required></label><button>Entrar</button></form><p id="msg"></p></section>
-<section class="card" id="app" hidden><button id="out">Sair</button><h2 id="name"></h2><p id="meta"></p><div id="mods" class="mods"></div></section>
-</main>
-<script type="module">
-const K='pda.cloud.session',q=s=>document.querySelector(s);
-const token=()=>sessionStorage.getItem(K)||'';
-async function api(path,opt={}){
- const h=new Headers(opt.headers||{});h.set('Content-Type','application/json');if(token())h.set('Authorization','Bearer '+token());
- const r=await fetch(path,{...opt,headers:h});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.message||'Falha de comunicação.');return b;
-}
-function show(b){q('#login').hidden=true;q('#app').hidden=false;q('#name').textContent=b.usuario.nomeUsuario||b.usuario.nome||b.email;q('#meta').textContent=b.email+' · '+b.perfil;q('#mods').replaceChildren(...Object.entries(b.modulos||{}).map(([c,l])=>{const d=document.createElement('div');d.className='mod';d.textContent=l+' · '+c;return d;}));}
-async function boot(){show(await api('/api/v1/bootstrap'))}
-q('#form').onsubmit=async e=>{e.preventDefault();q('#msg').textContent='Entrando…';const f=new FormData(e.currentTarget);try{const r=await api('/api/v1/auth/login',{method:'POST',body:JSON.stringify({email:f.get('email'),senha:f.get('senha')})});sessionStorage.setItem(K,r.sessionToken);await boot();}catch(x){q('#msg').textContent=x.message;}};
-q('#out').onclick=async()=>{try{await api('/api/v1/auth/logout',{method:'POST'})}catch{}sessionStorage.removeItem(K);location.reload();};
-if(token())boot().catch(()=>sessionStorage.removeItem(K));
-</script>
-</body></html>
+<body>
+  <div id="auth" class="auth-shell">
+    <div class="auth-brand">
+      <div class="brand-mark"><span>≋</span></div>
+      <div>
+        <div class="eyebrow">CIDIJUS · EMAJ · FURG</div>
+        <h1>Povo <em>das Águas</em></h1>
+        <p>Sistema de atendimento, documentação e acompanhamento processual.</p>
+      </div>
+    </div>
+    <section class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="login">Entrar</button>
+        <button class="auth-tab" data-auth-tab="register">Criar acesso</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
+        <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+      <form id="registerForm" class="auth-form hidden">
+        <label>Nome completo<input name="nome" required maxlength="140"></label>
+        <label>E-mail<input name="email" type="email" required></label>
+        <label>Função
+          <select name="funcao" required>
+            <option value="">Selecione</option>
+            <option>Professor</option><option>Residente</option><option>Colaborador</option><option>Aluno</option>
+          </select>
+        </label>
+        <label>Senha<input name="senha" type="password" required maxlength="200"></label>
+        <button class="primary" type="submit">Criar meu acesso</button>
+      </form>
+      <p id="authMessage" class="message" role="status"></p>
+    </section>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div class="brand-mark small"><span>≋</span></div>
+        <div><strong>Povo das Águas</strong><small>Google Cloud</small></div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="side-bottom">
+        <div class="user-chip">
+          <div class="avatar" id="avatar">P</div>
+          <div><strong id="sideUser">Usuário</strong><small id="sideRole"></small></div>
+        </div>
+        <button id="logout" class="ghost">Sair</button>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">POVO DAS ÁGUAS</div>
+          <h2 id="pageTitle">Início</h2>
+        </div>
+        <div class="status"><span></span><b>Cloud</b><small>PostgreSQL</small></div>
+      </header>
+      <div id="notice" class="notice hidden"></div>
+      <section id="content" class="content"><div class="loading">Carregando…</div></section>
+    </main>
+  </div>
+
+  <dialog id="dialog"><div id="dialogBody"></div><button class="ghost dialog-close" onclick="this.closest('dialog').close()">Fechar</button></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
