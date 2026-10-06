@@ -121,7 +121,7 @@ async function dashboard(user){
   const [peopleR,docsR,processR,histR,tasksR]=await Promise.all([
     pool.query('SELECT * FROM pessoas ORDER BY criado_em DESC'),
     pool.query('SELECT * FROM documentos WHERE vigente=true'),
-    pool.query('SELECT * FROM processos ORDER BY COALESCE(NULLIF(distribuido_em,''),criado_em::text) DESC'),
+    pool.query("SELECT * FROM processos ORDER BY COALESCE(NULLIF(distribuido_em,''),criado_em::text) DESC"),
     pool.query('SELECT * FROM historico ORDER BY COALESCE(alterado_em,criado_em) DESC LIMIT 7'),
     pool.query(
       `SELECT * FROM tarefas WHERE tipo=$1 AND situacao<>$2 AND lower(COALESCE(responsavel,''))=lower($3)`,
