@@ -818,6 +818,11 @@ function seguroDefesoRelatorioGerar_(ctx,q){
   required_(q.pessoaId,'pessoa');
 
   const p=get_('Pessoas',q.pessoaId);
+
+  authorizePersonContentWrite_(
+    p
+  );
+
   const consulta=seguroDefesoConsulta_(p.cpf);
   const folder=personFolder_(p);
   const baseName=seguroDefesoReportBaseName_(p);
