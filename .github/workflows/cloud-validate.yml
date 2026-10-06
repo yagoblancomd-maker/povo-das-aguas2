@@ -1,0 +1,37 @@
+name: Validate Google Cloud migration
+
+on:
+  push:
+    branches:
+      - google-cloud-migration
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloud/backend/package.json
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Check Node syntax
+        run: |
+          node --check src/server.mjs
+          node --check src/auth.mjs
+          node --check src/db.mjs
+          node --check src/schema.mjs
+          node --check scripts/import-sheets.mjs
+
+      - name: Check provisioner syntax
+        working-directory: .
+        run: bash -n cloud/infra/bootstrap-gcp.sh
