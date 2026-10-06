@@ -1,10 +1,88 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import {getPool,tx} from './db.mjs';
-import {publicUser} from './access.mjs';
+import {publicUser,ROLES} from './access.mjs';
 
 const H=12;
 const sha=v=>crypto.createHash('sha256').update(String(v),'utf8').digest('hex');
+
+
+const SELF_REGISTRATION=Object.freeze({
+  Professor:{perfil:'PROFESSOR_RESIDENTE',permissoes:ROLES.PROFESSOR_RESIDENTE},
+  Residente:{perfil:'PROFESSOR_RESIDENTE',permissoes:ROLES.PROFESSOR_RESIDENTE},
+  Colaborador:{perfil:'COLABORADOR',permissoes:ROLES.COLABORADOR},
+  Aluno:{perfil:'ALUNO',permissoes:ROLES.ALUNO}
+});
+
+export async function register(input={}){
+  const email=String(input.email||'').trim().toLowerCase();
+  const nome=String(input.nome||'').trim().replace(/\s+/g,' ');
+  const funcao=String(input.funcao||'').trim();
+  const senha=String(input.senha??'');
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    throw Object.assign(new Error('Informe um e-mail válido.'),{statusCode:400});
+  }
+  if(!nome||nome.length>140){
+    throw Object.assign(new Error('Informe seu nome, com até 140 caracteres.'),{statusCode:400});
+  }
+  if(!SELF_REGISTRATION[funcao]){
+    throw Object.assign(new Error('Selecione sua função no projeto.'),{statusCode:400});
+  }
+  if(!senha.length||senha.length>200){
+    throw Object.assign(new Error('Informe uma senha.'),{statusCode:400});
+  }
+
+  return tx(async client=>{
+    const exists=(await client.query(
+      'SELECT id FROM usuarios WHERE lower(email)=lower($1) LIMIT 1',
+      [email]
+    )).rows[0];
+
+    if(exists){
+      throw Object.assign(new Error('Este e-mail já possui cadastro.'),{statusCode:409});
+    }
+
+    const access=SELF_REGISTRATION[funcao];
+    const passwordHash=await bcrypt.hash(sha(senha),12);
+    const userId='USR_'+crypto.randomBytes(14).toString('hex');
+
+    const user=(await client.query(
+      `INSERT INTO usuarios
+       (id,versao,criado_em,alterado_em,usuario_email,email,perfil,ativo,nome,funcao,
+        permissoes,permissoes_versao,senha_hash,senha_salt,senha_algoritmo,
+        session_version,ultimo_login,nome_usuario,emails_anteriores)
+       VALUES($1,1,now(),now(),$2,$2,$3,true,$4,$5,$6::jsonb,2,$7,$8,
+              'bcrypt-sha256-v1',1,now(),$4,'[]'::jsonb)
+       RETURNING *`,
+      [
+        userId,email,access.perfil,nome,funcao,
+        JSON.stringify(access.permissoes),passwordHash,passwordHash.slice(0,29)
+      ]
+    )).rows[0];
+
+    const token=crypto.randomBytes(32).toString('hex');
+    const exp=new Date(Date.now()+H*3600000);
+
+    await client.query(
+      `INSERT INTO sessoes
+       (id,versao,criado_em,alterado_em,usuario_email,usuario_id,token_hash,
+        expira_em,session_version,revogada)
+       VALUES($1,1,now(),now(),$2,$3,$4,$5,$6,false)`,
+      [
+        'SES_'+sha(token).slice(0,28),email,user.id,sha(token),exp,
+        Number(user.session_version||0)
+      ]
+    );
+
+    return {
+      status:'AUTHENTICATED',
+      sessionToken:token,
+      expiresAt:exp.getTime(),
+      usuario:publicUser(user)
+    };
+  });
+}
 
 export async function login(emailInput,senha){
   const email=String(emailInput||'').trim().toLowerCase();
