@@ -35,7 +35,7 @@ function hasPermission(p){return (boot?.permissoes||[]).includes(p);}
 
 async function api(path,opt={}){
   const headers=new Headers(opt.headers||{});
-  if(opt.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+  if(opt.body&&!(opt.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
   if(token())headers.set('Authorization','Bearer '+token());
   const res=await fetch(path,{...opt,headers});
   const body=await res.json().catch(()=>({}));
@@ -198,23 +198,88 @@ async function renderPeople(){
 async function openDossier(id){
   const d=await api('/api/v1/dossie/'+encodeURIComponent(id));
   const p=d.pessoa;
-  const docs=(d.documentos||[]).map(x=>
-    '<tr><td>'+esc(x.categoria||'Documento')+'</td><td>'+esc(x.nome||'—')+'</td><td>'+(x.conferido?'<span class="badge ok">Conferido</span>':'<span class="badge warn">Pendente</span>')+'</td>'+
-    '<td>'+(x.url?'<a class="doc-link" target="_blank" rel="noopener" href="'+esc(x.url)+'">Abrir</a>':'—')+'</td></tr>'
-  ).join('');
+  const canEdit=hasPermission('cadastro')||hasPermission('retificacao')||hasPermission('retificacao_propria');
+  const categories=[
+    'RG_CPF','RESIDENCIA','PROCESSO_ADMINISTRATIVO','PESCA','PROCURACAO',
+    'HIPOSSUFICIENCIA','IDENTIDADE_TITULAR_RESIDENCIA'
+  ];
+  const docs=(d.documentos||[]).filter(x=>x.vigente!==false).map(x=>{
+    const cloud=String(x.file_id||'').startsWith('gcs:');
+    const open=cloud
+      ?'<button class="secondary download-doc" data-id="'+esc(x.id)+'">Abrir</button>'
+      :(x.url?'<a class="doc-link" target="_blank" rel="noopener" href="'+esc(x.url)+'">Abrir</a>':'—');
+    const review=hasPermission('conferencia')
+      ?'<button class="secondary review-doc" data-id="'+esc(x.id)+'" data-value="'+(!x.conferido)+'">'+(x.conferido?'Desmarcar':'Conferir')+'</button>'
+      :'';
+    const remove=canEdit?'<button class="danger remove-doc" data-id="'+esc(x.id)+'">Remover</button>':'';
+    return '<tr><td>'+esc(x.categoria||'Documento')+'</td><td>'+esc(x.nome||'—')+'</td><td>'+(x.conferido?'<span class="badge ok">Conferido</span>':'<span class="badge warn">Pendente</span>')+'</td>'+
+      '<td><div style="display:flex;gap:6px;flex-wrap:wrap">'+open+review+remove+'</div></td></tr>';
+  }).join('');
   const procs=(d.processos||[]).map(x=>'<div class="person-card"><h4>'+esc(x.numero||'Processo')+'</h4><p>'+esc(x.juizo||p.jurisdicao||'')+' · '+esc(date(x.distribuido_em))+'</p></div>').join('');
+  const upload=canEdit
+    ?'<form id="docUpload" class="toolbar" style="margin-top:12px"><div class="field"><label>Categoria<select name="categoria">'+categories.map(x=>'<option>'+x+'</option>').join('')+'</select></label></div><div class="field grow"><label>Arquivo<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.docx" required></label></div><button class="primary">Anexar</button></form>'
+    :'';
+  const finalize=hasPermission('cadastro')
+    ?'<button class="primary" id="finalizePerson">Concluir cadastro e criar tarefa</button>'
+    :'';
   q('#dialogBody').innerHTML=
-    '<div class="panel-head"><div><div class="eyebrow">DOSSIÊ</div><h3>'+esc(p.nome)+'</h3></div>'+
-    ((hasPermission('retificacao')||hasPermission('retificacao_propria'))?'<button class="primary" id="editPerson">Retificar</button>':'')+'</div>'+
+    '<div class="panel-head"><div><div class="eyebrow">DOSSIÊ</div><h3>'+esc(p.nome)+'</h3></div><div style="display:flex;gap:8px">'+
+    ((hasPermission('retificacao')||hasPermission('retificacao_propria'))?'<button class="secondary" id="editPerson">Retificar</button>':'')+finalize+'</div></div>'+
     '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">'+
       '<div class="person-card"><h4>Identificação</h4><p>'+esc(cpf(p.cpf))+'</p><p>'+esc(p.nascimento||'')+'</p><p>'+esc(p.telefone||'')+'</p></div>'+
       '<div class="person-card"><h4>Endereço</h4><p>'+esc([p.tipo_via,p.via,p.numero,p.complemento].filter(Boolean).join(' '))+'</p><p>'+esc([p.bairro,p.cidade,p.uf].filter(Boolean).join(' · '))+'</p></div>'+
       '<div class="person-card"><h4>Atendimento</h4><p>Jurisdição: '+esc(p.jurisdicao||'—')+'</p><p>Parcelas: '+esc(p.parcelas_nao_recebidas||'—')+'</p><p>Valor: '+esc(money(Number(p.parcelas_nao_recebidas||0)*1518))+'</p></div>'+
     '</div>'+
-    '<h3 style="margin-top:20px">Documentos</h3>'+(docs?'<div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Arquivo</th><th>Status</th><th></th></tr></thead><tbody>'+docs+'</tbody></table></div>':'<div class="empty">Nenhum documento registrado.</div>')+
+    '<h3 style="margin-top:20px">Documentos</h3>'+upload+(docs?'<div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Arquivo</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+docs+'</tbody></table></div>':'<div class="empty">Nenhum documento registrado.</div>')+
     '<h3 style="margin-top:20px">Processos</h3><div class="list">'+(procs||'<div class="empty">Nenhum processo registrado.</div>')+'</div>';
+
   const edit=q('#editPerson');
   if(edit)edit.onclick=()=>{q('#dialog').close();current='PESS';q('#pageTitle').textContent='Retificar cadastro';buildNav();renderPersonForm(p);};
+
+  const uploadForm=q('#docUpload');
+  if(uploadForm)uploadForm.onsubmit=async e=>{
+    e.preventDefault();
+    const fd=new FormData(e.currentTarget);
+    const file=fd.get('file'),category=fd.get('categoria');
+    const body=new FormData();body.append('file',file);
+    try{
+      await api('/api/v1/pessoas/'+encodeURIComponent(p.id)+'/documentos?categoria='+encodeURIComponent(category),{method:'POST',body});
+      notify('Documento anexado.');
+      await openDossier(p.id);
+    }catch(err){notify(err.message,true);}
+  };
+
+  qa('.download-doc').forEach(b=>b.onclick=async()=>{
+    try{
+      const res=await fetch('/api/v1/documentos/'+encodeURIComponent(b.dataset.id)+'/download',{headers:{Authorization:'Bearer '+token()}});
+      if(!res.ok)throw new Error('Não foi possível abrir o documento.');
+      const blob=await res.blob(),url=URL.createObjectURL(blob);
+      window.open(url,'_blank','noopener');
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(err){notify(err.message,true);}
+  });
+
+  qa('.review-doc').forEach(b=>b.onclick=async()=>{
+    try{
+      await api('/api/v1/documentos/'+encodeURIComponent(b.dataset.id)+'/conferencia',{method:'PATCH',body:JSON.stringify({conferido:b.dataset.value==='true'})});
+      notify('Conferência atualizada.');await openDossier(p.id);
+    }catch(err){notify(err.message,true);}
+  });
+
+  qa('.remove-doc').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Remover este documento do cadastro?'))return;
+    try{await api('/api/v1/documentos/'+encodeURIComponent(b.dataset.id),{method:'DELETE'});notify('Documento removido.');await openDossier(p.id);}
+    catch(err){notify(err.message,true);}
+  });
+
+  const finish=q('#finalizePerson');
+  if(finish)finish.onclick=async()=>{
+    try{
+      const out=await api('/api/v1/pessoas/'+encodeURIComponent(p.id)+'/finalizar',{method:'POST'});
+      notify(out.mensagem||'Cadastro concluído.');
+      await openDossier(p.id);
+    }catch(err){notify(err.message,true);}
+  };
   q('#dialog').showModal();
 }
 
