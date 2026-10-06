@@ -1,22 +1,31 @@
-# Povo das Águas — Google Cloud
+# Povo das Águas — migração Google Cloud
 
-Migração paralela. Este diretório não substitui nem modifica o Apps Script atual.
+Esta branch mantém a nova arquitetura **completamente paralela** ao Apps Script atual.
 
-Arquitetura-alvo:
-- Firebase Hosting: front-end.
-- Cloud Run: API.
+## Arquitetura
+
+- Cloud Run: aplicação web e API.
 - Cloud SQL PostgreSQL: banco transacional.
-- Google Drive/Docs: arquivos e documentos.
-- Google Sheets: somente origem de migração/exportação.
+- Google Drive/Docs: documentos continuam no ecossistema Google.
+- Google Sheets atual: somente fonte de migração, sem escrita.
+- Firebase Hosting permanece preparado para uma etapa posterior; a primeira publicação serve front-end e API no mesmo Cloud Run para reduzir complexidade.
 
-Primeira etapa já preparada:
-1. API Cloud Run executável.
-2. autenticação compatível com bcrypt-sha256-v1 atual;
-3. sessões de 12 horas no PostgreSQL;
-4. bootstrap de usuário/permissões/módulos;
-5. consulta de Pessoas;
-6. schema PostgreSQL;
-7. importador inicial Sheets -> PostgreSQL;
-8. Firebase Hosting mínimo para validação.
+## Publicação automatizada
 
-A produção continua no Apps Script até equivalência funcional.
+O provisionamento está em:
+
+`cloud/infra/bootstrap-gcp.sh`
+
+Ele cria a infraestrutura, publica, localiza o banco atual no Drive e copia os dados para PostgreSQL.
+
+## Segurança da migração
+
+- não altera a `main`;
+- não altera o Apps Script;
+- não escreve no Google Sheets durante a importação;
+- não leva sessões/links de recuperação antigos para o novo banco;
+- preserva os hashes de senha `bcrypt-sha256-v1`, permitindo usar a mesma senha no novo sistema.
+
+## Branch
+
+`google-cloud-migration`
