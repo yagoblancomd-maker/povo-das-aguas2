@@ -255,15 +255,18 @@ function authorizePersonContentWrite_(p){
 function googleResourceAccessLevel_(user){
   if(
     !user||
-    !bool_(user.ativo)
+    !bool_(
+      user.ativo
+    )
   ){
     return 'NONE';
   }
 
   /*
-   * Na arquitetura de implantação única, toda gravação é feita pelo servidor
-   * como proprietário. Usuários precisam apenas de leitura direta no Drive
-   * para abrir PDFs, imagens e pacotes ZIP pela interface.
+   * Na arquitetura de implantação única, toda gravação é executada pelo
+   * proprietário do Web App e passa pelas permissões do sistema. Usuários
+   * ativos recebem somente leitura direta no Drive para abrir/baixar os
+   * documentos; nunca edição direta da pasta raiz ou do banco.
    */
   return 'VIEWER';
 }
