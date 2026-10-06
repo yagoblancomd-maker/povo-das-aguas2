@@ -1,0 +1,118 @@
+<section id="pda-auth-overlay" class="pda-auth-overlay" aria-label="Acesso ao Povo das Águas">
+  <div class="pda-auth-sea" aria-hidden="true">
+    <svg viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice">
+      <circle class="pda-auth-sun" cx="1120" cy="180" r="115"></circle>
+      <path class="pda-auth-wave" d="M-80 650 C120 590 250 700 440 650 S770 595 960 658 S1230 702 1490 642"></path>
+      <path class="pda-auth-wave pda-auth-wave2" d="M-100 712 C120 653 270 770 480 716 S800 655 1000 720 S1250 764 1510 704"></path>
+      <path class="pda-auth-wave pda-auth-wave3" d="M-120 778 C100 724 300 826 520 776 S850 730 1050 786 S1270 822 1510 764"></path>
+      <path class="pda-auth-boat" d="M880 595h280l-42 55H925z"></path>
+      <path class="pda-auth-line" d="M900 595h240"></path>
+      <path class="pda-auth-line" d="M1015 594V390"></path>
+      <circle cx="1062" cy="516" r="14" fill="rgba(240,255,255,.30)"></circle>
+      <path class="pda-auth-line" d="M1062 531l-10 62m10-46 34 21m-38-5-32 30"></path>
+      <path class="pda-auth-line" d="M1094 559l95-118"></path>
+      <path class="pda-auth-net" d="M1014 430c56 25 96 69 126 144"></path>
+      <path class="pda-auth-net" d="M1014 448c-50 34-78 78-87 134"></path>
+      <path class="pda-auth-line" d="M240 230q20-20 40 0q20-20 40 0"></path>
+      <path class="pda-auth-line" d="M420 170q14-14 28 0q14-14 28 0"></path>
+    </svg>
+  </div>
+
+  <div class="pda-auth-content">
+    <div class="pda-auth-brand">
+      <div class="pda-auth-logo"><?!= include_('Logo'); ?></div>
+      <div>
+        <h1>Povo das Águas</h1>
+        <p>CIDIJUS · EMAJ · FURG</p>
+      </div>
+    </div>
+
+    <div class="pda-auth-grid">
+      <article class="pda-auth-story">
+        <span class="pda-auth-eyebrow">PORTAL DE ACESSO</span>
+        <h2>Justiça, tecnologia e cuidado com quem vive das águas.</h2>
+        <p>
+          O Povo das Águas reúne cadastro, documentação, preparação de ações, distribuição e acompanhamento do Seguro-Defeso em um ambiente único de trabalho.
+        </p>
+
+        <div class="pda-auth-features">
+          <div><strong>Acesso à Justiça</strong><span>Organização jurídica e documental para atendimento das comunidades pesqueiras.</span></div>
+          <div><strong>Seguro-Defeso 2025</strong><span>Fluxo integrado do cadastro à distribuição processual.</span></div>
+          <div><strong>Trabalho em rede</strong><span>Professores, residentes, colaboradores e alunos com permissões adequadas à função.</span></div>
+          <div><strong>Dados organizados</strong><span>Documentos, tarefas e processos vinculados diretamente a cada pessoa.</span></div>
+        </div>
+      </article>
+
+      <aside class="pda-auth-card">
+        <div class="pda-auth-card-head">
+          <span class="pda-auth-person-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.5 2.6-5.3 5.5-5.3s4.8 1.8 5.5 5.3"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>
+          </span>
+          <div>
+            <h3 id="pda-auth-title">Entre no Povo das Águas</h3>
+            <p id="pda-auth-subtitle">Use sua Conta Google para continuar.</p>
+          </div>
+        </div>
+
+        <div id="pda-auth-google-panel">
+          <div class="pda-auth-google-account">
+            <span class="pda-auth-g">G</span>
+            <div>
+              <small>LOGIN SEGURO</small>
+              <strong>Conta Google</strong>
+            </div>
+          </div>
+
+          <button id="pda-auth-google-button" class="pda-auth-google-button" type="button">
+            <span class="pda-auth-g">G</span>
+            <span>Continuar com Google</span>
+          </button>
+        </div>
+
+        <form id="pda-auth-register-form" class="pda-auth-register-form" hidden>
+          <div class="pda-auth-verified">
+            <span class="pda-auth-g">G</span>
+            <div>
+              <small>CONTA GOOGLE VERIFICADA</small>
+              <strong id="pda-auth-email"></strong>
+            </div>
+          </div>
+
+          <label>
+            <span>Seu nome completo</span>
+            <input id="pda-auth-name" name="nome" maxlength="140" required autocomplete="name">
+          </label>
+
+          <label>
+            <span>Sua função no projeto</span>
+            <select id="pda-auth-function" name="funcao" required>
+              <option value="">Selecione</option>
+              <option value="Professor">Professor</option>
+              <option value="Residente">Residente</option>
+              <option value="Colaborador">Colaborador</option>
+              <option value="Aluno">Aluno</option>
+            </select>
+          </label>
+
+          <div class="pda-auth-permissions">
+            <strong id="pda-auth-permissions-title">Seu perfil inicial</strong>
+            <p id="pda-auth-permissions-text">Selecione sua função para ver as permissões iniciais.</p>
+          </div>
+
+          <button class="pda-auth-create" type="submit">Criar meu acesso ao Povo das Águas</button>
+        </form>
+
+        <div id="pda-auth-message" class="pda-auth-message" hidden></div>
+
+        <div class="pda-auth-security">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3"></path><path d="M5 10h14v10H5z"></path></svg>
+          <span>A autenticação ocorre diretamente com o Google. O sistema não recebe nem armazena sua senha.</span>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="pda-auth-footer">
+      Projeto Povo das Águas · CIDIJUS / EMAJ / FURG · Extensão universitária, documentação e acesso à Justiça.
+    </footer>
+  </div>
+</section>
