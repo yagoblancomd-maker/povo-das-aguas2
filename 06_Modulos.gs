@@ -359,26 +359,24 @@ function apiAuthenticated_(action,q){
       readPermissions[action]||
       'consulta'
     );
-    return lock_(()=>{
+
+    /*
+     * Leituras não precisam ocupar o ScriptLock global. A sessão já foi
+     * validada por withAuthSession_ e as mutações continuam revalidando o
+     * usuário dentro de lock_ antes de gravar.
+     */
+    resetData_();
+
+    if(action==='bootstrap'){
+      atualizarJurisdicoesSeNecessario_();
       resetData_();
+    }
 
-      /*
-       * A atualização global de jurisdições é uma migração de consistência,
-       * não uma etapa necessária a cada consulta. Executá-la somente no
-       * bootstrap evita varrer Pessoas/Atendimentos em toda navegação.
-       * Novos cadastros continuam calculando a jurisdição em validatePerson_.
-       */
-      if(action==='bootstrap'){
-        atualizarJurisdicoesSeNecessario_();
-        resetData_();
-      }
-
-      return serverCachedRead_(
-        action,
-        q,
-        reads[action]
-      );
-    });
+    return serverCachedRead_(
+      action,
+      q,
+      reads[action]
+    );
   }
 
   if(!mutations[action])fail_('Operação desconhecida.');
