@@ -14,44 +14,52 @@
 
   <div id="app-shell" hidden>
     <header class="app-header">
-      <div class="app-header-glow app-header-glow-a" aria-hidden="true"></div>
-      <div class="app-header-glow app-header-glow-b" aria-hidden="true"></div>
+      <div class="app-header-effects" aria-hidden="true">
+        <span class="app-header-aurora app-header-aurora-a"></span>
+        <span class="app-header-aurora app-header-aurora-b"></span>
+        <span class="app-header-beam"></span>
+        <span class="app-header-dotfield"></span>
+        <span class="app-header-vignette"></span>
+      </div>
 
       <div class="app-header-inner">
         <div class="app-header-brand">
           <div class="app-brand-logo-wrap">
+            <span class="app-brand-orbit app-brand-orbit-a" aria-hidden="true"></span>
+            <span class="app-brand-orbit app-brand-orbit-b" aria-hidden="true"></span>
             <?!= include_('Logo'); ?>
           </div>
 
           <div class="app-header-copy">
-            <span class="app-header-eyebrow">CIDIJUS · EMAJ · FURG</span>
-            <h1>Povo das Águas</h1>
+            <span class="app-header-eyebrow">
+              <i></i>
+              CIDIJUS · EMAJ · FURG
+            </span>
+            <h1>Povo <span>das Águas</span></h1>
             <p>Sistema integrado de atendimento, documentação e acesso à Justiça.</p>
-          </div>
-        </div>
-
-        <div class="app-header-mission" aria-hidden="true">
-          <span class="app-header-mission-icon">
-            <svg viewBox="0 0 64 28">
-              <path d="M2 10c8-8 16 8 24 0s16 8 24 0 8-2 12 1"></path>
-              <path d="M2 19c8-8 16 8 24 0s16 8 24 0 8-2 12 1"></path>
-            </svg>
-          </span>
-          <div>
-            <strong>Comunidades pesqueiras</strong>
-            <span>Direitos · organização · cuidado</span>
+            <div class="app-header-signals" aria-hidden="true">
+              <span>Comunidades pesqueiras</span>
+              <span>Seguro-Defeso</span>
+              <span>Acesso à Justiça</span>
+            </div>
           </div>
         </div>
 
         <div class="app-header-user">
+          <div class="app-user-light" aria-hidden="true"></div>
+
           <button id="profileShortcut" class="app-user-avatar" type="button" aria-label="Abrir meu perfil">
+            <span class="app-user-avatar-ring" aria-hidden="true"></span>
             <img id="headerUserPhoto" alt="" hidden>
             <span id="headerUserInitials" class="app-user-avatar-fallback">US</span>
             <span class="app-user-presence" aria-hidden="true"></span>
           </button>
 
           <div class="app-header-user-copy">
-            <span class="app-header-user-label">SUA CONTA</span>
+            <span class="app-header-user-label">
+              <i></i>
+              CONECTADO
+            </span>
             <strong id="identity" class="app-header-user-name">Usuário</strong>
             <div class="app-header-user-meta">
               <span id="headerUserFunction" class="app-user-chip"></span>
@@ -60,21 +68,21 @@
           </div>
 
           <div class="app-header-user-actions">
-            <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil">
+            <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil" aria-label="Meu perfil">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>
-              <span>Perfil</span>
             </button>
-            <button id="logoutButton" class="app-logout-button" type="button" title="Sair">
+            <button id="logoutButton" class="app-logout-button" type="button" title="Sair" aria-label="Sair">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path></svg>
-              <span>Sair</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div class="app-header-waterline" aria-hidden="true">
-        <span></span><span></span><span></span>
-      </div>
+      <svg class="app-header-wave" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true">
+        <path class="app-header-wave-a" d="M-80 55 C140 10 310 88 520 48 S900 18 1120 50 S1390 76 1520 30"></path>
+        <path class="app-header-wave-b" d="M-70 70 C180 26 350 100 570 63 S930 38 1160 67 S1390 88 1510 49"></path>
+        <path class="app-header-wave-c" d="M-60 83 C160 54 340 112 560 80 S950 57 1180 83 S1390 100 1510 66"></path>
+      </svg>
     </header>
 
     <nav id="nav" aria-label="Módulos"></nav>
