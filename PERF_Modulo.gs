@@ -42,7 +42,7 @@ function profileMigrateEmailReferences_(ctx,oldEmail,newEmail){
 
 function authUpdateProfile(token,q){
   q=q||{};
-  return withAuthSession_(token,s=>{
+  return withAuthMutationSession_(token,s=>{
     const user=s.user;version_(user,q.versao);
     const nome=String(q.nome||'').trim().replace(/\s+/g,' ');
     const nomeUsuario=String(q.nomeUsuario||'').trim().replace(/\s+/g,' ');
@@ -83,7 +83,7 @@ function authUpdateProfile(token,q){
 
 function authChangePassword(token,senhaAtual,novaSenha){
   authPassword_(novaSenha);authPassword_(senhaAtual);
-  return withAuthSession_(token,s=>{
+  return withAuthMutationSession_(token,s=>{
     const user=s.user;authLimit_('profile-password',user.id,8,15);
     if(!authPasswordMatches_(user,senhaAtual))fail_('Senha atual incorreta.');
     const ctx=authContext_(user.email);
