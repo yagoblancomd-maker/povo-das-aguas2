@@ -1,0 +1,1310 @@
+const GENERAL_TASK_TYPE='TAREFA_GERAL';
+const GENERAL_TASK_ASSIGNED='ATRIBUIDA';
+const GENERAL_TASK_DONE='CONCLUIDA';
+const GENERAL_TASK_PRIORITIES=Object.freeze(['BAIXA','NORMAL','ALTA','URGENTE']);
+
+function generalTaskRows_(name){
+  return ss_().getSheetByName(name)
+    ?all_(name)
+    :[];
+}
+
+function ensureGeneralTaskSchema_(){
+  const spreadsheet=ss_();
+
+  ['Tarefas','TarefaMensagens','TarefaAnexos']
+    .forEach(name=>{
+      const headers=
+        COMMON.concat(
+          SCHEMA[name]||[]
+        );
+
+      let sheet=
+        spreadsheet.getSheetByName(name);
+
+      if(!sheet){
+        sheet=spreadsheet.insertSheet(name);
+      }
+
+      const lastColumn=
+        sheet.getLastColumn();
+
+      const current=
+        lastColumn
+          ?sheet
+            .getRange(
+              1,
+              1,
+              1,
+              lastColumn
+            )
+            .getValues()[0]
+            .map(value=>String(value||'').trim())
+          :[];
+
+      if(
+        !current.length||
+        current.every(value=>!value)
+      ){
+        sheet
+          .getRange(
+            1,
+            1,
+            1,
+            headers.length
+          )
+          .setValues([headers]);
+
+        return;
+      }
+
+      const missing=
+        headers.filter(
+          header=>
+            !current.includes(header)
+        );
+
+      if(missing.length){
+        sheet
+          .getRange(
+            1,
+            lastColumn+1,
+            1,
+            missing.length
+          )
+          .setValues([missing]);
+      }
+    });
+
+  resetData_();
+}
+
+function generalTaskAssignableUsers_(){
+  return all_('Usuarios')
+    .filter(user=>
+      bool_(user.ativo)&&
+      hasPermission_(
+        user,
+        'consulta'
+      )
+    )
+    .sort((a,b)=>
+      String(
+        a.nome||
+        a.email
+      ).localeCompare(
+        String(
+          b.nome||
+          b.email
+        ),
+        'pt-BR',
+        {sensitivity:'base'}
+      )
+    )
+    .map(user=>({
+      id:user.id,
+      nome:user.nome||user.email,
+      funcao:user.funcao||'',
+      email:user.email,
+      perfil:user.perfil||''
+    }));
+}
+
+function generalTaskUserMaps_(){
+  const users=
+    all_('Usuarios');
+
+  return {
+    users,
+    byEmail:new Map(
+      users.map(user=>[
+        String(
+          user.email||
+          ''
+        ).toLowerCase(),
+        user
+      ])
+    )
+  };
+}
+
+function generalTaskDisplayUser_(email,usersByEmail){
+  const key=
+    String(
+      email||
+      ''
+    ).toLowerCase();
+
+  const user=
+    usersByEmail.get(key);
+
+  return user
+    ?(
+      user.nome||
+      user.email
+    )
+    :String(email||'');
+}
+
+function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts){
+  return {
+    id:task.id,
+    versao:task.versao,
+    tipo:task.tipo,
+    titulo:task.titulo||'Tarefa',
+    descricao:task.descricao||'',
+    responsavel:task.responsavel||'',
+    responsavelNome:
+      generalTaskDisplayUser_(
+        task.responsavel,
+        usersByEmail
+      ),
+    criadoPor:task.criadoPor||'',
+    criadoPorNome:
+      generalTaskDisplayUser_(
+        task.criadoPor,
+        usersByEmail
+      ),
+    situacao:task.situacao||GENERAL_TASK_ASSIGNED,
+    prioridade:task.prioridade||'NORMAL',
+    prazo:task.prazo||'',
+    criadoEm:task.criadoEm||'',
+    atribuidaEm:task.atribuidaEm||'',
+    concluidaEm:task.concluidaEm||'',
+    mensagens:Number(
+      messageCounts.get(task.id)||
+      0
+    ),
+    anexos:Number(
+      attachmentCounts.get(task.id)||
+      0
+    )
+  };
+}
+
+function generalTaskCountMap_(rows){
+  const map=new Map();
+
+  rows.forEach(row=>{
+    const taskId=
+      String(
+        row.tarefaId||
+        ''
+      );
+
+    if(!taskId){
+      return;
+    }
+
+    map.set(
+      taskId,
+      (
+        map.get(taskId)||
+        0
+      )+1
+    );
+  });
+
+  return map;
+}
+
+function generalTaskSort_(a,b){
+  const aDone=
+    a.situacao===
+    GENERAL_TASK_DONE;
+
+  const bDone=
+    b.situacao===
+    GENERAL_TASK_DONE;
+
+  if(aDone!==bDone){
+    return aDone
+      ?1
+      :-1;
+  }
+
+  const aDue=
+    String(
+      a.prazo||
+      '9999-12-31'
+    );
+
+  const bDue=
+    String(
+      b.prazo||
+      '9999-12-31'
+    );
+
+  if(aDue!==bDue){
+    return aDue.localeCompare(bDue);
+  }
+
+  return String(
+    b.alteradoEm||
+    b.criadoEm||
+    ''
+  ).localeCompare(
+    String(
+      a.alteradoEm||
+      a.criadoEm||
+      ''
+    )
+  );
+}
+
+function generalTaskManagementList_(){
+  const maps=
+    generalTaskUserMaps_();
+
+  const messages=
+    generalTaskRows_(
+      'TarefaMensagens'
+    );
+
+  const attachments=
+    generalTaskRows_(
+      'TarefaAnexos'
+    );
+
+  const messageCounts=
+    generalTaskCountMap_(messages);
+
+  const attachmentCounts=
+    generalTaskCountMap_(attachments);
+
+  const tasks=
+    all_('Tarefas')
+      .filter(task=>
+        task.tipo===
+        GENERAL_TASK_TYPE
+      )
+      .sort(generalTaskSort_)
+      .map(task=>
+        generalTaskSummary_(
+          task,
+          maps.byEmail,
+          messageCounts,
+          attachmentCounts
+        )
+      );
+
+  return {
+    tarefas:tasks,
+    usuarios:
+      generalTaskAssignableUsers_(),
+    abertas:
+      tasks.filter(task=>
+        task.situacao!==
+        GENERAL_TASK_DONE
+      ).length,
+    concluidas:
+      tasks.filter(task=>
+        task.situacao===
+        GENERAL_TASK_DONE
+      ).length
+  };
+}
+
+function myGeneralTasks_(){
+  const email=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const maps=
+    generalTaskUserMaps_();
+
+  const messages=
+    generalTaskRows_(
+      'TarefaMensagens'
+    );
+
+  const attachments=
+    generalTaskRows_(
+      'TarefaAnexos'
+    );
+
+  const messageCounts=
+    generalTaskCountMap_(messages);
+
+  const attachmentCounts=
+    generalTaskCountMap_(attachments);
+
+  const tasks=
+    all_('Tarefas')
+      .filter(task=>
+        task.tipo===
+          GENERAL_TASK_TYPE&&
+        String(
+          task.responsavel||
+          ''
+        ).toLowerCase()===
+          email
+      )
+      .sort(generalTaskSort_)
+      .map(task=>
+        generalTaskSummary_(
+          task,
+          maps.byEmail,
+          messageCounts,
+          attachmentCounts
+        )
+      );
+
+  return {
+    pendentes:
+      tasks.filter(task=>
+        task.situacao!==
+        GENERAL_TASK_DONE
+      ),
+    concluidas:
+      tasks.filter(task=>
+        task.situacao===
+        GENERAL_TASK_DONE
+      )
+  };
+}
+
+function myTasks_(){
+  const distribution=
+    myDistributionTasks_();
+
+  const general=
+    myGeneralTasks_();
+
+  return {
+    email:distribution.email,
+    pendentes:
+      distribution.pendentes,
+    concluidas:
+      distribution.concluidas,
+    geraisPendentes:
+      general.pendentes,
+    geraisConcluidas:
+      general.concluidas
+  };
+}
+
+function generalTaskParticipant_(task,user){
+  const email=
+    String(
+      user&&user.email||
+      ''
+    ).toLowerCase();
+
+  const creator=
+    String(
+      task.criadoPor||
+      ''
+    ).toLowerCase();
+
+  const responsible=
+    String(
+      task.responsavel||
+      ''
+    ).toLowerCase();
+
+  return (
+    email===creator||
+    email===responsible||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    )
+  );
+}
+
+function requireGeneralTaskAccess_(task){
+  if(
+    !task||
+    task.tipo!==
+      GENERAL_TASK_TYPE
+  ){
+    fail_(
+      'Tarefa interna inválida.'
+    );
+  }
+
+  const user=
+    activeUser_();
+
+  if(
+    !generalTaskParticipant_(
+      task,
+      user
+    )
+  ){
+    fail_(
+      'Você não participa desta tarefa.'
+    );
+  }
+
+  return user;
+}
+
+function generalTaskDate_(value){
+  const text=
+    String(
+      value||
+      ''
+    ).trim();
+
+  if(!text){
+    return '';
+  }
+
+  if(
+    !/^\d{4}-\d{2}-\d{2}$/.test(text)
+  ){
+    fail_(
+      'Prazo inválido.'
+    );
+  }
+
+  const parsed=
+    new Date(
+      text+
+      'T12:00:00Z'
+    );
+
+  if(
+    Number.isNaN(
+      parsed.getTime()
+    )
+  ){
+    fail_(
+      'Prazo inválido.'
+    );
+  }
+
+  return text;
+}
+
+function generalTaskPriority_(value){
+  const priority=
+    String(
+      value||
+      'NORMAL'
+    )
+      .trim()
+      .toUpperCase();
+
+  if(
+    !GENERAL_TASK_PRIORITIES
+      .includes(priority)
+  ){
+    fail_(
+      'Prioridade inválida.'
+    );
+  }
+
+  return priority;
+}
+
+function generalTaskAssignee_(email){
+  const normalized=
+    String(
+      required_(
+        email,
+        'responsável'
+      )
+    )
+      .trim()
+      .toLowerCase();
+
+  const user=
+    all_('Usuarios')
+      .find(candidate=>
+        String(
+          candidate.email||
+          ''
+        ).toLowerCase()===
+          normalized&&
+        bool_(candidate.ativo)&&
+        hasPermission_(
+          candidate,
+          'consulta'
+        )
+      );
+
+  if(!user){
+    fail_(
+      'Usuário responsável não localizado ou inativo.'
+    );
+  }
+
+  return {
+    email:normalized,
+    user
+  };
+}
+
+function generalTaskData_(task,patch){
+  return Object.assign(
+    {
+      tipo:GENERAL_TASK_TYPE,
+      pessoaId:'',
+      responsavel:
+        task.responsavel||
+        '',
+      situacao:
+        task.situacao||
+        GENERAL_TASK_ASSIGNED,
+      jurisdicao:'',
+      valorCausa:'',
+      atribuidaEm:
+        task.atribuidaEm||
+        '',
+      concluidaEm:
+        task.concluidaEm||
+        '',
+      processoId:'',
+      observacoes:
+        task.observacoes||
+        '',
+      titulo:
+        task.titulo||
+        '',
+      descricao:
+        task.descricao||
+        '',
+      criadoPor:
+        task.criadoPor||
+        '',
+      prazo:
+        task.prazo||
+        '',
+      prioridade:
+        task.prioridade||
+        'NORMAL'
+    },
+    patch||{}
+  );
+}
+
+function generalTaskCreate_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const title=
+    String(
+      required_(
+        q.titulo,
+        'título da tarefa'
+      )
+    ).trim();
+
+  if(title.length>160){
+    fail_(
+      'O título da tarefa deve ter no máximo 160 caracteres.'
+    );
+  }
+
+  const description=
+    String(
+      q.descricao||
+      ''
+    ).trim();
+
+  if(description.length>6000){
+    fail_(
+      'As informações da tarefa devem ter no máximo 6.000 caracteres.'
+    );
+  }
+
+  const assignee=
+    generalTaskAssignee_(
+      q.responsavel
+    );
+
+  const taskId=
+    id_(
+      'TAR',
+      'GERAL:'+
+      ctx.op
+    );
+
+  const created=
+    change_(
+      ctx,
+      'Tarefas',
+      taskId,
+      generalTaskData_(
+        {},
+        {
+          responsavel:
+            assignee.email,
+          situacao:
+            GENERAL_TASK_ASSIGNED,
+          atribuidaEm:now_(),
+          titulo:title,
+          descricao:description,
+          criadoPor:
+            String(
+              ctx.email||
+              ''
+            ).toLowerCase(),
+          prazo:
+            generalTaskDate_(
+              q.prazo
+            ),
+          prioridade:
+            generalTaskPriority_(
+              q.prioridade
+            )
+        }
+      )
+    );
+
+  return {
+    tarefa:created,
+    mensagem:
+      'Tarefa criada e atribuída a '+
+      (
+        assignee.user.nome||
+        assignee.email
+      )+
+      '.'
+  };
+}
+
+function generalTaskDetail_(q){
+  required_(
+    q.id,
+    'tarefa'
+  );
+
+  const task=
+    get_(
+      'Tarefas',
+      q.id
+    );
+
+  const user=
+    requireGeneralTaskAccess_(
+      task
+    );
+
+  const maps=
+    generalTaskUserMaps_();
+
+  const messages=
+    generalTaskRows_(
+      'TarefaMensagens'
+    )
+      .filter(message=>
+        message.tarefaId===
+        task.id
+      )
+      .sort((a,b)=>
+        String(
+          a.criadoEm||
+          ''
+        ).localeCompare(
+          String(
+            b.criadoEm||
+            ''
+          )
+        )
+      )
+      .map(message=>({
+        id:message.id,
+        autor:message.autor,
+        autorNome:
+          generalTaskDisplayUser_(
+            message.autor,
+            maps.byEmail
+          ),
+        mensagem:
+          message.mensagem,
+        criadoEm:
+          message.criadoEm
+      }));
+
+  const attachments=
+    generalTaskRows_(
+      'TarefaAnexos'
+    )
+      .filter(attachment=>
+        attachment.tarefaId===
+        task.id
+      )
+      .sort((a,b)=>
+        String(
+          b.criadoEm||
+          ''
+        ).localeCompare(
+          String(
+            a.criadoEm||
+            ''
+          )
+        )
+      )
+      .map(attachment=>({
+        id:attachment.id,
+        nome:attachment.nome,
+        mime:attachment.mime,
+        bytes:Number(
+          attachment.bytes||
+          0
+        ),
+        enviadoPor:
+          attachment.enviadoPor,
+        enviadoPorNome:
+          generalTaskDisplayUser_(
+            attachment.enviadoPor,
+            maps.byEmail
+          ),
+        criadoEm:
+          attachment.criadoEm
+      }));
+
+  const email=
+    String(
+      user.email||
+      ''
+    ).toLowerCase();
+
+  const isCreator=
+    email===
+    String(
+      task.criadoPor||
+      ''
+    ).toLowerCase();
+
+  const isResponsible=
+    email===
+    String(
+      task.responsavel||
+      ''
+    ).toLowerCase();
+
+  const canManage=
+    isCreator||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  return {
+    tarefa:
+      generalTaskSummary_(
+        task,
+        maps.byEmail,
+        new Map([
+          [
+            task.id,
+            messages.length
+          ]
+        ]),
+        new Map([
+          [
+            task.id,
+            attachments.length
+          ]
+        ])
+      ),
+    mensagens:messages,
+    anexos:attachments,
+    usuarios:
+      canManage
+        ?generalTaskAssignableUsers_()
+        :[],
+    permissoes:{
+      gerenciar:canManage,
+      concluir:
+        isResponsible||
+        hasPermission_(
+          user,
+          'gestao_distribuicao'
+        ),
+      conversar:true,
+      anexar:true
+    }
+  };
+}
+
+function generalTaskAssign_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  const user=
+    requireGeneralTaskAccess_(
+      task
+    );
+
+  const canManage=
+    String(
+      task.criadoPor||
+      ''
+    ).toLowerCase()===
+      String(
+        user.email||
+        ''
+      ).toLowerCase()||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  if(!canManage){
+    fail_(
+      'Somente o criador da tarefa ou a gestão pode reatribuir.'
+    );
+  }
+
+  if(
+    task.situacao===
+    GENERAL_TASK_DONE
+  ){
+    fail_(
+      'Reabra a tarefa antes de reatribuir.'
+    );
+  }
+
+  const assignee=
+    generalTaskAssignee_(
+      q.responsavel
+    );
+
+  return change_(
+    ctx,
+    'Tarefas',
+    task.id,
+    generalTaskData_(
+      task,
+      {
+        responsavel:
+          assignee.email,
+        atribuidaEm:now_()
+      }
+    ),
+    task.versao
+  );
+}
+
+function generalTaskComplete_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  const user=
+    requireGeneralTaskAccess_(
+      task
+    );
+
+  const canComplete=
+    String(
+      task.responsavel||
+      ''
+    ).toLowerCase()===
+      String(
+        user.email||
+        ''
+      ).toLowerCase()||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  if(!canComplete){
+    fail_(
+      'Somente o responsável pela tarefa pode concluí-la.'
+    );
+  }
+
+  if(
+    task.situacao===
+    GENERAL_TASK_DONE
+  ){
+    return task;
+  }
+
+  return change_(
+    ctx,
+    'Tarefas',
+    task.id,
+    generalTaskData_(
+      task,
+      {
+        situacao:
+          GENERAL_TASK_DONE,
+        concluidaEm:now_()
+      }
+    ),
+    task.versao
+  );
+}
+
+function generalTaskReopen_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  const user=
+    requireGeneralTaskAccess_(
+      task
+    );
+
+  const canManage=
+    String(
+      task.criadoPor||
+      ''
+    ).toLowerCase()===
+      String(
+        user.email||
+        ''
+      ).toLowerCase()||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  if(!canManage){
+    fail_(
+      'Somente o criador da tarefa ou a gestão pode reabri-la.'
+    );
+  }
+
+  if(
+    task.situacao!==
+    GENERAL_TASK_DONE
+  ){
+    return task;
+  }
+
+  return change_(
+    ctx,
+    'Tarefas',
+    task.id,
+    generalTaskData_(
+      task,
+      {
+        situacao:
+          GENERAL_TASK_ASSIGNED,
+        concluidaEm:''
+      }
+    ),
+    task.versao
+  );
+}
+
+function generalTaskMessageSend_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  requireGeneralTaskAccess_(
+    task
+  );
+
+  const text=
+    String(
+      required_(
+        q.mensagem,
+        'mensagem'
+      )
+    ).trim();
+
+  if(text.length>3000){
+    fail_(
+      'A mensagem deve ter no máximo 3.000 caracteres.'
+    );
+  }
+
+  const message=
+    change_(
+      ctx,
+      'TarefaMensagens',
+      id_(
+        'TMSG',
+        ctx.op
+      ),
+      {
+        tarefaId:task.id,
+        autor:
+          String(
+            ctx.email||
+            ''
+          ).toLowerCase(),
+        mensagem:text
+      }
+    );
+
+  return {
+    mensagem:message
+  };
+}
+
+function generalTasksRoot_(){
+  const root=
+    DriveApp.getFolderById(
+      PDA.parent
+    );
+
+  const folders=
+    root.getFoldersByName(
+      '_TAREFAS'
+    );
+
+  const folder=
+    folders.hasNext()
+      ?folders.next()
+      :root.createFolder(
+        '_TAREFAS'
+      );
+
+  if(folders.hasNext()){
+    fail_(
+      'Há mais de uma pasta _TAREFAS no Drive. Administração deve reconciliar as pastas.'
+    );
+  }
+
+  return folder;
+}
+
+function generalTaskFolder_(task){
+  const root=
+    generalTasksRoot_();
+
+  const name=
+    safeName_(
+      task.id+
+      ' - '+
+      task.titulo
+    );
+
+  const folders=
+    root.getFoldersByName(name);
+
+  const folder=
+    folders.hasNext()
+      ?folders.next()
+      :root.createFolder(name);
+
+  if(folders.hasNext()){
+    fail_(
+      'Há mais de uma pasta para esta tarefa. Administração deve reconciliar as pastas.'
+    );
+  }
+
+  return folder;
+}
+
+function generalTaskAttachmentAdd_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  requireGeneralTaskAccess_(
+    task
+  );
+
+  if(
+    String(
+      q.mime||
+      ''
+    )!=='application/pdf'
+  ){
+    fail_(
+      'Somente arquivos PDF podem ser anexados à tarefa.'
+    );
+  }
+
+  const payload=
+    filePayload_(q);
+
+  const duplicate=
+    all_('TarefaAnexos')
+      .find(attachment=>
+        attachment.tarefaId===
+          task.id&&
+        attachment.hash===
+          payload.digest
+      );
+
+  if(duplicate){
+    return {
+      anexo:duplicate,
+      mensagem:
+        'Este PDF já está anexado à tarefa.'
+    };
+  }
+
+  const folder=
+    generalTaskFolder_(task);
+
+  const rawName=
+    safeName_(
+      q.nome||
+      'anexo.pdf'
+    );
+
+  const base=
+    (
+      rawName
+        .replace(
+          /\.pdf$/i,
+          ''
+        )||
+      'anexo'
+    )
+      .slice(
+        0,
+        160
+      );
+
+  const name=
+    uniqueFileName_(
+      folder,
+      base,
+      'pdf'
+    );
+
+  const file=
+    folder.createFile(
+      Utilities.newBlob(
+        payload.bytes,
+        payload.mime,
+        name
+      )
+    );
+
+  file.setDescription(
+    'PDA_TASK_ATTACHMENT:'+
+    task.id
+  );
+
+  ctx.effects.push(
+    'PDF anexado à tarefa no Drive: '+
+    file.getUrl()
+  );
+
+  const attachment=
+    change_(
+      ctx,
+      'TarefaAnexos',
+      id_(
+        'TANX',
+        ctx.op
+      ),
+      {
+        tarefaId:task.id,
+        fileId:file.getId(),
+        url:file.getUrl(),
+        nome:file.getName(),
+        mime:payload.mime,
+        hash:payload.digest,
+        bytes:String(
+          payload.bytes.length
+        ),
+        enviadoPor:
+          String(
+            ctx.email||
+            ''
+          ).toLowerCase()
+      }
+    );
+
+  return {
+    anexo:attachment,
+    mensagem:
+      'PDF anexado à tarefa.'
+  };
+}
+
+function generalTaskAttachmentContent_(q){
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  requireGeneralTaskAccess_(
+    task
+  );
+
+  const attachment=
+    generalTaskRows_(
+      'TarefaAnexos'
+    )
+      .find(item=>
+        item.id===
+          q.anexoId&&
+        item.tarefaId===
+          task.id
+      );
+
+  if(!attachment){
+    fail_(
+      'Anexo não localizado.'
+    );
+  }
+
+  const file=
+    DriveApp.getFileById(
+      attachment.fileId
+    );
+
+  if(file.isTrashed()){
+    fail_(
+      'O PDF foi removido do Google Drive.'
+    );
+  }
+
+  const blob=
+    file.getBlob();
+
+  return {
+    nome:
+      attachment.nome||
+      file.getName(),
+    mime:
+      attachment.mime||
+      blob.getContentType()||
+      'application/pdf',
+    base64:
+      Utilities.base64Encode(
+        blob.getBytes()
+      )
+  };
+}
