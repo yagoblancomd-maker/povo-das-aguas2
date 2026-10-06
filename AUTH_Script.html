@@ -4,8 +4,87 @@ window.PDA_AUTH=(()=>{
   const boot=window.PDA_AUTH_BOOTSTRAP||{};
   const STORAGE_KEY='pda.auth.password.v1.'+(boot.appUrl||'app');
   const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
-  let sessionToken='',resolver=null,initialized=false,working=false;
+  let sessionToken='',resolver=null,initialized=false,working=false,portalVisualsLoaded=false;
   const node=id=>document.getElementById(id);
+  function hydrateAuthLogo_(){
+    const target=node('pda-auth-logo');
+    if(!target||target.querySelector('img'))return;
+    const source=document.querySelector('#app-shell .app-brand-logo-image');
+    if(!source)return;
+    const clone=source.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.setAttribute('alt','Povo das Águas · CIDIJUS');
+    target.append(clone);
+    target.classList.add('has-logo');
+  }
+
+  function buildBubbles_(){
+    const root=node('pda-auth-bubbles');
+    if(!root||root.children.length)return;
+    const sizes=[10,16,24,13,31,18,12,27,20,36,14,22,11,29,17,25,9,33,15,21,12,28,18,10,23,16,30,13];
+    sizes.forEach((size,index)=>{
+      const bubble=document.createElement('span');
+      bubble.className='pda-auth-bubble';
+      bubble.style.width=size+'px';
+      bubble.style.height=size+'px';
+      bubble.style.left=((index*37)%97)+'%';
+      bubble.style.animationDuration=(13+(index%9)*1.55)+'s';
+      bubble.style.animationDelay=(-((index*1.7)%17))+'s';
+      bubble.style.opacity=String(.20+(index%5)*.045);
+      root.append(bubble);
+    });
+  }
+
+  function renderPortalFaces_(rows){
+    const root=node('pda-auth-faces');
+    if(!root)return;
+    root.replaceChildren();
+    const positions=[
+      {left:6,top:24,size:82,duration:9},
+      {left:18,top:68,size:62,duration:12},
+      {left:43,top:12,size:70,duration:10},
+      {left:58,top:70,size:88,duration:13},
+      {left:76,top:20,size:66,duration:11},
+      {left:88,top:58,size:78,duration:14},
+      {left:32,top:49,size:55,duration:9.5}
+    ];
+    (Array.isArray(rows)?rows:[])
+      .filter(item=>{
+        const foto=String(item&&item.foto||'');
+        return foto.indexOf('data:image/jpeg;base64,')===0||
+          foto.indexOf('data:image/png;base64,')===0||
+          foto.indexOf('data:image/webp;base64,')===0;
+      })
+      .slice(0,positions.length)
+      .forEach((item,index)=>{
+        const pos=positions[index];
+        const face=document.createElement('span');
+        face.className='pda-auth-face';
+        face.style.left=pos.left+'%';
+        face.style.top=pos.top+'%';
+        face.style.width=pos.size+'px';
+        face.style.height=pos.size+'px';
+        face.style.animationDuration=pos.duration+'s';
+        face.style.animationDelay=(-index*1.4)+'s';
+        const image=document.createElement('img');
+        image.src=item.foto;
+        image.alt='';
+        image.loading='lazy';
+        image.decoding='async';
+        face.append(image);
+        root.append(face);
+      });
+  }
+
+  function loadPortalVisuals_(){
+    if(portalVisualsLoaded)return;
+    portalVisualsLoaded=true;
+    hydrateAuthLogo_();
+    buildBubbles_();
+    raw('authPortalPeople')
+      .then(renderPortalFaces_)
+      .catch(()=>{});
+  }
   function setMessage(text,error=false){
     const n=node('pda-auth-message');n.hidden=!text;n.textContent=text||'';
     n.className='pda-auth-message'+(error?' error':'');
@@ -34,15 +113,16 @@ window.PDA_AUTH=(()=>{
   async function submit(form,job){
     if(working)return;
     working=true;setMessage('');
-    const submit=form.querySelector('button[type="submit"]'),label=submit.textContent;
+    const submit=form.querySelector('button[type="submit"]'),label=submit.innerHTML;
     form.setAttribute('aria-busy','true');
     document.querySelectorAll('.pda-auth-form button').forEach(b=>b.disabled=true);
     submit.textContent='Aguarde…';
     try{await job();}catch(e){setMessage(e.message||String(e),true);}
-    finally{working=false;form.removeAttribute('aria-busy');submit.textContent=label;document.querySelectorAll('.pda-auth-form button').forEach(b=>b.disabled=false);}
+    finally{working=false;form.removeAttribute('aria-busy');submit.innerHTML=label;document.querySelectorAll('.pda-auth-form button').forEach(b=>b.disabled=false);}
   }
   function initialize(){
     if(initialized)return;initialized=true;
+    loadPortalVisuals_();
     document.querySelectorAll('[data-auth-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.authPage));
     document.querySelectorAll('.pda-password-toggle').forEach(b=>b.onclick=()=>{
       const input=b.parentElement.querySelector('input'),show=input.type==='password';input.type=show?'text':'password';b.textContent=show?'Ocultar':'Mostrar';b.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');
