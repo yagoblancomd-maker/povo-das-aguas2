@@ -30,6 +30,11 @@ function dossier_(q){
         user,
         p
       ),
+    podeGerenciarConteudo:
+      canWritePersonContent_(
+        user,
+        p
+      ),
     criador:
       personCreatorEmail_(
         p
