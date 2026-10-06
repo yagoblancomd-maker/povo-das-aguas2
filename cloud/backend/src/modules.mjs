@@ -121,7 +121,7 @@ async function dashboard(user){
   const [peopleR,docsR,processR,histR,tasksR]=await Promise.all([
     pool.query('SELECT * FROM pessoas ORDER BY criado_em DESC'),
     pool.query('SELECT * FROM documentos WHERE vigente=true'),
-    pool.query('SELECT * FROM processos ORDER BY COALESCE(distribuido_em,criado_em) DESC'),
+    pool.query('SELECT * FROM processos ORDER BY COALESCE(NULLIF(distribuido_em,''),criado_em::text) DESC'),
     pool.query('SELECT * FROM historico ORDER BY COALESCE(alterado_em,criado_em) DESC LIMIT 7'),
     pool.query(
       `SELECT * FROM tarefas WHERE tipo=$1 AND situacao<>$2 AND lower(COALESCE(responsavel,''))=lower($3)`,
@@ -362,7 +362,7 @@ export async function coreRoutes(app){
     const q=await pool.query(
       `SELECT pr.*,p.nome pessoa,p.cpf,p.jurisdicao pessoa_jurisdicao
          FROM processos pr LEFT JOIN pessoas p ON p.id=pr.pessoa_id
-        ORDER BY COALESCE(pr.distribuido_em,pr.criado_em) DESC`
+        ORDER BY COALESCE(NULLIF(pr.distribuido_em,''),pr.criado_em::text) DESC`
     );
     return q.rows.map(pr=>({
       id:pr.id,numero:pr.numero,pessoaId:pr.pessoa_id,pessoa:pr.pessoa||'Pessoa não localizada',
