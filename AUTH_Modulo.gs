@@ -252,3 +252,30 @@ function authPageBootstrap_(e){
   return {appUrl:String(ScriptApp.getService().getUrl()||''),resetToken:/^[a-f0-9]{64}$/.test(reset)?reset:'',
     funcoes:Array.from(SELF_REGISTRATION_FUNCTIONS),funcoesComCodigo:Object.keys(codes).filter(k=>!!codes[k])};
 }
+
+
+function authPortalPeople(){
+  // Elementos decorativos do portal público: retorna somente a imagem de perfil,
+  // sem nome, e-mail, função, ID ou qualquer outro dado da conta.
+  return lock_(()=>{
+    resetData_();
+    authEnsureSchema_();
+
+    return all_('Usuarios')
+      .filter(user=>bool_(user.ativo)&&String(user.fotoId||'').trim())
+      .sort((a,b)=>{
+        const ad=Date.parse(a.ultimoLogin||'')||0;
+        const bd=Date.parse(b.ultimoLogin||'')||0;
+        return bd-ad;
+      })
+      .slice(0,5)
+      .map(user=>{
+        try{
+          return {foto:profilePhoto_(user)};
+        }catch(e){
+          return {foto:''};
+        }
+      })
+      .filter(item=>!!item.foto);
+  });
+}
