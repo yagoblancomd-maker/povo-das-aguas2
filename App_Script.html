@@ -5,6 +5,8 @@ const App=(()=>{
  let epoch=0,busy=0,boot=null,current='PAINEL',selection=null,authSessionToken='',headerProfilePhoto='';
  let navigationLoading=0;
  let cacheSessionToken='';
+ let taskNotificationTimer=null;
+ let taskNotificationLoading=false;
  let bulkModulePromise=null;
  let bulkModuleCodes=new Set();
  let warmupScheduled=false;
@@ -620,8 +622,9 @@ n.className='status '+(error?'error':'ok');
     );
  }
 
- async function call(action,data={},write=false){
+ async function call(action,data={},write=false,options={}){
   const token=epoch;
+  const silent=!!(options&&options.silent);
   let payload={...data};
   let processingId=null;
   let processingDelay=null;
@@ -658,16 +661,18 @@ n.className='status '+(error?'error':'ok');
      */
     clearReadCaches_();
 
-    busy++;
-    document
-      .querySelectorAll('button')
-      .forEach(b=>b.disabled=true);
+    if(!silent){
+      busy++;
+      document
+        .querySelectorAll('button')
+        .forEach(b=>b.disabled=true);
 
-    processingId=
-      beginProcessing_(
-        action,
-        true
-      );
+      processingId=
+        beginProcessing_(
+          action,
+          true
+        );
+    }
 
   }else if(!navigationLoading){
     /*
@@ -709,7 +714,9 @@ n.className='status '+(error?'error':'ok');
 
     if(write){
       clearReadCaches_();
-      status('Operação concluída.');
+      if(!silent){
+        status('Operação concluída.');
+      }
     }
 
     if(processingDelay){
@@ -766,7 +773,7 @@ n.className='status '+(error?'error':'ok');
     throw e;
 
   }finally{
-    if(write){
+    if(write&&!silent){
       busy--;
       document
         .querySelectorAll('button')
@@ -1322,6 +1329,300 @@ f.insertBefore(file,f.firstChild);
   );
  }
 
+ function notificationDate_(value){
+  const text=String(value||'').trim();
+  if(!text)return '';
+
+  const date=new Date(text);
+
+  return Number.isNaN(date.getTime())
+    ?text
+    :date.toLocaleString(
+      'pt-BR',
+      {
+        day:'2-digit',
+        month:'2-digit',
+        hour:'2-digit',
+        minute:'2-digit'
+      }
+    );
+ }
+
+ function renderTaskNotifications_(data){
+  const badge=
+    document.getElementById(
+      'taskNotificationBadge'
+    );
+
+  const list=
+    document.getElementById(
+      'taskNotificationList'
+    );
+
+  const count=
+    Number(
+      data&&data.naoLidas||
+      0
+    );
+
+  if(badge){
+    badge.textContent=
+      count>99
+        ?'99+'
+        :String(count);
+    badge.hidden=!count;
+  }
+
+  if(!list)return;
+
+  list.replaceChildren();
+
+  const items=
+    data&&Array.isArray(data.itens)
+      ?data.itens
+      :[];
+
+  if(!items.length){
+    list.append(
+      el(
+        'div',
+        'Nenhuma tarefa atribuída a você.',
+        'app-notification-empty'
+      )
+    );
+    return;
+  }
+
+  items.forEach(item=>{
+    const row=
+      el(
+        'button',
+        undefined,
+        'app-notification-item'+
+        (item.nova?' is-new':'')
+      );
+
+    row.type='button';
+
+    const top=
+      el(
+        'div',
+        undefined,
+        'app-notification-item-top'
+      );
+
+    top.append(
+      el(
+        'strong',
+        item.titulo||'Tarefa'
+      ),
+      el(
+        'span',
+        item.nova?'NOVA':'',
+        'app-notification-new'
+      )
+    );
+
+    const meta=
+      [
+        item.criadoPorNome
+          ?'Por '+item.criadoPorNome
+          :'',
+        item.prazo
+          ?'Prazo '+String(item.prazo).split('-').reverse().join('/')
+          :'',
+        notificationDate_(
+          item.atribuidaEm
+        )
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+    row.append(
+      top,
+      el(
+        'small',
+        meta
+      )
+    );
+
+    row.onclick=()=>{
+      const panel=
+        document.getElementById(
+          'taskNotificationPanel'
+        );
+
+      const trigger=
+        document.getElementById(
+          'taskNotificationButton'
+        );
+
+      if(panel){
+        panel.hidden=true;
+      }
+
+      if(trigger){
+        trigger.setAttribute(
+          'aria-expanded',
+          'false'
+        );
+      }
+
+      return go('TAREFAS');
+    };
+
+    list.append(row);
+  });
+ }
+
+ async function refreshTaskNotifications_(){
+  if(
+    !authSessionToken||
+    taskNotificationLoading
+  ){
+    return null;
+  }
+
+  taskNotificationLoading=true;
+
+  try{
+    const data=
+      await call(
+        'notificacoesTarefas'
+      );
+
+    renderTaskNotifications_(data);
+    return data;
+  }catch(e){
+    return null;
+  }finally{
+    taskNotificationLoading=false;
+  }
+ }
+
+ async function openTaskNotifications_(){
+  const panel=
+    document.getElementById(
+      'taskNotificationPanel'
+    );
+
+  const trigger=
+    document.getElementById(
+      'taskNotificationButton'
+    );
+
+  if(!panel||!trigger){
+    return;
+  }
+
+  const opening=
+    panel.hidden;
+
+  panel.hidden=!opening;
+  trigger.setAttribute(
+    'aria-expanded',
+    String(opening)
+  );
+
+  if(!opening){
+    return;
+  }
+
+  const data=
+    await refreshTaskNotifications_();
+
+  if(
+    data&&
+    Number(
+      data.naoLidas||
+      0
+    )>0
+  ){
+    try{
+      await call(
+        'notificacoesTarefasMarcarLidas',
+        {},
+        true,
+        {silent:true}
+      );
+
+      renderTaskNotifications_(
+        Object.assign(
+          {},
+          data,
+          {
+            naoLidas:0,
+            itens:
+              (data.itens||[])
+                .map(item=>
+                  Object.assign(
+                    {},
+                    item,
+                    {nova:false}
+                  )
+                )
+          }
+        )
+      );
+    }catch(e){}
+  }
+ }
+
+ function bindTaskNotifications_(){
+  const trigger=
+    document.getElementById(
+      'taskNotificationButton'
+    );
+
+  const close=
+    document.getElementById(
+      'taskNotificationClose'
+    );
+
+  const panel=
+    document.getElementById(
+      'taskNotificationPanel'
+    );
+
+  if(trigger){
+    trigger.onclick=
+      ()=>openTaskNotifications_();
+  }
+
+  if(close){
+    close.onclick=()=>{
+      if(panel){
+        panel.hidden=true;
+      }
+
+      if(trigger){
+        trigger.setAttribute(
+          'aria-expanded',
+          'false'
+        );
+      }
+    };
+  }
+
+  if(taskNotificationTimer){
+    clearInterval(
+      taskNotificationTimer
+    );
+  }
+
+  refreshTaskNotifications_();
+
+  taskNotificationTimer=
+    setInterval(
+      ()=>{
+        if(!document.hidden){
+          refreshTaskNotifications_();
+        }
+      },
+      90000
+    );
+ }
+
  function renderNavigation_(){
   if(!boot)return;
 
@@ -1668,6 +1969,7 @@ f.insertBefore(file,f.firstChild);
     }
 
     renderNavigation_();
+    bindTaskNotifications_();
 
     window.PDA_AUTH
       .request(
@@ -1723,7 +2025,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
