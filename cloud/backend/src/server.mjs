@@ -2,14 +2,18 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
 import {getPool,closeDb} from './db.mjs';
 import {ensureSchema} from './schema.mjs';
 import {login,register,logout,bearer,requireAuth} from './auth.mjs';
 import {modules,permissions,publicUser,has} from './access.mjs';
 import {coreRoutes} from './modules.mjs';
+import {documentRoutes} from './documents.mjs';
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
-const app=Fastify({logger:true,trustProxy:true,bodyLimit:6*1024*1024});
+const app=Fastify({logger:true,trustProxy:true,bodyLimit:20*1024*1024});
+
+await app.register(multipart,{limits:{fileSize:15*1024*1024,files:1}});
 
 if(process.env.AUTO_MIGRATE==='true'){
   await ensureSchema();
@@ -82,6 +86,7 @@ app.get('/api/v1/pessoas',{preHandler:requireAuth},async(req,reply)=>{
 });
 
 await app.register(coreRoutes);
+await app.register(documentRoutes);
 
 app.get('/api/v1/pessoas/:id',{preHandler:requireAuth},async(req,reply)=>{
   if(!has(req.auth.user,'consulta')){
