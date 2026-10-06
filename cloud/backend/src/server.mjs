@@ -10,7 +10,9 @@ import {modules,permissions,publicUser,has} from './access.mjs';
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const app=Fastify({logger:true,trustProxy:true,bodyLimit:6*1024*1024});
 
-await ensureSchema();
+if(process.env.AUTO_MIGRATE==='true'){
+  await ensureSchema();
+}
 
 app.get('/healthz',async()=>({ok:true,service:'povo-das-aguas-cloud-api'}));
 
