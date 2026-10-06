@@ -1059,7 +1059,10 @@ window.PDA_MODULES.ACOMP = (()=>{
       otherPerson
     );
 
-    if(can('cadastro')){
+    if(
+      can('cadastro')&&
+      data.podeGerenciarConteudo
+    ){
       actions.append(
         generateMenu
       );
@@ -1255,7 +1258,10 @@ window.PDA_MODULES.ACOMP = (()=>{
       )
     );
 
-    if(can('cadastro')){
+    if(
+      can('cadastro')&&
+      data.podeGerenciarConteudo
+    ){
       personBatchUploader_(shared,p);
     }
 
