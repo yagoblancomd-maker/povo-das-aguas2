@@ -7,6 +7,7 @@ const App=(()=>{
  let cacheSessionToken='';
  let bulkModulePromise=null;
  let bulkModuleCodes=new Set();
+ let warmupScheduled=false;
  const MODULE_CACHE=new Map();
  const MODULE_REQUESTS=new Map();
  const READ_CACHE=new Map();
@@ -44,6 +45,7 @@ n.className='status '+(error?'error':'ok');
   READ_REQUESTS.clear();
   bulkModulePromise=null;
   bulkModuleCodes=new Set();
+  warmupScheduled=false;
  }
 
  function ensureSessionCaches_(){
@@ -201,20 +203,30 @@ n.className='status '+(error?'error':'ok');
     return Promise.resolve();
   }
 
-  const asset=getModule_(code).catch(()=>null);
-  const initial=MODULE_INITIAL_READ[code];
+  /*
+   * O hover aquece primeiro o bundle. Os dados iniciais só são antecipados
+   * quando o bundle já está em memória, evitando duas execuções Apps Script
+   * concorrentes para um simples movimento do mouse.
+   */
+  if(MODULE_CACHE.has(code)){
+    const initial=MODULE_INITIAL_READ[code];
 
-  if(
-    withData&&
-    initial
-  ){
-    prefetchRead_(
-      initial[0],
-      initial[1]
+    if(
+      withData&&
+      initial
+    ){
+      prefetchRead_(
+        initial[0],
+        initial[1]
+      );
+    }
+
+    return Promise.resolve(
+      MODULE_CACHE.get(code)
     );
   }
 
-  return asset;
+  return getModule_(code).catch(()=>null);
  }
 
  function bindModulePrefetch_(node,code){
@@ -269,12 +281,17 @@ n.className='status '+(error?'error':'ok');
  function scheduleModuleWarmup_(){
   if(
     !boot||
-    !boot.modulos
+    !boot.modulos||
+    warmupScheduled||
+    bulkModulePromise
   ){
     return;
   }
 
+  warmupScheduled=true;
+
   const run=()=>{
+    warmupScheduled=false;
     ensureSessionCaches_();
 
     if(bulkModulePromise){
@@ -285,7 +302,8 @@ n.className='status '+(error?'error':'ok');
       Object.keys(boot.modulos)
         .filter(code=>
           code!==current&&
-          !MODULE_CACHE.has(code)
+          !MODULE_CACHE.has(code)&&
+          !MODULE_REQUESTS.has(code)
         );
 
     if(!codes.length)return;
@@ -293,6 +311,11 @@ n.className='status '+(error?'error':'ok');
     const session=authSessionToken;
     bulkModuleCodes=new Set(codes);
 
+    /*
+     * Um único round-trip aquece os bundles. Não pré-carrega dados de
+     * todos os módulos: esses continuam sob demanda/hover para evitar
+     * explosão de execuções simultâneas no Apps Script.
+     */
     const promise=
       raw(
         'carregarModulos',
@@ -331,217 +354,15 @@ n.className='status '+(error?'error':'ok');
   if('requestIdleCallback' in window){
     window.requestIdleCallback(
       run,
-      {timeout:1300}
+      {timeout:1600}
     );
   }else{
     setTimeout(
       run,
-      700
+      950
     );
   }
  }
-
- const PROCESSING_PROFILES={
-  bootstrap:{
-    seconds:8,
-    title:'Abrindo o Povo das Águas',
-    phases:[
-      [0,'Validando sua sessão'],
-      [.16,'Carregando permissões e configurações'],
-      [.42,'Preparando os dados do sistema'],
-      [.68,'Organizando os módulos disponíveis'],
-      [.90,'Abrindo seu ambiente de trabalho']
-    ]
-  },
-  carregarModulo:{
-    seconds:5,
-    title:'Carregando módulo',
-    phases:[
-      [0,'Solicitando o módulo ao servidor'],
-      [.25,'Carregando interface e recursos'],
-      [.55,'Organizando as informações da tela'],
-      [.82,'Preparando os últimos detalhes'],
-      [.94,'Quase pronto']
-    ]
-  },
-  documentosImportar:{
-    seconds:22,
-    title:'Lendo documentos',
-    phases:[
-      [0,'Preparando os arquivos para análise'],
-      [.16,'Lendo o conteúdo dos documentos'],
-      [.40,'Extraindo os dados com inteligência artificial'],
-      [.68,'Validando CPF, datas, CEP e endereço'],
-      [.88,'Organizando os dados para o cadastro']
-    ]
-  },
-  seguroDefesoConsultar:{
-    seconds:9,
-    title:'Consultando Seguro-Defeso',
-    phases:[
-      [0,'Preparando a consulta pelo CPF'],
-      [.20,'Consultando o Portal da Transparência'],
-      [.60,'Filtrando os registros de 2025'],
-      [.84,'Organizando o resultado da consulta']
-    ]
-  },
-  seguroDefesoRelatorioGerar:{
-    seconds:16,
-    title:'Gerando relatório do Seguro-Defeso',
-    phases:[
-      [0,'Consultando o CPF no Portal da Transparência'],
-      [.28,'Conferindo e filtrando os registros de 2025'],
-      [.50,'Montando o relatório institucional'],
-      [.72,'Gerando o PDF'],
-      [.88,'Salvando na pasta e nos documentos da pessoa']
-    ]
-  },
-  pessoaInicialGerar:{
-    seconds:14,
-    title:'Gerando petição inicial',
-    phases:[
-      [0,'Validando cadastro e documentos obrigatórios'],
-      [.24,'Preenchendo o modelo da petição inicial'],
-      [.55,'Gerando a versão em PDF'],
-      [.78,'Salvando na pasta individual'],
-      [.90,'Registrando em Documentos da pessoa']
-    ]
-  },
-  pessoaFinalizarCadastro:{
-    seconds:15,
-    title:'Finalizando cadastro',
-    phases:[
-      [0,'Validando o cadastro e os documentos'],
-      [.28,'Preparando a petição inicial'],
-      [.56,'Gerando o PDF da inicial'],
-      [.80,'Salvando os documentos finais'],
-      [.91,'Concluindo o cadastro']
-    ]
-  },
-  pessoaUpload:{
-    seconds:7,
-    title:'Salvando documento',
-    phases:[
-      [0,'Validando o arquivo'],
-      [.26,'Enviando para a pasta da pessoa'],
-      [.68,'Registrando o documento no sistema'],
-      [.88,'Concluindo o envio']
-    ]
-  },
-  upload:{
-    seconds:7,
-    title:'Salvando documento',
-    phases:[
-      [0,'Validando o arquivo'],
-      [.28,'Enviando o arquivo para o Drive'],
-      [.70,'Atualizando a ficha'],
-      [.90,'Concluindo o envio']
-    ]
-  },
-  pessoaSalvar:{
-    seconds:5,
-    title:'Salvando cadastro',
-    phases:[
-      [0,'Validando os dados informados'],
-      [.34,'Atualizando o cadastro da pessoa'],
-      [.72,'Sincronizando a pasta individual'],
-      [.90,'Concluindo']
-    ]
-  },
-  minutaInicialGerar:{
-    seconds:14,
-    title:'Gerando petição inicial',
-    phases:[
-      [0,'Validando cadastro e documentos'],
-      [.25,'Preenchendo o modelo da petição'],
-      [.56,'Gerando o PDF'],
-      [.80,'Salvando na pasta individual'],
-      [.92,'Atualizando os documentos da pessoa']
-    ]
-  },
-  modeloUpload:{
-    seconds:16,
-    title:'Processando modelo',
-    phases:[
-      [0,'Recebendo o arquivo'],
-      [.25,'Convertendo para Google Docs'],
-      [.55,'Validando os placeholders'],
-      [.80,'Ativando o novo modelo']
-    ]
-  },
-  usuarioAprovarProfessorResidente:{
-    seconds:6,
-    title:'Aprovando poderes funcionais',
-    phases:[
-      [0,'Validando Professor/Residente'],
-      [.30,'Aplicando permissões operacionais'],
-      [.62,'Sincronizando acesso ao Google Drive'],
-      [.90,'Atualizando o usuário']
-    ]
-  },
-  usuarioExcluir:{
-    seconds:7,
-    title:'Excluindo usuário',
-    phases:[
-      [0,'Validando o usuário'],
-      [.24,'Liberando tarefas pendentes'],
-      [.50,'Revogando o acesso ao Google Drive'],
-      [.76,'Removendo o usuário do banco'],
-      [.94,'Registrando a exclusão']
-    ]
-  },
-  tarefaDistribuicaoAtribuir:{
-    seconds:5,
-    title:'Atribuindo tarefa',
-    phases:[
-      [0,'Validando o usuário responsável'],
-      [.38,'Atualizando a fila de distribuição'],
-      [.78,'Vinculando a tarefa ao usuário'],
-      [.94,'Concluindo']
-    ]
-  },
-  tarefaDistribuicaoConcluir:{
-    seconds:8,
-    title:'Concluindo distribuição',
-    phases:[
-      [0,'Validando o número do processo'],
-      [.30,'Criando o registro processual'],
-      [.62,'Vinculando o processo à pessoa'],
-      [.84,'Concluindo a tarefa de distribuição'],
-      [.95,'Atualizando o sistema']
-    ]
-  },
-  tarefaDocumentosZipGerar:{
-    seconds:12,
-    title:'Preparando documentos',
-    phases:[
-      [0,'Localizando os documentos vigentes'],
-      [.26,'Lendo os arquivos no Google Drive'],
-      [.54,'Compactando os documentos em ZIP'],
-      [.80,'Salvando o pacote na pasta da pessoa'],
-      [.94,'Preparando o download']
-    ]
-  },
-  tarefasDistribuicaoReconciliar:{
-    seconds:8,
-    title:'Preparando fila de distribuição',
-    phases:[
-      [0,'Localizando cadastros com petição inicial'],
-      [.35,'Conferindo processos já distribuídos'],
-      [.68,'Criando tarefas que ainda não existem'],
-      [.92,'Atualizando a fila']
-    ]
-  }
- };
-
- const LOADING_PHRASES=["A pesca sustenta famílias e preserva histórias.","Cada pescador carrega saberes construídos ao longo de gerações.","O trabalho no mar exige experiência, atenção e respeito.","A pesca artesanal faz parte da identidade de muitas comunidades.","Entre redes e embarcações, constroem-se histórias de vida.","O pescador conhece o tempo, a água e o vento.","Pescar também é preservar tradições.","O trabalho da pesca começa antes de lançar a rede.","Cada jornada de pesca exige planejamento e dedicação.","A experiência transforma a água em conhecimento.","A pesca artesanal aproxima pessoas e comunidades.","O pescador aprende diariamente com a natureza.","Cada rede lançada representa trabalho e esperança.","A pesca é trabalho, cultura e sustento.","O conhecimento do pescador nasce da prática.","A água ensina paciência a quem vive da pesca.","A pesca conecta gerações.","O pescador preserva memórias de sua comunidade.","A experiência da pesca é transmitida entre famílias.","A rotina do pescador começa muito antes do amanhecer.","O trabalho coletivo fortalece as comunidades pesqueiras.","A união torna o trabalho mais seguro.","Nenhuma comunidade se fortalece sozinha.","A cooperação aproxima pessoas.","Amizades também são construídas durante o trabalho.","Compartilhar conhecimento fortalece todos.","A experiência de um pode orientar o caminho de muitos.","Trabalhar em conjunto amplia possibilidades.","A solidariedade nasce de pequenos gestos.","Uma comunidade unida enfrenta melhor suas dificuldades.","A amizade torna a caminhada mais leve.","Cada pessoa pode contribuir para transformar uma comunidade.","O diálogo cria pontes.","Ouvir também é uma forma de ajudar.","A confiança se constrói com presença e respeito.","Bons amigos permanecem mesmo nos dias difíceis.","O trabalho coletivo transforma desafios em soluções.","A união fortalece quem trabalha.","A solidariedade aproxima pessoas diferentes.","Toda parceria começa com confiança.","Amizade também significa estar presente.","Um bom companheiro divide responsabilidades.","Compartilhar dificuldades fortalece vínculos.","O respeito é a base de qualquer parceria.","A amizade cresce quando existe confiança.","O trabalho aproxima pessoas que compartilham objetivos.","Juntos, caminhos difíceis tornam-se possíveis.","A cooperação transforma esforço individual em resultado coletivo.","Cada ajuda pode fazer diferença.","A comunidade cresce quando seus membros crescem juntos.","O trabalho social começa pela escuta.","A transformação social exige presença.","Cada atendimento representa uma história.","Por trás de cada processo existe uma pessoa.","O acesso a direitos também depende de informação.","Informação clara aproxima cidadãos de seus direitos.","O trabalho social exige compromisso com as pessoas.","Atender é também compreender.","Escutar com atenção é parte do cuidado.","Orientação adequada pode mudar caminhos.","O acesso à Justiça começa pelo acolhimento.","Direitos precisam ser conhecidos para serem exercidos.","O trabalho social conecta pessoas e instituições.","Cada atendimento pode abrir novas possibilidades.","A universidade também transforma a realidade fora da sala de aula.","Extensão universitária aproxima conhecimento e comunidade.","O conhecimento ganha sentido quando chega às pessoas.","A atuação social transforma teoria em prática.","A comunidade também ensina.","O aprendizado acontece nos dois sentidos.","Quem trabalha com pessoas aprende todos os dias.","A experiência comunitária amplia o conhecimento.","O trabalho social exige responsabilidade.","A confiança é essencial no atendimento.","Cada pessoa merece ser ouvida com atenção.","O atendimento humanizado começa pelo respeito.","Pequenas ações podem gerar grandes mudanças.","O acesso à informação fortalece comunidades.","Conhecimento compartilhado gera autonomia.","Uma orientação pode evitar muitos problemas.","A cidadania também se constrói com informação.","O trabalho jurídico pode aproximar pessoas de seus direitos.","O direito precisa chegar a quem dele necessita.","A Justiça deve ser compreensível para todos.","O acesso à Justiça não termina na porta do fórum.","Orientação jurídica também é trabalho social.","Cada direito reconhecido representa uma conquista.","A cidadania depende da possibilidade de exercer direitos.","A informação jurídica deve ser clara e acessível.","O atendimento jurídico exige escuta e responsabilidade.","A Justiça ganha sentido quando alcança as pessoas.","Direitos sociais fazem parte da dignidade humana.","O trabalho jurídico também pode transformar comunidades.","Cada processo possui uma história própria.","Nenhum atendimento deve ser tratado apenas como um número.","Por trás de documentos existem pessoas e famílias.","Cada demanda merece atenção.","O trabalho responsável começa pela compreensão dos fatos.","O cuidado com informações também é respeito.","Organização melhora o atendimento.","Tecnologia pode aproximar serviços das pessoas.","Sistemas bem organizados facilitam o trabalho social.","A tecnologia deve servir às pessoas.","Um bom sistema reduz dificuldades e aproxima soluções.","Organizar informações também melhora o atendimento.","A tecnologia pode tornar direitos mais acessíveis.","Ferramentas simples podem gerar grandes melhorias.","Um processo organizado economiza tempo de todos.","Informação organizada facilita decisões.","O trabalho social também depende de boa gestão.","Planejamento permite atender melhor.","Organização transforma esforço em resultado.","Uma equipe organizada atende com mais eficiência.","Cada tarefa realizada contribui para o todo.","O trabalho de cada pessoa importa.","Resultados coletivos dependem de contribuições individuais.","A dedicação diária constrói projetos duradouros.","Todo projeto começa com pessoas dispostas a colaborar.","O compromisso mantém projetos vivos.","A continuidade transforma iniciativas em resultados.","O trabalho diário constrói mudanças de longo prazo.","Persistência é parte de qualquer transformação.","Projetos sociais crescem com participação.","A participação fortalece a comunidade.","Cada voluntário acrescenta uma nova perspectiva.","Cada colaborador contribui para a construção coletiva.","Nenhuma função é pequena quando o objetivo é coletivo.","O trabalho compartilhado cria pertencimento.","Participar também significa assumir responsabilidades.","Uma equipe forte valoriza cada integrante.","O respeito fortalece equipes.","Comunicação clara evita conflitos.","Ouvir colegas melhora o trabalho.","Boas equipes aprendem juntas.","Erros também podem gerar aprendizado.","Compartilhar experiências ajuda todos a evoluir.","O conhecimento cresce quando é dividido.","Ensinar também é aprender.","Quem compartilha experiência fortalece sua comunidade.","As melhores soluções muitas vezes surgem do diálogo.","O diálogo aproxima diferentes pontos de vista.","Diferenças podem gerar novas ideias.","Cooperação não significa pensar igual.","Respeitar diferenças fortalece relações.","A diversidade de experiências melhora o trabalho.","Cada pessoa traz conhecimentos diferentes.","A comunidade é formada por muitas histórias.","Toda história merece respeito.","Conhecer histórias ajuda a compreender realidades.","O trabalho social aproxima diferentes realidades.","Estar presente é uma forma de compromisso.","Confiança exige tempo.","O cuidado se demonstra por atitudes.","Solidariedade é transformar preocupação em ação.","Ajudar também significa orientar.","Uma boa orientação pode devolver tranquilidade.","A informação correta reduz inseguranças.","Compartilhar conhecimento fortalece autonomia.","Autonomia começa pelo acesso à informação.","Cada pessoa deve poder compreender seus próprios direitos.","O conhecimento pertence a todos.","A educação fortalece comunidades.","Aprender abre possibilidades.","Ensinar amplia caminhos.","A troca de saberes aproxima universidade e comunidade.","Conhecimento acadêmico e conhecimento popular podem caminhar juntos.","O saber do pescador também é conhecimento.","Experiência prática possui valor.","A tradição preserva conhecimentos importantes.","As comunidades pesqueiras guardam saberes próprios.","A pesca artesanal representa patrimônio cultural.","A relação com a água faz parte da identidade de muitos povos.","O território também conta histórias.","Rios, lagoas e mares conectam comunidades.","A água é espaço de trabalho, cultura e memória.","O pescador conhece caminhos que não aparecem nos mapas.","Cada embarcação carrega histórias.","Cada porto marca encontros e despedidas.","O retorno da pesca também é parte da jornada.","O trabalho na água depende de confiança entre companheiros.","Companheirismo é essencial durante a pesca.","Um pescador cuida do outro.","Segurança também depende de cooperação.","A experiência coletiva protege a equipe.","Na água, confiança faz diferença.","A parceria começa antes da saída da embarcação.","Cada viagem exige responsabilidade compartilhada.","O trabalho de pesca também depende de preparação em terra.","Famílias inteiras participam da atividade pesqueira.","A pesca movimenta comunidades.","O pescado gera trabalho dentro e fora da embarcação.","A cadeia da pesca envolve muitas pessoas.","Valorizar o pescador é valorizar a comunidade.","Reconhecer o trabalho artesanal é reconhecer sua importância social.","Políticas públicas precisam considerar a realidade das comunidades.","Direitos devem acompanhar as necessidades das pessoas.","O diálogo entre instituições e comunidades melhora políticas públicas.","A participação social ajuda a construir soluções mais adequadas.","Quem vive a realidade deve ser ouvido.","As melhores políticas começam pela compreensão da comunidade.","O trabalho social precisa conhecer o território.","Cada comunidade possui necessidades próprias.","Soluções eficientes respeitam diferenças locais.","O atendimento deve considerar a realidade de cada pessoa.","A proximidade melhora a compreensão.","Conhecer o território melhora o trabalho.","Presença gera confiança.","Confiança facilita o diálogo.","O diálogo permite identificar necessidades.","Identificar necessidades é o primeiro passo para construir soluções.","Uma boa equipe transforma informação em ação.","Ação responsável gera confiança.","Resultados consistentes dependem de continuidade.","Continuidade fortalece vínculos.","Vínculos fortalecem comunidades.","Comunidades fortes ampliam oportunidades.","O trabalho conjunto cria novas possibilidades.","Toda transformação começa com uma iniciativa.","Uma iniciativa cresce quando encontra parceiros.","Parcerias ampliam resultados.","Resultados duradouros são construídos coletivamente.","A amizade fortalece os dias de trabalho.","Companheirismo transforma rotina em convivência.","Bons projetos também criam boas relações.","As pessoas são o centro de qualquer projeto social.","Cuidar das pessoas também é cuidar da comunidade.","Cada encontro pode gerar aprendizado.","Cada conversa pode revelar uma necessidade.","Cada atendimento pode representar um novo começo.","Cada conquista individual fortalece o trabalho coletivo.","Toda comunidade possui capacidade de transformação.","A transformação começa quando as pessoas participam.","O trabalho social ganha força quando existe confiança.","A pesca conecta trabalho, cultura e comunidade.","O pescador representa conhecimento, trabalho e tradição.","A água aproxima quem aprende a trabalhar em conjunto.","A solidariedade também navega entre comunidades.","Nenhuma rede é construída com apenas um fio.","Assim como uma rede de pesca, uma comunidade se fortalece pelas conexões.","Cada pessoa é parte importante dessa rede.","Quando pessoas se unem, o trabalho alcança mais longe.","Amizade, trabalho e solidariedade constroem comunidades mais fortes.","O Povo das Águas é feito de pessoas, histórias e caminhos compartilhados."];
-
- let processingState=null;
- let processingTimer=null;
- let processingHideTimer=null;
- let processingPhraseTimer=null;
- let processingPhraseIndex=0;
-
  function ensureProcessingOverlay_(){
   let overlay=document.getElementById('pda-processing-overlay');
   if(overlay)return overlay;
