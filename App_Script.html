@@ -11,7 +11,7 @@ const App=(()=>{
  const MODULE_REQUESTS=new Map();
  const READ_CACHE=new Map();
  const READ_REQUESTS=new Map();
- const READ_CACHE_TTL_MS=8000;
+ const READ_CACHE_TTL_MS=3000;
  const CACHEABLE_READS=new Set([
   'painel',
   'tarefasMinhas',
@@ -139,8 +139,17 @@ n.className='status '+(error?'error':'ok');
     bulkModulePromise&&
     bulkModuleCodes.has(code)
   ){
+    /*
+     * Dá uma pequena vantagem ao preload já em andamento, mas nunca faz
+     * um clique esperar indefinidamente pelo pacote completo.
+     */
     try{
-      await bulkModulePromise;
+      await Promise.race([
+        bulkModulePromise,
+        new Promise(resolve=>
+          setTimeout(resolve,180)
+        )
+      ]);
     }catch(e){}
 
     if(MODULE_CACHE.has(code)){
@@ -1383,7 +1392,9 @@ return d;
      */
     const nodes=
       Array.from(
-        stage.childNodes
+        stage.childNodes||
+        stage.children||
+        []
       );
 
     root.replaceChildren(
