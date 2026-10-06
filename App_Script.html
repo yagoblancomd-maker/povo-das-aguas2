@@ -261,6 +261,10 @@ n.className='status '+(error?'error':'ok');
   const run=()=>{
     ensureSessionCaches_();
 
+    if(bulkModulePromise){
+      return;
+    }
+
     const codes=
       Object.keys(boot.modulos)
         .filter(code=>
@@ -1906,6 +1910,25 @@ f.insertBefore(file,f.firstChild);
       MODULE_CACHE.set(
         boot.initialModule.code,
         boot.initialModule.bundle
+      );
+    }
+
+    if(
+      boot.initialData&&
+      boot.initialData.action&&
+      CACHEABLE_READS.has(
+        boot.initialData.action
+      )
+    ){
+      READ_CACHE.set(
+        readKey_(
+          boot.initialData.action,
+          boot.initialData.query||{}
+        ),
+        {
+          value:boot.initialData.result,
+          at:performance.now()
+        }
       );
     }
 
