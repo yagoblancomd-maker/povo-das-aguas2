@@ -150,16 +150,24 @@ window.PDA_AUTH=(()=>{
       );
 
     if(button){
-      button.disabled=
-        !boot.configured||
-        !boot.loginUrl;
-
-      button.onclick=()=>{
-        if(!boot.loginUrl)return;
-        window.location.assign(
-          boot.loginUrl
+      if(
+        boot.configured&&
+        boot.loginUrl
+      ){
+        button.href=
+          boot.loginUrl;
+        button.removeAttribute(
+          'aria-disabled'
         );
-      };
+      }else{
+        button.href='#';
+        button.setAttribute(
+          'aria-disabled',
+          'true'
+        );
+        button.onclick=event=>
+          event.preventDefault();
+      }
     }
 
     if(!boot.configured){
@@ -419,9 +427,21 @@ window.PDA_AUTH=(()=>{
 
   function logout(){
     store_('');
-    window.location.assign(
-      window.location.pathname
-    );
+
+    const target=
+      boot.appUrl||
+      '';
+
+    if(target){
+      try{
+        window.top.location.replace(
+          target
+        );
+        return;
+      }catch(e){}
+    }
+
+    window.location.reload();
   }
 
   function sessionExpired(messageText){
