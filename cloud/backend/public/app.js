@@ -280,7 +280,7 @@ async function openDossier(id){
       await openDossier(p.id);
     }catch(err){notify(err.message,true);}
   };
-  q('#dialog').showModal();
+  if(!q('#dialog').open)q('#dialog').showModal();
 }
 
 async function renderMyTasks(){
