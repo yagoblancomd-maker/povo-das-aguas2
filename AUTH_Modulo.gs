@@ -169,6 +169,30 @@ function withAuthSession_(token,fn){
   }
 }
 
+function withAuthMutationSession_(token,fn){
+  /*
+   * Operações que alteram autenticação/perfil mantêm validação e escrita
+   * sob o mesmo ScriptLock, preservando a semântica transacional anterior.
+   */
+  return lock_(()=>{
+    const session=
+      authSessionRead_(token);
+
+    const before=
+      PDA_AUTH_CONTEXT_EMAIL_;
+
+    PDA_AUTH_CONTEXT_EMAIL_=
+      session.email;
+
+    try{
+      return fn(session);
+    }finally{
+      PDA_AUTH_CONTEXT_EMAIL_=
+        before;
+    }
+  });
+}
+
 function authRegister(q){
   q=q||{};
   const email=authEmail_(q.email),senha=authPassword_(q.senha);
