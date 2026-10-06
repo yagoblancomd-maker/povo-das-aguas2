@@ -284,6 +284,7 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaDistribuicaoDetalhe:()=>distributionTaskDetail_(q),
     tarefaGeralDetalhe:()=>generalTaskDetail_(q),
     tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
+    notificacoesTarefas:()=>taskNotifications_(),
     processos:()=>processList_(),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
@@ -351,7 +352,8 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralConcluir:['consulta',generalTaskComplete_],
     tarefaGeralReabrir:['consulta',generalTaskReopen_],
     tarefaGeralMensagemEnviar:['consulta',generalTaskMessageSend_],
-    tarefaGeralAnexoAdicionar:['consulta',generalTaskAttachmentAdd_]
+    tarefaGeralAnexoAdicionar:['consulta',generalTaskAttachmentAdd_],
+    notificacoesTarefasMarcarLidas:['consulta',taskNotificationsMarkSeen_]
   };
 
   if(reads[action]){
@@ -362,7 +364,8 @@ function apiAuthenticated_(action,q,sessionToken){
       tarefasMinhas:'consulta',
       tarefaDistribuicaoDetalhe:'distribuicao',
       tarefaGeralDetalhe:'consulta',
-      tarefaGeralAnexoConteudo:'consulta'
+      tarefaGeralAnexoConteudo:'consulta',
+      notificacoesTarefas:'consulta'
     };
 
     authorize_(
