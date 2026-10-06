@@ -1,7 +1,11 @@
 let DATA_CACHE = {};
+let SPREADSHEET_CACHE_=null;
+let SPREADSHEET_CACHE_ID_='';
 
 function resetData_(){
   DATA_CACHE={};
+  SPREADSHEET_CACHE_=null;
+  SPREADSHEET_CACHE_ID_='';
 }
 
 function ss_(){
@@ -13,12 +17,24 @@ function ss_(){
     );
   }
 
+  if(
+    SPREADSHEET_CACHE_&&
+    SPREADSHEET_CACHE_ID_===id
+  ){
+    return SPREADSHEET_CACHE_;
+  }
+
   try{
-    return SpreadsheetApp.openById(
-      id
-    );
+    SPREADSHEET_CACHE_=
+      SpreadsheetApp.openById(
+        id
+      );
+    SPREADSHEET_CACHE_ID_=id;
+    return SPREADSHEET_CACHE_;
 
   }catch(e){
+    SPREADSHEET_CACHE_=null;
+    SPREADSHEET_CACHE_ID_='';
     fail_('O servidor não conseguiu acessar o banco do Povo das Águas. Verifique SPREADSHEET_ID e as permissões do proprietário.');
   }
 }
