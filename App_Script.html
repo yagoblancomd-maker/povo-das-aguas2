@@ -2,7 +2,7 @@
 'use strict';
 window.PDA_MODULES={};
 const App=(()=>{
- let epoch=0,busy=0,boot=null,current='PAINEL',selection=null;
+ let epoch=0,busy=0,boot=null,current='PAINEL',selection=null,authSessionToken='';
  const el=(tag,text,cls)=>{const n=document.createElement(tag);
 if(text!==undefined)n.textContent=text;
 if(cls)n.className=cls;
@@ -491,13 +491,17 @@ busy++;
 document.querySelectorAll('button').forEach(b=>b.disabled=true);
 }
 processingId=beginProcessing_(action,write);
-try{const result=await raw('api',action,payload);
+try{const result=await raw('api',action,payload,authSessionToken);
 if(token!==epoch)throw new Error('Resposta de tela anterior descartada.');
 if(write)status('Operação concluída.');
 endProcessing_(processingId,true);
 return result;
 }catch(e){endProcessing_(processingId,false);
-if(token===epoch)status((e.message||String(e))+(write?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.':''),true);
+const message=e.message||String(e);
+if(/AUTH:/.test(message)&&window.PDA_AUTH){
+  window.PDA_AUTH.sessionExpired(message.replace(/^Exception:\s*/,''));
+}
+if(token===epoch)status(message+(write?'\nA operação pode ter sido parcialmente executada. Mantenha os mesmos dados e tente novamente; consulte a ficha antes de alterar o envio.':''),true);
 throw e;
 }finally{if(write){busy--;
 document.querySelectorAll('button').forEach(b=>b.disabled=false);
@@ -722,7 +726,7 @@ status('Carregando…');
 const root=document.getElementById('app');
 root.replaceChildren();
 root.setAttribute('aria-busy','true');
-try{const m=await raw('carregarModulo',code);
+try{const m=await raw('carregarModulo',code,authSessionToken);
 if(token!==epoch)return;
 root.innerHTML=m.style+m.view;
 if(!window.PDA_MODULES[code]){const s=document.createElement('script');
@@ -1059,6 +1063,31 @@ f.insertBefore(file,f.firstChild);
 
  async function start(){
   try{
+    const auth=
+      await window.PDA_AUTH
+        .ensureAuthenticated();
+
+    authSessionToken=
+      auth&&auth.sessionToken
+        ?auth.sessionToken
+        :window.PDA_AUTH.getSessionToken();
+
+    if(!authSessionToken){
+      throw new Error(
+        'AUTH: sessão não iniciada.'
+      );
+    }
+
+    const logout=
+      document.getElementById(
+        'logoutButton'
+      );
+
+    if(logout){
+      logout.onclick=()=>
+        window.PDA_AUTH.logout();
+    }
+
     boot=await call('bootstrap');
     renderNavigation_();
 
@@ -1068,8 +1097,22 @@ f.insertBefore(file,f.firstChild);
     );
 
   }catch(e){
+    const message=
+      e.message||
+      String(e);
+
+    if(
+      /AUTH:/.test(message)&&
+      window.PDA_AUTH
+    ){
+      window.PDA_AUTH.sessionExpired(
+        message.replace(/^Exception:\s*/,'')
+      );
+      return;
+    }
+
     status(
-      e.message||String(e),
+      message,
       true
     );
   }
