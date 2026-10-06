@@ -174,10 +174,21 @@ function googleOAuthConfigSave_(ctx,q){
     ''
   ).trim();
 
-  const secret=String(
+  const incomingSecret=String(
     q.clientSecret||
     ''
   ).trim();
+
+  const currentSecret=String(
+    props_().getProperty(
+      'GOOGLE_OAUTH_CLIENT_SECRET'
+    )||
+    ''
+  ).trim();
+
+  const secret=
+    incomingSecret||
+    currentSecret;
 
   if(
     !/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(
@@ -189,28 +200,21 @@ function googleOAuthConfigSave_(ctx,q){
     );
   }
 
+  if(!secret){
+    fail_(
+      'Informe também o Client Secret OAuth 2.0.'
+    );
+  }
+
   props_().setProperty(
     'GOOGLE_OAUTH_CLIENT_ID',
     clientId
   );
 
-  if(secret){
+  if(incomingSecret){
     props_().setProperty(
       'GOOGLE_OAUTH_CLIENT_SECRET',
-      secret
-    );
-  }
-
-  if(
-    !String(
-      props_().getProperty(
-        'GOOGLE_OAUTH_CLIENT_SECRET'
-      )||
-      ''
-    ).trim()
-  ){
-    fail_(
-      'Informe também o Client Secret OAuth 2.0.'
+      incomingSecret
     );
   }
 
@@ -222,48 +226,10 @@ function googleOAuthConfigSave_(ctx,q){
     configurada:true,
     clientId,
     redirectUri:
-      ScriptApp.getService().getUrl(),
+      googleOAuthCallbackUrl_(),
     mensagem:
       'Login Google atualizado.'
   };
-}
-
-function authStateCreate_(){
-  return authSignedToken_({
-    type:'oauth-state',
-    issuedAt:Date.now(),
-    nonce:Utilities.getUuid()
-  });
-}
-
-function authStateRead_(state){
-  const data=
-    authReadSignedToken_(
-      state,
-      'estado OAuth'
-    );
-
-  if(data.type!=='oauth-state'){
-    fail_('AUTH: estado OAuth incompatível.');
-  }
-
-  const age=
-    Date.now()-
-    Number(data.issuedAt||0);
-
-  if(
-    age<0||
-    age>
-      PDA_AUTH_STATE_MINUTES*
-      60*
-      1000
-  ){
-    fail_(
-      'AUTH: a tentativa de login expirou. Inicie o login novamente.'
-    );
-  }
-
-  return data;
 }
 
 function googleOAuthLoginUrl_(){
