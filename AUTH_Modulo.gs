@@ -100,16 +100,6 @@ function authReadSignedToken_(token,label){
   return data;
 }
 
-function googleOAuthCallbackUrl_(){
-  return (
-    'https://script.google.com/macros/d/'+
-    encodeURIComponent(
-      ScriptApp.getScriptId()
-    )+
-    '/usercallback'
-  );
-}
-
 function googleOAuthConfig_(){
   const properties=props_();
 
@@ -131,7 +121,7 @@ function googleOAuthConfig_(){
   ).trim();
 
   const redirectUri=
-    googleOAuthCallbackUrl_();
+    webAppUrl;
 
   return {
     configurada:
@@ -139,7 +129,7 @@ function googleOAuthConfig_(){
         clientId
       )&&
       !!clientSecret&&
-      /^https:\/\/script\.google\.com\/macros\/d\/[A-Za-z0-9_-]+\/usercallback$/.test(
+      /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(
         redirectUri
       ),
     clientId,
@@ -226,10 +216,56 @@ function googleOAuthConfigSave_(ctx,q){
     configurada:true,
     clientId,
     redirectUri:
-      googleOAuthCallbackUrl_(),
+      String(
+        ScriptApp.getService().getUrl()||
+        ''
+      ),
     mensagem:
       'Login Google atualizado.'
   };
+}
+
+function authStateCreate_(){
+  const now=Date.now();
+
+  return authSignedToken_({
+    type:'oauth-state',
+    issuedAt:now,
+    expiresAt:
+      now+
+      PDA_AUTH_STATE_MINUTES*
+      60*
+      1000,
+    nonce:Utilities.getUuid()
+  });
+}
+
+function authStateRead_(state){
+  const data=
+    authReadSignedToken_(
+      state,
+      'estado OAuth'
+    );
+
+  if(data.type!=='oauth-state'){
+    fail_(
+      'AUTH: estado OAuth incompatível.'
+    );
+  }
+
+  if(
+    Number(
+      data.expiresAt||
+      0
+    )<
+    Date.now()
+  ){
+    fail_(
+      'AUTH: a tentativa de login expirou. Entre novamente com o Google.'
+    );
+  }
+
+  return data;
 }
 
 function googleOAuthLoginUrl_(){
@@ -239,26 +275,12 @@ function googleOAuthLoginUrl_(){
     return '';
   }
 
-  const state=
-    ScriptApp.newStateToken()
-      .withMethod(
-        'authGoogleCallback'
-      )
-      .withArgument(
-        'returnUrl',
-        config.webAppUrl
-      )
-      .withTimeout(
-        600
-      )
-      .createToken();
-
   const params={
     client_id:config.clientId,
     redirect_uri:config.redirectUri,
     response_type:'code',
     scope:'openid email profile',
-    state,
+    state:authStateCreate_(),
     prompt:'select_account',
     access_type:'online',
     include_granted_scopes:'true'
@@ -857,151 +879,6 @@ function withAuthSession_(sessionToken,fn){
   }
 }
 
-function authCallbackTicketCreate_(result){
-  const now=Date.now();
-
-  return authSignedToken_({
-    type:'oauth-callback',
-    issuedAt:now,
-    expiresAt:now+2*60*1000,
-    status:result.status||'',
-    email:result.email||'',
-    nome:result.nome||'',
-    sessionToken:result.sessionToken||'',
-    registrationProof:result.registrationProof||'',
-    mensagem:result.mensagem||''
-  });
-}
-
-function authCallbackTicketRead_(token){
-  const data=
-    authReadSignedToken_(
-      token,
-      'retorno do Google'
-    );
-
-  if(data.type!=='oauth-callback'){
-    fail_(
-      'AUTH: retorno Google incompatível.'
-    );
-  }
-
-  if(
-    Number(data.expiresAt||0)<
-    Date.now()
-  ){
-    fail_(
-      'AUTH: o retorno do Google expirou. Entre novamente.'
-    );
-  }
-
-  return data;
-}
-
-function authCallbackRedirectPage_(returnUrl,ticket){
-  const safeReturn=
-    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(
-      String(returnUrl||'')
-    )
-      ?String(returnUrl)
-      :String(
-        ScriptApp.getService().getUrl()||
-        ''
-      );
-
-  const target=
-    safeReturn+
-    (
-      safeReturn.indexOf('?')>=0
-        ?'&'
-        :'?'
-    )+
-    'auth_ticket='+
-    encodeURIComponent(ticket);
-
-  const safeTarget=
-    String(target)
-      .replace(/&/g,'&amp;')
-      .replace(/"/g,'&quot;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;');
-
-  const jsTarget=
-    JSON.stringify(target);
-
-  return HtmlService
-    .createHtmlOutput(
-      '<!doctype html><html lang="pt-BR"><head>'+
-      '<meta charset="utf-8">'+
-      '<meta name="viewport" content="width=device-width,initial-scale=1">'+
-      '<title>Povo das Águas — Login Google</title>'+
-      '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#173f51;background:linear-gradient(145deg,#072d41,#0b7881)}.card{width:min(520px,100%);padding:28px;border-radius:20px;background:#fff;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.25)}.spin{width:40px;height:40px;margin:0 auto 14px;border:4px solid #d9eaed;border-top-color:#0b7c88;border-radius:50%;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}h1{margin:0 0 8px;font-size:21px}p{color:#647b84;font-size:12px;line-height:1.5}a{display:inline-block;margin-top:8px;color:#0b7180;font-weight:700}</style>'+
-      '</head><body><main class="card"><div class="spin"></div>'+
-      '<h1>Concluindo seu acesso</h1>'+
-      '<p>Sua Conta Google foi validada. Você será redirecionado ao Povo das Águas.</p>'+
-      '<a href="'+safeTarget+'">Continuar agora</a>'+
-      '</main><script>window.top.location.replace('+jsTarget+');<\/script></body></html>'
-    );
-}
-
-function authGoogleCallback(request){
-  const params=
-    request&&request.parameter
-      ?request.parameter
-      :{};
-
-  const returnUrl=String(
-    params.returnUrl||
-    ScriptApp.getService().getUrl()||
-    ''
-  ).trim();
-
-  let result;
-
-  try{
-    if(params.error){
-      result={
-        status:'ERROR',
-        mensagem:
-          'O Google não concluiu o login: '+
-          String(
-            params.error_description||
-            params.error
-          )
-      };
-    }else{
-      const tokens=
-        googleOAuthTokenExchange_(
-          params.code
-        );
-
-      const identity=
-        googleIdentityVerify_(
-          tokens.id_token
-        );
-
-      result=
-        authAfterGoogle_(
-          identity
-        );
-    }
-  }catch(error){
-    result={
-      status:'ERROR',
-      mensagem:
-        error.message||
-        String(error)
-    };
-  }
-
-  return authCallbackRedirectPage_(
-    returnUrl,
-    authCallbackTicketCreate_(
-      result
-    )
-  );
-}
-
 function authPageBootstrap_(e){
   const config=
     googleOAuthStatus_();
@@ -1029,7 +906,7 @@ function authPageBootstrap_(e){
 
   if(!config.configurada){
     out.error=
-      'O Login Google ainda não foi configurado pela Administração.';
+      'O Login Google ainda não foi configurado. Cadastre o Client ID e o Client Secret OAuth 2.0 nas Propriedades do script.';
     return out;
   }
 
@@ -1041,43 +918,69 @@ function authPageBootstrap_(e){
       ?e.parameter
       :{};
 
-  if(!params.auth_ticket){
+  if(params.error){
+    out.error=
+      'O Google não concluiu o login: '+
+      String(
+        params.error_description||
+        params.error
+      );
+
+    return out;
+  }
+
+  if(!params.code){
     return out;
   }
 
   try{
-    const ticket=
-      authCallbackTicketRead_(
-        params.auth_ticket
+    authStateRead_(
+      params.state
+    );
+
+    const tokens=
+      googleOAuthTokenExchange_(
+        params.code
+      );
+
+    const identity=
+      googleIdentityVerify_(
+        tokens.id_token
+      );
+
+    const result=
+      authAfterGoogle_(
+        identity
       );
 
     out.status=
-      ticket.status||
+      result.status||
       '';
 
     out.googleEmail=
-      ticket.email||
+      result.email||
+      identity.email||
       '';
 
     out.googleName=
-      ticket.nome||
+      result.nome||
+      identity.nome||
       '';
 
     out.initialSessionToken=
-      ticket.sessionToken||
+      result.sessionToken||
       '';
 
     out.initialRegistrationProof=
-      ticket.registrationProof||
+      result.registrationProof||
       '';
 
     if(
-      ticket.status==='ERROR'||
-      ticket.status==='BLOCKED'
+      result.status==='BLOCKED'
     ){
       out.error=
-        ticket.mensagem||
-        'Não foi possível concluir o Login Google.';
+        result.mensagem||
+        'Este usuário está desativado.'
     }
 
   }catch(error){
