@@ -330,6 +330,43 @@
       font-size:9px;
       line-height:1.4;
     }
+    .google-login{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:9px;
+      width:100%;
+      min-height:44px;
+      margin:0 0 12px;
+      padding:9px 12px;
+      border:1px solid #c8d9de;
+      border-radius:11px;
+      color:#244c5b;
+      background:#fff;
+      box-shadow:0 5px 14px rgba(15,48,70,.08);
+      font:750 11.5px/1 inherit;
+      cursor:pointer;
+      transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease
+    }
+    .google-login:hover{
+      transform:translateY(-1px);
+      border-color:#94c1c9;
+      box-shadow:0 9px 20px rgba(15,48,70,.12)
+    }
+    .google-login .g{
+      width:28px;
+      height:28px
+    }
+    .register-form-hidden{
+      display:none
+    }
+    .account.not-connected{
+      border-color:#e2c985;
+      background:#fff9e7
+    }
+    .account.not-connected .account-copy strong{
+      color:#76580d
+    }
     .submit{
       width:100%;
       min-height:44px;
@@ -499,6 +536,11 @@
             </div>
           </div>
 
+          <button id="googleLoginBtn" class="google-login" type="button" hidden>
+            <span class="g">G</span>
+            <span>Continuar com Conta Google</span>
+          </button>
+
           <form id="registerForm">
             <label class="field">
               <span>Seu nome completo</span>
@@ -548,7 +590,8 @@
       token:<?!= JSON.stringify(registrationToken) ?>,
       returnUrl:<?!= JSON.stringify(returnUrl) ?>,
       gatewayConfigured:<?!= JSON.stringify(gatewayConfigured) ?>,
-      reason:<?!= JSON.stringify(reason) ?>
+      reason:<?!= JSON.stringify(reason) ?>,
+      identityDiagnostic:<?!= JSON.stringify(identityDiagnostic) ?>
     };
 
     const accountEmail=document.getElementById('accountEmail');
@@ -556,6 +599,7 @@
     const submit=document.getElementById('submitBtn');
     const warning=document.getElementById('warning');
     const switchAccount=document.getElementById('switchAccount');
+    const googleLoginBtn=document.getElementById('googleLoginBtn');
     const functionSelect=document.getElementById('funcao');
     const permissionsTitle=document.getElementById('permissionsTitle');
     const permissionsText=document.getElementById('permissionsText');
@@ -609,26 +653,80 @@
 
     syncFunctionAccess_();
 
-    accountEmail.textContent=
-      CONFIG.email||
-      'Conta não identificada';
-
-    switchAccount.href=
+    const accountChooserUrl=
       'https://accounts.google.com/AccountChooser?continue='+
       encodeURIComponent(
         CONFIG.returnUrl||
         window.location.href
       );
 
-    if(!CONFIG.email){
-      warning.hidden=false;
-      warning.textContent=
-        'Não foi possível identificar sua Conta Google. A implantação principal precisa executar como “Usuário que acessa o app”. Depois de corrigir a implantação, use “Usar outra Conta Google” ou atualize esta página.';
+    switchAccount.href=
+      accountChooserUrl;
+
+    googleLoginBtn.addEventListener(
+      'click',
+      ()=>{
+        window.location.assign(
+          accountChooserUrl
+        );
+      }
+    );
+
+    if(CONFIG.email){
+      accountEmail.textContent=
+        CONFIG.email;
+
+      googleLoginBtn.hidden=true;
+      form.classList.remove(
+        'register-form-hidden'
+      );
+
+    }else{
+      accountEmail.textContent=
+        'Conta Google ainda não conectada';
+
+      document.querySelector(
+        '.account'
+      ).classList.add(
+        'not-connected'
+      );
+
+      form.classList.add(
+        'register-form-hidden'
+      );
+
       submit.disabled=true;
-    }else if(!CONFIG.gatewayConfigured){
+      warning.hidden=false;
+
+      if(
+        CONFIG.identityDiagnostic===
+        'EXECUTING_AS_OWNER'
+      ){
+        googleLoginBtn.hidden=true;
+        switchAccount.hidden=true;
+
+        warning.innerHTML=
+          '<b>A implantação principal está executando como o proprietário.</b> '+
+          'Nessa configuração o Apps Script não consegue identificar quem está entrando, por isso o botão de cadastro não pode ser liberado. '+
+          'Edite a implantação principal para <b>Executar como: Usuário que acessa o app</b> e permita acesso a usuários com Conta Google. Depois publique uma nova versão e recarregue esta página.';
+
+      }else{
+        googleLoginBtn.hidden=false;
+        switchAccount.hidden=true;
+
+        warning.innerHTML=
+          '<b>Entre com sua Conta Google para continuar.</b> '+
+          'Depois que o Google identificar a conta, o formulário de criação do acesso será liberado automaticamente.';
+      }
+    }
+
+    if(
+      CONFIG.email&&
+      !CONFIG.gatewayConfigured
+    ){
       warning.hidden=false;
       warning.textContent=
-        'O autocadastro ainda não foi ativado pela Administração do sistema. A configuração é única e, depois de concluída, nenhum novo usuário precisará de aprovação manual.';
+        'Sua Conta Google foi identificada, mas o gateway de autocadastro ainda não foi ativado pela Administração. Essa configuração é feita uma única vez.';
       submit.disabled=true;
     }
 
