@@ -4,244 +4,287 @@ window.PDA_MODULES.TAREFAS = (()=>{
     el,button,call,link,alive,status
   }=App;
 
+  const MAX_FILE_BYTES=5*1024*1024;
+
   function money_(value){
     return Number(value||0).toLocaleString(
       'pt-BR',
-      {
-        style:'currency',
-        currency:'BRL'
-      }
+      {style:'currency',currency:'BRL'}
     );
   }
 
   function cpf_(value){
-    const d=String(value||'')
-      .replace(/\D/g,'');
-
+    const d=String(value||'').replace(/\D/g,'');
     return d.length===11
-      ?d.replace(
-          /(\d{3})(\d{3})(\d{3})(\d{2})/,
-          '$1.$2.$3-$4'
-        )
+      ?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')
       :String(value||'');
   }
 
   function processMask_(value){
-    const d=String(value||'')
-      .replace(/\D/g,'')
-      .slice(0,20);
-
+    const d=String(value||'').replace(/\D/g,'').slice(0,20);
     let out=d.slice(0,7);
-
-    if(d.length>7){
-      out+='-'+d.slice(7,9);
-    }
-
-    if(d.length>9){
-      out+='.'+d.slice(9,13);
-    }
-
-    if(d.length>13){
-      out+='.'+d.slice(13,14);
-    }
-
-    if(d.length>14){
-      out+='.'+d.slice(14,16);
-    }
-
-    if(d.length>16){
-      out+='.'+d.slice(16,20);
-    }
-
+    if(d.length>7)out+='-'+d.slice(7,9);
+    if(d.length>9)out+='.'+d.slice(9,13);
+    if(d.length>13)out+='.'+d.slice(13,14);
+    if(d.length>14)out+='.'+d.slice(14,16);
+    if(d.length>16)out+='.'+d.slice(16,20);
     return out;
   }
 
-  function taskCard_(task,onOpen){
-    const card=
-      el(
-        'article',
-        undefined,
-        'task-card'+
-        (
-          task.situacao==='CONCLUIDA'
-            ?' done'
-            :''
-        )
+  function date_(value){
+    const text=String(value||'').trim();
+    if(!text)return '—';
+    const m=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m?m[3]+'/'+m[2]+'/'+m[1]:text;
+  }
+
+  function dateTime_(value){
+    const text=String(value||'').trim();
+    if(!text)return '';
+    const d=new Date(text);
+    return Number.isNaN(d.getTime())
+      ?text
+      :d.toLocaleString('pt-BR');
+  }
+
+  function priority_(value){
+    return ({
+      BAIXA:'Baixa',
+      NORMAL:'Normal',
+      ALTA:'Alta',
+      URGENTE:'Urgente'
+    })[String(value||'NORMAL').toUpperCase()]||'Normal';
+  }
+
+  function bytes_(value){
+    const n=Number(value||0);
+    if(!n)return '';
+    if(n<1024)return n+' B';
+    if(n<1024*1024)return (n/1024).toFixed(1)+' KB';
+    return (n/(1024*1024)).toFixed(1)+' MB';
+  }
+
+  function fileBase64_(file){
+    return new Promise((resolve,reject)=>{
+      if(!file||file.type!=='application/pdf'){
+        reject(new Error('Somente arquivos PDF podem ser anexados.'));
+        return;
+      }
+
+      if(file.size>MAX_FILE_BYTES){
+        reject(new Error('Cada PDF deve ter no máximo 5 MB.'));
+        return;
+      }
+
+      const reader=new FileReader();
+
+      reader.onerror=()=>reject(
+        new Error('Não foi possível ler o PDF '+file.name+'.')
       );
 
-    const top=
-      el(
-        'div',
-        undefined,
-        'task-card-top'
+      reader.onload=()=>{
+        const value=String(reader.result||'');
+        const comma=value.indexOf(',');
+        resolve(comma>=0?value.slice(comma+1):value);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadFiles_(taskId,files){
+    const list=Array.from(files||[]);
+
+    for(let i=0;i<list.length;i++){
+      const file=list[i];
+
+      status(
+        'Anexando PDF '+(i+1)+' de '+list.length+'…'
       );
+
+      await call(
+        'tarefaGeralAnexoAdicionar',
+        {
+          id:taskId,
+          nome:file.name,
+          mime:file.type,
+          base64:await fileBase64_(file)
+        },
+        true
+      );
+    }
+  }
+
+  async function openPdf_(taskId,attachment){
+    const tab=window.open('','_blank');
+
+    if(tab){
+      tab.document.title='Abrindo PDF…';
+      tab.document.body.innerHTML=
+        '<div style="font:14px system-ui;padding:24px;color:#173f51">Carregando PDF…</div>';
+    }
+
+    try{
+      const result=await call(
+        'tarefaGeralAnexoConteudo',
+        {
+          id:taskId,
+          anexoId:attachment.id
+        }
+      );
+
+      const raw=atob(result.base64);
+      const bytes=new Uint8Array(raw.length);
+
+      for(let i=0;i<raw.length;i++){
+        bytes[i]=raw.charCodeAt(i);
+      }
+
+      const url=URL.createObjectURL(
+        new Blob([bytes],{type:result.mime||'application/pdf'})
+      );
+
+      if(tab){
+        tab.location.replace(url);
+      }else{
+        const a=document.createElement('a');
+        a.href=url;
+        a.target='_blank';
+        a.rel='noopener';
+        document.body.append(a);
+        a.click();
+        a.remove();
+      }
+
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(e){
+      if(tab&&!tab.closed)tab.close();
+      throw e;
+    }
+  }
+
+  function distributionCard_(task,onOpen){
+    const card=el(
+      'article',
+      undefined,
+      'task-card'+(task.situacao==='CONCLUIDA'?' done':'')
+    );
+
+    const top=el('div',undefined,'task-card-top');
 
     top.append(
-      el(
-        'strong',
-        task.pessoa
-      ),
+      el('strong',task.pessoa),
       el(
         'span',
-        task.situacao==='CONCLUIDA'
-          ?'CONCLUÍDA'
-          :'PARA DISTRIBUIR',
-        'task-status'+
-        (
-          task.situacao==='CONCLUIDA'
-            ?' done'
-            :''
-        )
+        task.situacao==='CONCLUIDA'?'CONCLUÍDA':'PARA DISTRIBUIR',
+        'task-status'+(task.situacao==='CONCLUIDA'?' done':'')
       )
     );
 
-    const meta=
-      el(
-        'div',
-        undefined,
-        'task-card-meta'
-      );
+    const meta=el('div',undefined,'task-card-meta');
 
     [
-      [
-        'CPF',
-        cpf_(task.cpf)
-      ],
-      [
-        'Jurisdição',
-        task.jurisdicao||'—'
-      ],
-      [
-        'Valor da causa',
-        money_(task.valorCausa)
-      ],
-      [
-        'Município',
-        task.cidade||'—'
-      ]
+      ['CPF',cpf_(task.cpf)],
+      ['Jurisdição',task.jurisdicao||'—'],
+      ['Valor da causa',money_(task.valorCausa)],
+      ['Município',task.cidade||'—']
     ].forEach(([label,value])=>{
-      const item=
-        el(
-          'span',
-          label
-        );
-
-      item.append(
-        el(
-          'b',
-          value
-        )
-      );
-
+      const item=el('span',label);
+      item.append(el('b',value));
       meta.append(item);
     });
 
-    const actions=
-      el(
-        'div',
-        undefined,
-        'actions'
-      );
+    const actions=el('div',undefined,'actions');
 
     actions.append(
       button(
-        task.situacao==='CONCLUIDA'
-          ?'Ver distribuição'
-          :'Abrir tarefa',
+        task.situacao==='CONCLUIDA'?'Ver distribuição':'Abrir tarefa',
         ()=>onOpen(task)
       )
     );
 
-    card.append(
-      top,
-      meta,
-      actions
+    card.append(top,meta,actions);
+    return card;
+  }
+
+  function generalCard_(task,onOpen){
+    const done=task.situacao==='CONCLUIDA';
+
+    const card=el(
+      'article',
+      undefined,
+      'task-card task-general-card'+(done?' done':'')
     );
 
+    const top=el('div',undefined,'task-card-top');
+
+    top.append(
+      el('strong',task.titulo),
+      el(
+        'span',
+        done?'CONCLUÍDA':priority_(task.prioridade).toUpperCase(),
+        'task-status task-priority '+String(task.prioridade||'NORMAL').toLowerCase()
+      )
+    );
+
+    const description=el(
+      'p',
+      task.descricao||'Sem informações adicionais.',
+      'task-general-description'
+    );
+
+    const meta=el('div',undefined,'task-card-meta');
+
+    [
+      ['Criada por',task.criadoPorNome||task.criadoPor||'—'],
+      ['Prazo',date_(task.prazo)],
+      ['Mensagens',String(task.mensagens||0)],
+      ['PDFs',String(task.anexos||0)]
+    ].forEach(([label,value])=>{
+      const item=el('span',label);
+      item.append(el('b',value));
+      meta.append(item);
+    });
+
+    const actions=el('div',undefined,'actions');
+
+    actions.append(
+      button(
+        done?'Abrir histórico':'Abrir / responder',
+        ()=>onOpen(task)
+      )
+    );
+
+    card.append(top,description,meta,actions);
     return card;
   }
 
   function detailItem_(label,value){
-    const item=
-      el(
-        'div',
-        undefined,
-        'task-detail-item'
-      );
-
-    item.append(
-      el(
-        'span',
-        label
-      ),
-      el(
-        'strong',
-        value||'—'
-      )
-    );
-
+    const item=el('div',undefined,'task-detail-item');
+    item.append(el('span',label),el('strong',value||'—'));
     return item;
   }
 
   function openProcessDialog_(root,detail,parentDialog,refresh){
-    const existing=
-      root.querySelector(
-        '.task-process-dialog'
-      );
+    const existing=root.querySelector('.task-process-dialog');
+    if(existing)existing.remove();
 
-    if(existing){
-      existing.remove();
-    }
+    const dialog=el('dialog',undefined,'task-process-dialog');
+    const shell=el('div',undefined,'task-process-shell');
+    const head=el('div',undefined,'task-process-head');
+    const copy=el('div');
 
-    const dialog=
-      el(
-        'dialog',
-        undefined,
-        'task-process-dialog'
-      );
-
-    const shell=
-      el(
-        'div',
-        undefined,
-        'task-process-shell'
-      );
-
-    const head=
-      el(
-        'div',
-        undefined,
-        'task-process-head'
-      );
+    copy.append(
+      el('h3','Informar processo do TRF4'),
+      el('p',detail.pessoa.nome)
+    );
 
     head.append(
-      el(
-        'div'
-      ),
-      button(
-        'Fechar',
-        ()=>dialog.close(),
-        true
-      )
+      copy,
+      button('Fechar',()=>dialog.close(),true)
     );
 
-    head.firstChild.append(
-      el(
-        'h3',
-        'Informar processo do TRF4'
-      ),
-      el(
-        'p',
-        detail.pessoa.nome
-      )
-    );
-
-    const body=
-      el(
-        'div',
-        undefined,
-        'task-process-body'
-      );
+    const body=el('div',undefined,'task-process-body');
 
     body.append(
       el(
@@ -251,46 +294,24 @@ window.PDA_MODULES.TAREFAS = (()=>{
       )
     );
 
-    const field=
-      el(
-        'label',
-        undefined,
-        'field'
-      );
+    const field=el('label',undefined,'field');
+    field.append(el('span','Número do processo no TRF4'));
 
-    field.append(
-      el(
-        'span',
-        'Número do processo no TRF4'
-      )
-    );
-
-    const input=
-      el(
-        'input'
-      );
-
+    const input=el('input');
     input.type='text';
-    input.placeholder=
-      '5001234-56.2026.4.04.7100';
+    input.placeholder='5001234-56.2026.4.04.7100';
     input.maxLength=25;
     input.inputMode='numeric';
     input.autocomplete='off';
 
     input.addEventListener(
       'input',
-      ()=>{
-        input.value=
-          processMask_(
-            input.value
-          );
-      }
+      ()=>input.value=processMask_(input.value)
     );
 
     field.append(input);
-    body.append(field);
-
     body.append(
+      field,
       el(
         'small',
         'Formato esperado: NNNNNNN-DD.AAAA.4.04.JJJJ',
@@ -298,27 +319,14 @@ window.PDA_MODULES.TAREFAS = (()=>{
       )
     );
 
-    const actions=
-      el(
-        'div',
-        undefined,
-        'actions task-process-actions'
-      );
+    const actions=el('div',undefined,'actions task-process-actions');
 
     actions.append(
-      button(
-        'Cancelar',
-        ()=>dialog.close(),
-        true
-      ),
+      button('Cancelar',()=>dialog.close(),true),
       button(
         'Confirmar e concluir',
         async()=>{
-          const numero=
-            String(
-              input.value||
-              ''
-            ).trim();
+          const numero=String(input.value||'').trim();
 
           if(!numero){
             throw new Error(
@@ -326,27 +334,18 @@ window.PDA_MODULES.TAREFAS = (()=>{
             );
           }
 
-          const result=
-            await call(
-              'tarefaDistribuicaoConcluir',
-              {
-                id:detail.tarefa.id,
-                numeroProcesso:numero
-              },
-              true
-            );
-
-          status(
-            result.mensagem||
-            'Distribuição concluída.'
+          const result=await call(
+            'tarefaDistribuicaoConcluir',
+            {
+              id:detail.tarefa.id,
+              numeroProcesso:numero
+            },
+            true
           );
 
+          status(result.mensagem||'Distribuição concluída.');
           dialog.close();
-
-          if(parentDialog.open){
-            parentDialog.close();
-          }
-
+          if(parentDialog.open)parentDialog.close();
           await refresh();
         }
       )
@@ -364,126 +363,47 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
 
     dialog.showModal();
-
-    requestAnimationFrame(
-      ()=>input.focus()
-    );
+    requestAnimationFrame(()=>input.focus());
   }
 
-  function openDialog_(root,detail,refresh){
-    const existing=
-      root.querySelector(
-        '.task-dialog'
-      );
+  function openDistributionDialog_(root,detail,refresh){
+    const existing=root.querySelector('.task-dialog');
+    if(existing)existing.remove();
 
-    if(existing){
-      existing.remove();
-    }
-
-    const dialog=
-      el(
-        'dialog',
-        undefined,
-        'task-dialog'
-      );
-
-    const shell=
-      el(
-        'div',
-        undefined,
-        'task-dialog-shell'
-      );
-
-    const head=
-      el(
-        'div',
-        undefined,
-        'task-dialog-head'
-      );
-
-    const headCopy=
-      el(
-        'div'
-      );
+    const dialog=el('dialog',undefined,'task-dialog');
+    const shell=el('div',undefined,'task-dialog-shell');
+    const head=el('div',undefined,'task-dialog-head');
+    const headCopy=el('div');
 
     headCopy.append(
-      el(
-        'h3',
-        detail.pessoa.nome
-      ),
-      el(
-        'p',
-        'Tarefa de distribuição processual'
-      )
+      el('h3',detail.pessoa.nome),
+      el('p','Tarefa de distribuição processual')
     );
-
-    const close=
-      button(
-        'Fechar',
-        ()=>dialog.close(),
-        true
-      );
 
     head.append(
       headCopy,
-      close
+      button('Fechar',()=>dialog.close(),true)
     );
 
-    const body=
-      el(
-        'div',
-        undefined,
-        'task-dialog-body'
-      );
-
-    const banner=
-      el(
-        'div',
-        undefined,
-        'task-distribution-banner'
-      );
+    const body=el('div',undefined,'task-dialog-body');
+    const banner=el('div',undefined,'task-distribution-banner');
 
     [
-      [
-        'Jurisdição para distribuição',
-        detail.pessoa.jurisdicao
-      ],
-      [
-        'Valor da causa',
-        money_(detail.pessoa.valorCausa)
-      ],
+      ['Jurisdição para distribuição',detail.pessoa.jurisdicao],
+      ['Valor da causa',money_(detail.pessoa.valorCausa)],
       [
         'Parcelas não recebidas',
-        String(
-          detail.pessoa.parcelasNaoRecebidas||
-          '—'
-        )
+        String(detail.pessoa.parcelasNaoRecebidas||'—')
       ]
     ].forEach(([label,value])=>{
       const item=el('div');
-
-      item.append(
-        el(
-          'span',
-          label
-        ),
-        el(
-          'strong',
-          value
-        )
-      );
-
+      item.append(el('span',label),el('strong',value));
       banner.append(item);
     });
 
     body.append(banner);
 
-    const grid=
-      el(
-        'div',
-        undefined,
-        'task-detail-grid'
-      );
+    const grid=el('div',undefined,'task-detail-grid');
 
     [
       ['Nome',detail.pessoa.nome],
@@ -495,255 +415,120 @@ window.PDA_MODULES.TAREFAS = (()=>{
       ['Município/UF',(detail.pessoa.cidade||'')+'/'+(detail.pessoa.uf||'')],
       ['Entidade',detail.pessoa.entidade]
     ].forEach(([label,value])=>
-      grid.append(
-        detailItem_(
-          label,
-          value
-        )
-      )
+      grid.append(detailItem_(label,value))
     );
 
     body.append(grid);
 
-    const lawyers=
-      el(
-        'section',
-        undefined,
-        'task-dialog-section'
-      );
+    const lawyers=el('section',undefined,'task-dialog-section');
+    lawyers.append(el('h4','Advogados para a distribuição'));
 
-    lawyers.append(
-      el(
-        'h4',
-        'Advogados para a distribuição'
-      )
+    const lawyerGrid=el('div',undefined,'task-lawyers');
+
+    (detail.advogados||[]).forEach(item=>
+      lawyerGrid.append(el('div',item,'task-lawyer'))
     );
-
-    const lawyerGrid=
-      el(
-        'div',
-        undefined,
-        'task-lawyers'
-      );
-
-    (detail.advogados||[])
-      .forEach(item=>
-        lawyerGrid.append(
-          el(
-            'div',
-            item,
-            'task-lawyer'
-          )
-        )
-      );
 
     lawyers.append(lawyerGrid);
     body.append(lawyers);
 
-    const docs=
-      el(
-        'section',
-        undefined,
-        'task-dialog-section'
-      );
+    const docs=el('section',undefined,'task-dialog-section');
+    const docsHead=el('div',undefined,'task-docs-head');
 
-    const docsHead=
-      el(
-        'div',
-        undefined,
-        'task-docs-head'
-      );
+    docsHead.append(el('h4','Documentos da pessoa'));
 
-    docsHead.append(
-      el(
-        'h4',
-        'Documentos da pessoa'
-      )
-    );
+    if(detail.documentos&&detail.documentos.length){
+      const downloadAll=button(
+        'Baixar todos os documentos',
+        async()=>{
+          const downloadTab=window.open('','_blank');
 
-    if(
-      detail.documentos&&
-      detail.documentos.length
-    ){
-      const downloadAll=
-        button(
-          'Baixar todos os documentos',
-          async()=>{
-            /*
-             * Abre a aba imediatamente para evitar bloqueio de pop-up
-             * enquanto o servidor monta/recupera o ZIP.
-             */
-            const downloadTab=
-              window.open(
-                '',
-                '_blank'
-              );
+          if(downloadTab){
+            downloadTab.document.title='Preparando documentos…';
+            downloadTab.document.body.innerHTML=
+              '<div style="font:14px system-ui;padding:24px;color:#173f51">Preparando o arquivo ZIP dos documentos…</div>';
+          }
+
+          try{
+            const result=await call(
+              'tarefaDocumentosZipGerar',
+              {id:detail.tarefa.id},
+              true
+            );
+
+            status(
+              result.mensagem||
+              'Documentos preparados para download.'
+            );
 
             if(downloadTab){
-              downloadTab.document.title=
-                'Preparando documentos…';
-
-              downloadTab.document.body.innerHTML=
-                '<div style="font:14px system-ui;padding:24px;color:#173f51">Preparando o arquivo ZIP dos documentos…</div>';
+              downloadTab.location.replace(result.downloadUrl);
+            }else{
+              const a=document.createElement('a');
+              a.href=result.downloadUrl;
+              a.target='_blank';
+              a.rel='noopener noreferrer';
+              document.body.append(a);
+              a.click();
+              a.remove();
             }
-
-            try{
-              const result=
-                await call(
-                  'tarefaDocumentosZipGerar',
-                  {
-                    id:detail.tarefa.id
-                  },
-                  true
-                );
-
-              status(
-                result.mensagem||
-                'Documentos preparados para download.'
-              );
-
-              if(downloadTab){
-                downloadTab.location.replace(
-                  result.downloadUrl
-                );
-              }else{
-                const a=
-                  document.createElement(
-                    'a'
-                  );
-
-                a.href=
-                  result.downloadUrl;
-
-                a.target='_blank';
-                a.rel='noopener noreferrer';
-
-                document.body.append(a);
-                a.click();
-                a.remove();
-              }
-
-            }catch(e){
-              if(
-                downloadTab&&
-                !downloadTab.closed
-              ){
-                downloadTab.close();
-              }
-
-              throw e;
-            }
-          },
-          true
-        );
-
-      downloadAll.classList.add(
-        'task-download-all'
+          }catch(e){
+            if(downloadTab&&!downloadTab.closed)downloadTab.close();
+            throw e;
+          }
+        },
+        true
       );
 
-      downloadAll.title=
-        'Cria um arquivo ZIP com todos os documentos vigentes desta pessoa.';
-
-      docsHead.append(
-        downloadAll
-      );
+      downloadAll.classList.add('task-download-all');
+      docsHead.append(downloadAll);
     }
 
-    docs.append(
-      docsHead
-    );
+    docs.append(docsHead);
 
-    const docGrid=
-      el(
-        'div',
-        undefined,
-        'task-docs'
+    const docGrid=el('div',undefined,'task-docs');
+
+    (detail.documentos||[]).forEach(doc=>{
+      const row=el('div',undefined,'task-doc');
+      const copy=el('div');
+
+      copy.append(
+        el('strong',doc.label),
+        el('small',doc.nome)
       );
 
-    (detail.documentos||[])
-      .forEach(doc=>{
-        const row=
-          el(
-            'div',
-            undefined,
-            'task-doc'
-          );
+      row.append(
+        copy,
+        link(doc.url,'Abrir')
+      );
 
-        const copy=el('div');
+      docGrid.append(row);
+    });
 
-        copy.append(
-          el(
-            'strong',
-            doc.label
-          ),
-          el(
-            'small',
-            doc.nome
-          )
-        );
-
-        row.append(
-          copy,
-          link(
-            doc.url,
-            'Abrir'
-          )
-        );
-
-        docGrid.append(row);
-      });
-
-    if(
-      !detail.documentos||
-      !detail.documentos.length
-    ){
+    if(!detail.documentos||!detail.documentos.length){
       docGrid.append(
-        el(
-          'p',
-          'Nenhum documento vigente localizado.',
-          'warn'
-        )
+        el('p','Nenhum documento vigente localizado.','warn')
       );
     }
 
     docs.append(docGrid);
     body.append(docs);
 
-    if(
-      detail.processo&&
-      detail.processo.numero
-    ){
-      const completed=
-        el(
-          'div',
-          undefined,
-          'task-complete-box'
-        );
+    if(detail.processo&&detail.processo.numero){
+      const completed=el('div',undefined,'task-complete-box');
 
       completed.append(
-        el(
-          'h4',
-          'Distribuição concluída'
-        ),
+        el('h4','Distribuição concluída'),
         el(
           'p',
-          'Processo TRF4: '+
-          detail.processo.numero,
+          'Processo TRF4: '+detail.processo.numero,
           'badge'
         )
       );
 
       body.append(completed);
-
-    }else if(
-      detail.tarefa.situacao!=='CONCLUIDA'
-    ){
-      const actions=
-        el(
-          'div',
-          undefined,
-          'task-dialog-actions'
-        );
+    }else if(detail.tarefa.situacao!=='CONCLUIDA'){
+      const actions=el('div',undefined,'task-dialog-actions');
 
       actions.append(
         button(
@@ -760,13 +545,251 @@ window.PDA_MODULES.TAREFAS = (()=>{
       body.append(actions);
     }
 
-    shell.append(
-      head,
-      body
-    );
-
+    shell.append(head,body);
     dialog.append(shell);
     root.append(dialog);
+    dialog.showModal();
+  }
+
+  function renderGeneralMessages_(container,detail){
+    container.replaceChildren();
+
+    if(!detail.mensagens||!detail.mensagens.length){
+      container.append(
+        el('div','Nenhuma mensagem nesta tarefa.','task-chat-empty')
+      );
+      return;
+    }
+
+    detail.mensagens.forEach(message=>{
+      const item=el('div',undefined,'task-chat-message');
+      const head=el('div',undefined,'task-chat-message-head');
+
+      head.append(
+        el('strong',message.autorNome||message.autor||'Usuário'),
+        el('span',dateTime_(message.criadoEm))
+      );
+
+      item.append(
+        head,
+        el('p',message.mensagem)
+      );
+
+      container.append(item);
+    });
+
+    container.scrollTop=container.scrollHeight;
+  }
+
+  function renderGeneralAttachments_(container,detail){
+    container.replaceChildren();
+
+    if(!detail.anexos||!detail.anexos.length){
+      container.append(
+        el('div','Nenhum PDF anexado.','task-chat-empty')
+      );
+      return;
+    }
+
+    detail.anexos.forEach(attachment=>{
+      const row=el('div',undefined,'task-general-file');
+      const copy=el('div');
+
+      copy.append(
+        el('strong',attachment.nome),
+        el(
+          'small',
+          [
+            bytes_(attachment.bytes),
+            attachment.enviadoPorNome||attachment.enviadoPor,
+            dateTime_(attachment.criadoEm)
+          ].filter(Boolean).join(' · ')
+        )
+      );
+
+      row.append(
+        copy,
+        button(
+          'Abrir PDF',
+          ()=>openPdf_(detail.tarefa.id,attachment),
+          true
+        )
+      );
+
+      container.append(row);
+    });
+  }
+
+  async function openGeneralDialog_(root,task,refresh){
+    const detail=await call(
+      'tarefaGeralDetalhe',
+      {id:task.id}
+    );
+
+    const existing=root.querySelector('.task-general-dialog');
+    if(existing)existing.remove();
+
+    const dialog=el('dialog',undefined,'task-general-dialog');
+    const shell=el('div',undefined,'task-general-dialog-shell');
+    const head=el('div',undefined,'task-general-dialog-head');
+    const headCopy=el('div');
+
+    headCopy.append(
+      el('h3',detail.tarefa.titulo),
+      el(
+        'p',
+        'Criada por '+(
+          detail.tarefa.criadoPorNome||
+          detail.tarefa.criadoPor||
+          '—'
+        )
+      )
+    );
+
+    head.append(
+      headCopy,
+      button('Fechar',()=>dialog.close(),true)
+    );
+
+    const body=el('div',undefined,'task-general-dialog-body');
+    const overview=el('div',undefined,'task-general-overview');
+
+    [
+      ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
+      ['Prioridade',priority_(detail.tarefa.prioridade)],
+      ['Prazo',date_(detail.tarefa.prazo)],
+      ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
+    ].forEach(([label,value])=>{
+      const item=el('div');
+      item.append(el('span',label),el('strong',value||'—'));
+      overview.append(item);
+    });
+
+    body.append(
+      overview,
+      el(
+        'div',
+        detail.tarefa.descricao||'Sem informações adicionais.',
+        'task-general-text'
+      )
+    );
+
+    const files=el('section',undefined,'task-general-panel');
+    const filesHead=el('div',undefined,'task-general-panel-head');
+    const fileGrid=el('div',undefined,'task-general-files');
+
+    filesHead.append(el('h4','PDFs da tarefa'));
+
+    const input=el('input');
+    input.type='file';
+    input.accept='application/pdf,.pdf';
+    input.multiple=true;
+
+    const add=button(
+      'Adicionar PDF',
+      ()=>input.click(),
+      true
+    );
+
+    input.addEventListener('change',async()=>{
+      if(!input.files||!input.files.length)return;
+
+      await uploadFiles_(
+        detail.tarefa.id,
+        input.files
+      );
+
+      status('PDF(s) anexado(s).');
+      dialog.close();
+      await refresh();
+      await openGeneralDialog_(root,detail.tarefa,refresh);
+    });
+
+    filesHead.append(add,input);
+    files.append(filesHead,fileGrid);
+    renderGeneralAttachments_(fileGrid,detail);
+    body.append(files);
+
+    const chat=el('section',undefined,'task-general-panel');
+    chat.append(el('h4','Diálogo da tarefa'));
+
+    const messages=el('div',undefined,'task-chat');
+    renderGeneralMessages_(messages,detail);
+
+    const composer=el('div',undefined,'task-chat-compose');
+    const textarea=el('textarea');
+    textarea.rows=3;
+    textarea.maxLength=3000;
+    textarea.placeholder='Escreva uma mensagem para quem criou a tarefa…';
+
+    composer.append(
+      textarea,
+      button(
+        'Enviar mensagem',
+        async()=>{
+          const message=String(textarea.value||'').trim();
+
+          if(!message){
+            throw new Error('Digite uma mensagem.');
+          }
+
+          await call(
+            'tarefaGeralMensagemEnviar',
+            {
+              id:detail.tarefa.id,
+              mensagem:message
+            },
+            true
+          );
+
+          status('Mensagem enviada.');
+          dialog.close();
+          await refresh();
+          await openGeneralDialog_(root,detail.tarefa,refresh);
+        }
+      )
+    );
+
+    chat.append(messages,composer);
+    body.append(chat);
+
+    if(
+      detail.tarefa.situacao!=='CONCLUIDA'&&
+      detail.permissoes&&
+      detail.permissoes.concluir
+    ){
+      const actions=el('div',undefined,'task-general-dialog-actions');
+
+      actions.append(
+        button(
+          'Marcar como concluída',
+          async()=>{
+            await call(
+              'tarefaGeralConcluir',
+              {id:detail.tarefa.id},
+              true
+            );
+
+            status('Tarefa concluída.');
+            dialog.close();
+            await refresh();
+          }
+        )
+      );
+
+      body.append(actions);
+    }
+
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
     dialog.showModal();
   }
 
@@ -776,141 +799,111 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const render=async()=>{
       root.replaceChildren();
 
-      const data=
-        await call(
-          'tarefasMinhas'
-        );
-
+      const data=await call('tarefasMinhas');
       if(!alive(ctx))return;
 
-      const head=
-        el(
-          'div',
-          undefined,
-          'tasks-head'
-        );
+      const distributionPending=(data.pendentes||[]);
+      const distributionDone=(data.concluidas||[]);
+      const generalPending=(data.geraisPendentes||[]);
+      const generalDone=(data.geraisConcluidas||[]);
 
+      const head=el('div',undefined,'tasks-head');
       const copy=el('div');
 
       copy.append(
-        el(
-          'h2',
-          'Minhas tarefas'
-        ),
+        el('h2','Minhas tarefas'),
         el(
           'p',
-          'Distribuições processuais atribuídas especificamente a você.',
+          'Tarefas atribuídas especificamente a você, incluindo atividades internas e distribuições processuais.',
           'hint'
         )
       );
 
-      const summary=
-        el(
-          'div',
-          undefined,
-          'tasks-summary'
-        );
+      const summary=el('div',undefined,'tasks-summary');
 
-      const pendingCount=
-        (data.pendentes||[]).length;
-
-      const doneCount=
-        (data.concluidas||[]).length;
-
-      const pending=
-        el(
-          'span'
-        );
-
-      pending.append(
-        el(
-          'strong',
-          String(pendingCount)
-        ),
-        document.createTextNode(
-          ' para distribuir'
-        )
-      );
-
-      const done=
-        el(
-          'span'
-        );
-
-      done.append(
-        el(
-          'strong',
-          String(doneCount)
-        ),
-        document.createTextNode(
+      [
+        [
+          generalPending.length+distributionPending.length,
+          ' pendentes'
+        ],
+        [
+          generalDone.length+distributionDone.length,
           ' concluídas'
-        )
-      );
+        ]
+      ].forEach(([value,label])=>{
+        const item=el('span');
+        item.append(
+          el('strong',String(value)),
+          document.createTextNode(label)
+        );
+        summary.append(item);
+      });
 
-      summary.append(
-        pending,
-        done
-      );
-
-      head.append(
-        copy,
-        summary
-      );
-
+      head.append(copy,summary);
       root.append(head);
 
-      const openTask=async task=>{
-        const detail=
-          await call(
-            'tarefaDistribuicaoDetalhe',
-            {
-              id:task.id
-            }
-          );
+      const openDistribution=async task=>{
+        const detail=await call(
+          'tarefaDistribuicaoDetalhe',
+          {id:task.id}
+        );
 
         if(!alive(ctx))return;
-
-        openDialog_(
-          root,
-          detail,
-          render
-        );
+        openDistributionDialog_(root,detail,render);
       };
 
-      const pendingSection=
-        el(
-          'section',
-          undefined,
-          'tasks-section'
-        );
+      const internal=el('section',undefined,'tasks-section');
+      const internalHead=el('div',undefined,'tasks-section-head');
 
-      const pendingHead=
+      internalHead.append(
+        el('h3','Tarefas internas'),
         el(
-          'div',
-          undefined,
-          'tasks-section-head'
-        );
-
-      pendingHead.append(
-        el(
-          'h3',
-          'Para distribuir'
+          'span',
+          generalPending.length+' pendente(s)',
+          'hint'
         )
       );
 
-      pendingSection.append(
-        pendingHead
+      const internalGrid=el('div',undefined,'tasks-grid');
+
+      if(!generalPending.length){
+        internalGrid.append(
+          el(
+            'div',
+            'Você não possui tarefas internas pendentes.',
+            'task-empty'
+          )
+        );
+      }else{
+        generalPending.forEach(task=>
+          internalGrid.append(
+            generalCard_(
+              task,
+              item=>openGeneralDialog_(root,item,render)
+            )
+          )
+        );
+      }
+
+      internal.append(internalHead,internalGrid);
+      root.append(internal);
+
+      const distribution=el('section',undefined,'tasks-section');
+      const distributionHead=el('div',undefined,'tasks-section-head');
+
+      distributionHead.append(
+        el('h3','Distribuições processuais'),
+        el(
+          'span',
+          distributionPending.length+' pendente(s)',
+          'hint'
+        )
       );
 
-      const pendingGrid=
-        el(
-          'div',
-          undefined,
-          'tasks-grid'
-        );
+      const distributionGrid=el('div',undefined,'tasks-grid');
 
-      if(!pendingCount){
-        pendingGrid.append(
+      if(!distributionPending.length){
+        distributionGrid.append(
           el(
             'div',
             'Você não possui nenhuma distribuição pendente.',
@@ -918,78 +911,45 @@ window.PDA_MODULES.TAREFAS = (()=>{
           )
         );
       }else{
-        data.pendentes.forEach(task=>
-          pendingGrid.append(
-            taskCard_(
-              task,
-              openTask
-            )
+        distributionPending.forEach(task=>
+          distributionGrid.append(
+            distributionCard_(task,openDistribution)
           )
         );
       }
 
-      pendingSection.append(
-        pendingGrid
+      distribution.append(
+        distributionHead,
+        distributionGrid
       );
 
-      root.append(
-        pendingSection
-      );
+      root.append(distribution);
 
-      if(doneCount){
-        const doneSection=
-          el(
-            'section',
-            undefined,
-            'tasks-section'
-          );
+      if(generalDone.length||distributionDone.length){
+        const doneSection=el('section',undefined,'tasks-section');
+        const doneHead=el('div',undefined,'tasks-section-head');
 
-        const doneHead=
-          el(
-            'div',
-            undefined,
-            'tasks-section-head'
-          );
+        doneHead.append(el('h3','Concluídas'));
 
-        doneHead.append(
-          el(
-            'h3',
-            'Concluídas'
-          )
-        );
+        const doneGrid=el('div',undefined,'tasks-grid');
 
-        doneSection.append(
-          doneHead
-        );
-
-        const doneGrid=
-          el(
-            'div',
-            undefined,
-            'tasks-grid'
-          );
-
-        data.concluidas
-          .slice(
-            0,
-            12
-          )
-          .forEach(task=>
-            doneGrid.append(
-              taskCard_(
-                task,
-                openTask
-              )
+        generalDone.slice(0,12).forEach(task=>
+          doneGrid.append(
+            generalCard_(
+              task,
+              item=>openGeneralDialog_(root,item,render)
             )
-          );
-
-        doneSection.append(
-          doneGrid
+          )
         );
 
-        root.append(
-          doneSection
+        distributionDone.slice(0,12).forEach(task=>
+          doneGrid.append(
+            distributionCard_(task,openDistribution)
+          )
         );
+
+        doneSection.append(doneHead,doneGrid);
+        root.append(doneSection);
       }
     };
 
