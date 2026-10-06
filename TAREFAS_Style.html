@@ -417,4 +417,50 @@
     width:100%
   }
 }
+
+
+/* Tarefas internas — cartões, anexos e diálogo */
+.task-general-card{border-left:4px solid #0b7e89}
+.task-general-card.done{border-left-color:#8a9ba1}
+.task-general-description{margin:0;color:#607781;font-size:8.8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.task-priority{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;font-size:7.3px;font-weight:800;text-transform:uppercase}
+.task-priority.baixa{color:#526b75;background:#edf3f5}
+.task-priority.normal{color:#0b6874;background:#e7f4f5}
+.task-priority.alta{color:#8a5928;background:#fff1df}
+.task-priority.urgente{color:#9c342f;background:#fde8e6}
+.task-general-dialog{width:min(900px,calc(100vw - 28px));max-height:90vh;padding:0;overflow:hidden;border:1px solid #b9d3d9;border-radius:14px;color:#173f51;background:#fff;box-shadow:0 24px 70px rgba(6,35,48,.28)}
+.task-general-dialog::backdrop{background:rgba(8,31,44,.55);backdrop-filter:blur(5px)}
+.task-general-dialog-shell{display:flex;max-height:90vh;flex-direction:column}
+.task-general-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px 12px;color:#fff;background:linear-gradient(145deg,#0b6674,#0b8490)}
+.task-general-dialog-head h3{margin:0;color:#fff;font-size:15px}
+.task-general-dialog-head p{margin:3px 0 0;color:rgba(255,255,255,.84);font-size:9px}
+.task-general-dialog-head button{min-height:28px;padding:4px 8px;color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.12)}
+.task-general-dialog-body{overflow:auto;padding:13px 15px 15px}
+.task-general-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.task-general-overview>div{padding:8px;border:1px solid #d4e3e6;border-radius:7px;background:#f8fbfc}
+.task-general-overview span{display:block;color:#73878f;font-size:8px}
+.task-general-overview strong{display:block;margin-top:2px;overflow-wrap:anywhere;color:#315563;font-size:9.4px}
+.task-general-text{margin:9px 0;padding:10px;border:1px solid #d9e5e8;border-radius:8px;background:#fbfdfd;color:#3e5e69;font-size:9.4px;line-height:1.5;white-space:pre-wrap}
+.task-general-panel{margin-top:10px;padding-top:9px;border-top:1px solid #e0e9eb}
+.task-general-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.task-general-panel-head h4{margin:0;font-size:11px}
+.task-general-panel-head input[type=file]{display:none}
+.task-general-files{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.task-general-file{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 8px;border:1px solid #d5e3e7;border-radius:7px;background:#fbfdfd}
+.task-general-file strong{display:block;overflow:hidden;color:#315461;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.task-general-file small{display:block;margin-top:1px;color:#7b8e95;font-size:7.8px}
+.task-chat{display:flex;max-height:260px;flex-direction:column;gap:6px;overflow:auto;padding:5px 1px}
+.task-chat-message{padding:8px 9px;border:1px solid #d7e4e7;border-radius:9px;background:#f8fbfc}
+.task-chat-message.mine{border-color:#bcdde0;background:#eef8f8}
+.task-chat-message-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px}
+.task-chat-message-head strong{color:#315461;font-size:8.6px}
+.task-chat-message-head span{color:#819198;font-size:7.5px}
+.task-chat-message p{margin:0;color:#45636e;font-size:9px;line-height:1.45;white-space:pre-wrap}
+.task-chat-empty{padding:12px;border:1px dashed #c9dadd;border-radius:8px;color:#758991;text-align:center;font-size:8.7px}
+.task-chat-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end;margin-top:7px}
+.task-chat-compose textarea{min-height:62px;resize:vertical}
+.task-general-dialog-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:11px;padding-top:9px;border-top:1px solid #dbe6e9}
+@media(max-width:980px){.task-general-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.task-general-overview,.task-general-files,.task-chat-compose{grid-template-columns:1fr}.task-general-dialog{width:calc(100vw - 16px)}.task-general-dialog-actions{flex-direction:column}.task-general-dialog-actions button{width:100%}}
+
 </style>
