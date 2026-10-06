@@ -7,6 +7,7 @@ const MODULES={
   MIN:'Minutas',
   DIST:'Atribuir tarefas',
   PROC:'Processos',
+  PERF:'Meu perfil',
   ADM:'Administração'
 };
 
@@ -19,6 +20,7 @@ const MODULE_PERMISSION=Object.freeze({
   MIN:'minuta',
   DIST:'gestao_distribuicao',
   PROC:'consulta',
+  PERF:'consulta',
   ADM:'administracao'
 });
 
@@ -152,13 +154,7 @@ function apiAuthenticated_(action,q){
 
       return {
         email:user.email,
-        usuario:{
-          id:user.id,
-          nome:user.nome||'',
-          funcao:user.funcao||'',
-          email:user.email,
-          perfil:user.perfil
-        },
+        usuario:authPublicUser_(user),
         perfil:user.perfil,
         permissoes:effectivePermissions_(user),
         config:cfg_(),
@@ -182,7 +178,7 @@ function apiAuthenticated_(action,q){
       usuarios:all_('Usuarios').map(u=>
         Object.assign(
           {},
-          u,
+          authPublicUser_(u),
           {
             permissoesEfetivas:
               effectivePermissions_(u)
@@ -208,8 +204,7 @@ function apiAuthenticated_(action,q){
       ),
       modelo:templateStatus_(),
       portalTransparencia:portalTransparenciaStatus_(),
-      deepseek:deepseekStatus_(),
-      googleOAuth:googleOAuthStatus_()
+      deepseek:deepseekStatus_()
     }),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
     cepConsultar:()=>cepConsultaViaCep_(q),
@@ -235,7 +230,6 @@ function apiAuthenticated_(action,q){
     usuarioAprovarProfessorResidente:['administracao',userApproveProfessorResident_],
     usuarioExcluir:['administracao',userDelete_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
-    googleOAuthConfigSalvar:['administracao',googleOAuthConfigSave_],
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
@@ -316,3 +310,4 @@ function api(action,q,sessionToken){
     ()=>apiAuthenticated_(action,q)
   );
 }
+

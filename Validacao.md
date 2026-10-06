@@ -46,3 +46,12 @@ Os recibos de operação ficam em Operacoes e não devem ser excluídos. A inter
 As listas e o painel usam os dados do banco, sem números da imagem institucional. A pesquisa de pessoas retorna até 200 resultados por consulta; refine a pesquisa pelo nome ou CPF. A leitura de cada aba é reutilizada dentro da requisição. Ainda é necessário ensaio de volume, cotas e tempo de resposta no Google antes de ampliar a operação. Não existe medição de capacidade realizada em produção.
 
 A auditoria e o controle de concorrência abrangem operações do aplicativo. Edição direta na planilha ou no código por administradores não é interceptada. Alterações de conteúdo diretamente nos arquivos Google Docs devem ser acompanhadas pelo histórico nativo do Google e pela revisão jurídica. O módulo administrativo configura listas e perfis existentes, mas não fornece um editor de regras jurídicas ou de novas máquinas de estados.
+
+
+## Atualização de autenticação própria
+
+As instruções anteriores sobre autenticação Google, dependência da Conta Google e cadastro administrativo foram substituídas por Instalacao.md. A autenticação atual usa e-mail e senha, autocadastro imediato, recuperação automática por e-mail e o módulo Meu perfil.
+
+A suite atual é `node auth.test.cjs` e `node auth-interface.test.cjs`. Ela verifica 20 cenários de servidor e cinco fluxos de interface em DOM simulado, com chamadas aos arquivos reais da implementação. Inclui migração aditiva, preservação de credenciais na Administração, integração com Pessoas e jurisdição, fotos, aliases, atribuições, recuperação, expiração, logout e bloqueio de chamadas sem autorização.
+
+Não houve teste na implantação Google, envio real de e-mail ou execução em navegador real nesta atualização. Os testes legados pertencem a versões anteriores e não são apresentados como aprovação do código atual.

@@ -19,23 +19,7 @@ function ss_(){
     );
 
   }catch(e){
-    const activeEmail=String(
-      Session.getActiveUser().getEmail()||
-      ''
-    ).trim();
-
-    fail_(
-      'A conta Google ativa'+
-      (
-        activeEmail
-          ?' ('+activeEmail+')'
-          :''
-      )+
-      ' não conseguiu acessar o banco de dados do Povo das Águas. '+
-      'Verifique se o navegador está usando exatamente o usuário Google autorizado no sistema. '+
-      'Detalhe técnico: '+
-      (e.message||String(e))
-    );
+    fail_('O servidor não conseguiu acessar o banco do Povo das Águas. Verifique SPREADSHEET_ID e as permissões do proprietário.');
   }
 }
 
@@ -191,11 +175,11 @@ function commit_(ctx,result){
             target.id,
           antes:
             JSON.stringify(
-              c.before
+              authAuditRecord_(c.entity,c.before)
             ),
           depois:
             JSON.stringify(
-              c.after
+              authAuditRecord_(c.entity,c.after)
             ),
           operacao:ctx.op
         },
@@ -397,3 +381,4 @@ function snapshot_(a,p){
     pendencias:all_('Pendencias').filter(d=>d.atendimentoId===a.id)
   });
 }
+

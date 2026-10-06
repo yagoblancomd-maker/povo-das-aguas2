@@ -36,7 +36,11 @@ const SCHEMA = Object.freeze({
   ],
   Historico:['entidade','registroId','antes','depois','operacao'],
   Configuracoes:['chave','valor'],
-  Usuarios:['email','perfil','ativo','nome','funcao','permissoes','permissoesVersao'],
+  Usuarios:['email','perfil','ativo','nome','funcao','permissoes','permissoesVersao',
+    'senhaHash','senhaSalt','senhaAlgoritmo','sessionVersion','ultimoLogin',
+    'nomeUsuario','fotoId','emailsAnteriores'],
+  Sessoes:['usuarioId','tokenHash','expiraEm','sessionVersion','revogada'],
+  Recuperacoes:['usuarioId','tokenHash','expiraEm','sessionVersion','usada'],
   Distribuicao:['atendimentoId','processoId','numero','juizo','data','responsavel','protocoloId'],
   Tarefas:[
     'tipo','pessoaId','responsavel','situacao','jurisdicao','valorCausa',
@@ -160,7 +164,7 @@ const PERMISSIONS=Object.freeze({
 const ROLE_DESCRIPTIONS=Object.freeze({
   CONSULTA:'Acesso somente para consulta das informações já registradas.',
   NOVO_USUARIO:'Perfil legado de primeiro acesso com Consulta e Cadastro.',
-  PROFESSOR_RESIDENTE:'Professor ou Residente. Após aprovação funcional, recebe todas as permissões operacionais, exceto Administração e Distribuir processos. No autocadastro inicia somente com Consulta e Cadastro.',
+  PROFESSOR_RESIDENTE:'Professor ou Residente. Recebe automaticamente as permissões operacionais do perfil, exceto Administração e Distribuir processos.',
   COLABORADOR:'Consulta, Cadastro e Retificação limitada aos cadastros criados pelo próprio colaborador.',
   ALUNO:'Consulta e Distribuir processos, para receber e concluir tarefas de distribuição atribuídas ao aluno.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
@@ -226,3 +230,4 @@ function cfg_(){
   c.municipios=municipiosComJurisdicao_(c.municipios);
   return c;
 }
+

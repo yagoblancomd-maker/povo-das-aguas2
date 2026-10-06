@@ -1,993 +1,254 @@
 let PDA_AUTH_CONTEXT_EMAIL_='';
-
 const PDA_AUTH_SESSION_HOURS=12;
-const PDA_AUTH_STATE_MINUTES=10;
-const PDA_AUTH_REGISTRATION_MINUTES=20;
+const PDA_AUTH_RECOVERY_MINUTES=30;
+const PDA_AUTH_PASSWORD_ALGORITHM='bcrypt-sha256-v1';
+
+function authEnsureSchema_(){
+  ['Usuarios','Sessoes','Recuperacoes'].forEach(entity=>{
+    if(!ss_().getSheetByName(entity))ss_().insertSheet(entity);
+    ensureEntitySchema_(entity);
+  });
+  if(props_().getProperty('AUTH_BANK_PRIVATE')!=='v1'){
+    const bank=DriveApp.getFileById(ss_().getId());
+    const roots=[DriveApp.getFolderById(PDA.parent),DriveApp.getFolderById(props_().getProperty('ROOT_FOLDER_ID'))];
+    const owner=String(props_().getProperty('OWNER_EMAIL')||'').trim().toLowerCase();
+    all_('Usuarios').forEach(u=>{
+      if(u.email&&u.email!==owner){bank.removeViewer(u.email);roots.forEach(folder=>folder.removeViewer(u.email));}
+    });
+    props_().setProperty('AUTH_BANK_PRIVATE','v1');
+  }
+}
+
+function authEmail_(input){
+  const email=String(input||'').trim().toLowerCase();
+  if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fail_('Informe um e-mail válido.');
+  return email;
+}
+
+function authPassword_(input){
+  // Sem composição ou tamanho mínimo. Espaços são preservados.
+  if(typeof input!=='string'||input.length===0)fail_('Informe uma senha.');
+  if(input.length>4096)fail_('A senha excede o limite de 4096 caracteres.');
+  return input;
+}
 
 function authSecret_(){
-  const properties=props_();
-  let secret=String(
-    properties.getProperty('APP_AUTH_SECRET')||''
-  );
-
-  if(!secret){
-    secret=[
-      Utilities.getUuid(),
-      Utilities.getUuid(),
-      Utilities.getUuid(),
-      Utilities.getUuid()
-    ].join(':');
-
-    properties.setProperty(
-      'APP_AUTH_SECRET',
-      secret
-    );
+  let value=props_().getProperty('APP_AUTH_SECRET');
+  if(!value){
+    value=[uid_(),uid_(),uid_(),uid_()].join(':');
+    props_().setProperty('APP_AUTH_SECRET',value);
   }
-
-  return secret;
+  return value;
 }
 
-function authBase64UrlEncode_(text){
-  return Utilities
-    .base64EncodeWebSafe(
-      String(text),
-      Utilities.Charset.UTF_8
-    )
-    .replace(/=+$/g,'');
+function authRandom_(){
+  return Utilities.computeHmacSha256Signature(uid_()+':'+uid_(),authSecret_())
+    .map(x=>('0'+((x+256)%256).toString(16)).slice(-2)).join('');
 }
 
-function authBase64UrlDecode_(text){
-  const value=String(text||'');
-  const padded=
-    value+
-    '='.repeat(
-      (4-value.length%4)%4
-    );
-
-  return Utilities.newBlob(
-    Utilities.base64DecodeWebSafe(
-      padded
-    )
-  ).getDataAsString('UTF-8');
-}
-
-function authSign_(payload){
-  return Utilities
-    .base64EncodeWebSafe(
-      Utilities.computeHmacSha256Signature(
-        String(payload),
-        authSecret_(),
-        Utilities.Charset.UTF_8
-      )
-    )
-    .replace(/=+$/g,'');
-}
-
-function authSignedToken_(data){
-  const payload=
-    authBase64UrlEncode_(
-      JSON.stringify(data)
-    );
-
-  return payload+'.'+authSign_(payload);
-}
-
-function authReadSignedToken_(token,label){
-  const parts=String(token||'').split('.');
-
-  if(parts.length!==2){
-    fail_('AUTH: '+label+' inválido.');
-  }
-
-  const payload=parts[0];
-  const signature=parts[1];
-  const expected=authSign_(payload);
-
-  if(signature!==expected){
-    fail_('AUTH: assinatura inválida.');
-  }
-
-  let data;
-
-  try{
-    data=JSON.parse(
-      authBase64UrlDecode_(payload)
-    );
-  }catch(e){
-    fail_('AUTH: não foi possível validar '+label+'.');
-  }
-
-  return data;
-}
-
-function googleOAuthConfig_(){
-  const properties=props_();
-
-  const clientId=String(
-    properties.getProperty(
-      'GOOGLE_OAUTH_CLIENT_ID'
-    )||''
-  ).trim();
-
-  const clientSecret=String(
-    properties.getProperty(
-      'GOOGLE_OAUTH_CLIENT_SECRET'
-    )||''
-  ).trim();
-
-  const webAppUrl=String(
-    ScriptApp.getService().getUrl()||
-    ''
-  ).trim();
-
-  const redirectUri=
-    webAppUrl;
-
+function authPasswordFields_(senha){
+  const bytes=authRandom_().slice(0,32).match(/../g).map(x=>parseInt(x,16));
+  const salt='$2a$12$'+PDA_BCRYPT_.encodeBase64(bytes,16);
   return {
-    configurada:
-      /^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(
-        clientId
-      )&&
-      !!clientSecret&&
-      /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(
-        redirectUri
-      ),
-    clientId,
-    clientSecret,
-    redirectUri,
-    webAppUrl
+    // Pré-hash evita truncamento do bcrypt em 72 bytes para senhas longas/Unicode.
+    senhaHash:PDA_BCRYPT_.hashSync(hash_(authPassword_(senha)),salt),
+    senhaSalt:salt,senhaAlgoritmo:PDA_AUTH_PASSWORD_ALGORITHM
   };
 }
 
-function googleOAuthStatus_(){
-  const config=googleOAuthConfig_();
-
-  return {
-    configurada:config.configurada,
-    clientId:
-      config.clientId
-        ?config.clientId
-        :'',
-    clientSecretConfigurado:
-      !!config.clientSecret,
-    redirectUri:config.redirectUri,
-    mensagem:
-      config.configurada
-        ?'Login Google configurado para uma única implantação.'
-        :'Configure GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET.'
-  };
+function authPasswordMatches_(user,senha){
+  if(!user||user.senhaAlgoritmo!==PDA_AUTH_PASSWORD_ALGORITHM||!user.senhaHash)return false;
+  return PDA_BCRYPT_.compareSync(hash_(senha),user.senhaHash);
 }
 
-function googleOAuthConfigSave_(ctx,q){
-  const clientId=String(
-    q.clientId||
-    ''
-  ).trim();
-
-  const incomingSecret=String(
-    q.clientSecret||
-    ''
-  ).trim();
-
-  const currentSecret=String(
-    props_().getProperty(
-      'GOOGLE_OAUTH_CLIENT_SECRET'
-    )||
-    ''
-  ).trim();
-
-  const secret=
-    incomingSecret||
-    currentSecret;
-
-  if(
-    !/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(
-      clientId
-    )
-  ){
-    fail_(
-      'Informe um Client ID OAuth 2.0 do tipo Aplicativo da Web.'
-    );
-  }
-
-  if(!secret){
-    fail_(
-      'Informe também o Client Secret OAuth 2.0.'
-    );
-  }
-
-  props_().setProperty(
-    'GOOGLE_OAUTH_CLIENT_ID',
-    clientId
-  );
-
-  if(incomingSecret){
-    props_().setProperty(
-      'GOOGLE_OAUTH_CLIENT_SECRET',
-      incomingSecret
-    );
-  }
-
-  ctx.effects.push(
-    'Configuração do login Google atualizada.'
-  );
-
-  return {
-    configurada:true,
-    clientId,
-    redirectUri:
-      String(
-        ScriptApp.getService().getUrl()||
-        ''
-      ),
-    mensagem:
-      'Login Google atualizado.'
-  };
+function authAliases_(user){
+  try{return JSON.parse(user.emailsAnteriores||'[]');}catch(e){return [];}
 }
 
-function authStateCreate_(){
-  const now=Date.now();
-
-  return authSignedToken_({
-    type:'oauth-state',
-    issuedAt:now,
-    expiresAt:
-      now+
-      PDA_AUTH_STATE_MINUTES*
-      60*
-      1000,
-    nonce:Utilities.getUuid()
-  });
-}
-
-function authStateRead_(state){
-  const data=
-    authReadSignedToken_(
-      state,
-      'estado OAuth'
-    );
-
-  if(data.type!=='oauth-state'){
-    fail_(
-      'AUTH: estado OAuth incompatível.'
-    );
-  }
-
-  if(
-    Number(
-      data.expiresAt||
-      0
-    )<
-    Date.now()
-  ){
-    fail_(
-      'AUTH: a tentativa de login expirou. Entre novamente com o Google.'
-    );
-  }
-
-  return data;
-}
-
-function googleOAuthLoginUrl_(){
-  const config=googleOAuthConfig_();
-
-  if(!config.configurada){
-    return '';
-  }
-
-  const params={
-    client_id:config.clientId,
-    redirect_uri:config.redirectUri,
-    response_type:'code',
-    scope:'openid email profile',
-    state:authStateCreate_(),
-    prompt:'select_account',
-    access_type:'online',
-    include_granted_scopes:'true'
-  };
-
-  return (
-    'https://accounts.google.com/o/oauth2/v2/auth?'+
-    Object.keys(params)
-      .map(key=>
-        encodeURIComponent(key)+
-        '='+
-        encodeURIComponent(params[key])
-      )
-      .join('&')
-  );
-}
-
-function googleOAuthTokenExchange_(code){
-  const config=googleOAuthConfig_();
-
-  if(!config.configurada){
-    fail_(
-      'AUTH: o Login Google ainda não foi configurado.'
-    );
-  }
-
-  const response=
-    UrlFetchApp.fetch(
-      'https://oauth2.googleapis.com/token',
-      {
-        method:'post',
-        payload:{
-          code:String(code||''),
-          client_id:config.clientId,
-          client_secret:config.clientSecret,
-          redirect_uri:config.redirectUri,
-          grant_type:'authorization_code'
-        },
-        muteHttpExceptions:true
-      }
-    );
-
-  const text=
-    response.getContentText()||
-    '{}';
-
-  let data={};
-
-  try{
-    data=JSON.parse(text);
-  }catch(e){}
-
-  if(
-    response.getResponseCode()!==200||
-    !data.id_token
-  ){
-    fail_(
-      'AUTH: o Google não concluiu a autenticação. '+
-      String(
-        data.error_description||
-        data.error||
-        'Tente entrar novamente.'
-      )
-    );
-  }
-
-  return data;
-}
-
-function googleIdTokenPayload_(idToken){
-  const parts=String(idToken||'').split('.');
-
-  if(parts.length!==3){
-    fail_('AUTH: ID Token Google inválido.');
-  }
-
-  try{
-    return JSON.parse(
-      authBase64UrlDecode_(
-        parts[1]
-      )
-    );
-  }catch(e){
-    fail_(
-      'AUTH: não foi possível ler a identidade Google.'
-    );
-  }
-}
-
-function googleIdentityVerify_(idToken){
-  const config=googleOAuthConfig_();
-
-  const response=
-    UrlFetchApp.fetch(
-      'https://oauth2.googleapis.com/tokeninfo?id_token='+
-      encodeURIComponent(
-        String(idToken||'')
-      ),
-      {
-        method:'get',
-        muteHttpExceptions:true
-      }
-    );
-
-  let verified={};
-
-  try{
-    verified=JSON.parse(
-      response.getContentText()||
-      '{}'
-    );
-  }catch(e){}
-
-  if(response.getResponseCode()!==200){
-    fail_(
-      'AUTH: não foi possível validar a identidade Google.'
-    );
-  }
-
-  if(verified.aud!==config.clientId){
-    fail_(
-      'AUTH: o token Google foi emitido para outro aplicativo.'
-    );
-  }
-
-  if(
-    ![
-      'accounts.google.com',
-      'https://accounts.google.com'
-    ].includes(
-      String(verified.iss||'')
-    )
-  ){
-    fail_(
-      'AUTH: emissor Google inválido.'
-    );
-  }
-
-  if(
-    Number(verified.exp||0)*
-    1000<=Date.now()
-  ){
-    fail_(
-      'AUTH: a autenticação Google expirou.'
-    );
-  }
-
-  if(
-    ![
-      true,
-      'true',
-      '1'
-    ].includes(
-      verified.email_verified
-    )
-  ){
-    fail_(
-      'AUTH: o e-mail Google não foi verificado.'
-    );
-  }
-
-  const email=String(
-    verified.email||
-    ''
-  )
-    .trim()
-    .toLowerCase();
-
-  if(
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      email
-    )
-  ){
-    fail_(
-      'AUTH: e-mail Google inválido.'
-    );
-  }
-
-  const payload=
-    googleIdTokenPayload_(
-      idToken
-    );
-
-  return {
-    email,
-    sub:String(
-      verified.sub||
-      payload.sub||
-      ''
-    ),
-    nome:String(
-      payload.name||
-      ''
-    ).trim(),
-    picture:String(
-      payload.picture||
-      ''
-    ).trim()
-  };
-}
-
-function authSessionCreate_(email){
-  const now=Date.now();
-
-  return authSignedToken_({
-    type:'session',
-    email:String(email||'')
-      .trim()
-      .toLowerCase(),
-    issuedAt:now,
-    expiresAt:
-      now+
-      PDA_AUTH_SESSION_HOURS*
-      60*
-      60*
-      1000,
-    nonce:Utilities.getUuid()
-  });
-}
-
-function authSessionRead_(token){
-  const data=
-    authReadSignedToken_(
-      token,
-      'sessão'
-    );
-
-  if(data.type!=='session'){
-    fail_(
-      'AUTH: sessão incompatível.'
-    );
-  }
-
-  if(
-    Number(data.expiresAt||0)<
-    Date.now()
-  ){
-    fail_(
-      'AUTH: sua sessão expirou. Entre novamente com o Google.'
-    );
-  }
-
-  const email=String(
-    data.email||
-    ''
-  )
-    .trim()
-    .toLowerCase();
-
-  if(
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      email
-    )
-  ){
-    fail_(
-      'AUTH: sessão sem identidade válida.'
-    );
-  }
-
-  return {
-    email,
-    expiresAt:Number(
-      data.expiresAt
-    )
-  };
-}
-
-function authRegistrationProofCreate_(identity){
-  const now=Date.now();
-
-  return authSignedToken_({
-    type:'registration',
-    email:identity.email,
-    sub:identity.sub,
-    nome:identity.nome||'',
-    issuedAt:now,
-    expiresAt:
-      now+
-      PDA_AUTH_REGISTRATION_MINUTES*
-      60*
-      1000,
-    nonce:Utilities.getUuid()
-  });
-}
-
-function authRegistrationProofRead_(token){
-  const data=
-    authReadSignedToken_(
-      token,
-      'comprovante de identidade'
-    );
-
-  if(data.type!=='registration'){
-    fail_(
-      'AUTH: comprovante de primeiro acesso incompatível.'
-    );
-  }
-
-  if(
-    Number(data.expiresAt||0)<
-    Date.now()
-  ){
-    fail_(
-      'AUTH: o primeiro acesso expirou. Entre novamente com o Google.'
-    );
-  }
-
-  const email=String(
-    data.email||
-    ''
-  )
-    .trim()
-    .toLowerCase();
-
-  if(
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      email
-    )
-  ){
-    fail_(
-      'AUTH: identidade de primeiro acesso inválida.'
-    );
-  }
-
-  return {
-    email,
-    sub:String(data.sub||''),
-    nome:String(data.nome||'')
-  };
+function authUserEmailMatches_(user,email){
+  const normalized=String(email||'').trim().toLowerCase();
+  return user.email===normalized||authAliases_(user).includes(normalized);
 }
 
 function authFindUser_(email){
-  return all_('Usuarios')
-    .find(user=>
-      String(
-        user.email||
-        ''
-      )
-        .trim()
-        .toLowerCase()===
-      String(email||'')
-        .trim()
-        .toLowerCase()
-    )||
-    null;
+  return all_('Usuarios').find(user=>String(user.email||'').trim().toLowerCase()===email)||null;
 }
 
-function authAfterGoogle_(identity){
-  resetData_();
-
-  const user=
-    authFindUser_(
-      identity.email
-    );
-
-  if(user){
-    if(!bool_(user.ativo)){
-      return {
-        status:'BLOCKED',
-        email:identity.email,
-        nome:user.nome||identity.nome||'',
-        mensagem:
-          'Este usuário está desativado. Procure a Administração do Povo das Águas.'
-      };
-    }
-
-    return {
-      status:'AUTHENTICATED',
-      email:identity.email,
-      nome:user.nome||identity.nome||'',
-      sessionToken:
-        authSessionCreate_(
-          identity.email
-        )
-    };
-  }
-
-  return {
-    status:'REGISTER',
-    email:identity.email,
-    nome:identity.nome||'',
-    registrationProof:
-      authRegistrationProofCreate_(
-        identity
-      )
-  };
+function authCheckAvailableEmail_(email,userId){
+  if(all_('Usuarios').some(u=>u.id!==userId&&authUserEmailMatches_(u,email)))
+    fail_('Este e-mail já possui cadastro. Use Entrar ou Esqueci minha senha.');
+  const owner=String(props_().getProperty('OWNER_EMAIL')||'').trim().toLowerCase();
+  if(email===owner&&userId!==id_('USR',owner))fail_('Use Esqueci minha senha para ativar o acesso do proprietário.');
 }
 
-function authRegister(registrationProof,nome,funcao){
-  const identity=
-    authRegistrationProofRead_(
-      registrationProof
-    );
+function authPublicUser_(user){
+  const allowed=COMMON.concat(['email','perfil','ativo','nome','funcao','permissoes',
+    'permissoesVersao','ultimoLogin','nomeUsuario']);
+  return Object.fromEntries(allowed.map(k=>[k,user[k]===undefined?'':user[k]]));
+}
 
-  const cleanName=String(
-    nome||
-    identity.nome||
-    ''
-  )
-    .trim()
-    .replace(/\s+/g,' ');
-
-  const cleanFunction=String(
-    funcao||
-    ''
-  ).trim();
-
-  if(
-    cleanName.length<3||
-    cleanName.length>140
-  ){
-    fail_(
-      'Informe seu nome completo.'
-    );
+function authAuditRecord_(entity,record){
+  if(!record)return null;
+  if(entity==='Usuarios')return authPublicUser_(record);
+  if(entity==='Sessoes'||entity==='Recuperacoes'){
+    const safe=Object.assign({},record);delete safe.tokenHash;return safe;
   }
+  return record;
+}
 
-  if(
-    !SELF_REGISTRATION_FUNCTIONS.includes(
-      cleanFunction
-    )
-  ){
-    fail_(
-      'Selecione Professor, Residente, Colaborador ou Aluno.'
-    );
-  }
+function authContext_(email){
+  return {email,op:'AUTH_'+uid_(),hash:'auth',changes:[],effects:[]};
+}
 
+function authPersist_(ctx){
+  // Nunca registrar senha, hash de senha ou tokens nos recibos/auditoria.
+  if(ctx.changes.length)commit_(ctx,{ok:true});
+}
+
+function authLimit_(kind,key,max,minutes){
+  // Persistente: expulsão de cache não libera tentativas.
+  const p=props_(),now=Date.now(),prefix='AUTH_LIMIT_',property=prefix+kind+'_'+hash_(key);
+  const values=p.getProperties();
+  Object.keys(values).filter(k=>k.indexOf(prefix)===0).forEach(k=>{
+    try{if(JSON.parse(values[k]).until<=now)p.deleteProperty(k);}catch(e){p.deleteProperty(k);}
+  });
+  let state;
+  try{state=JSON.parse(p.getProperty(property)||'null');}catch(e){}
+  if(!state||state.until<=now)state={count:0,until:now+minutes*60000};
+  if(state.count>=max)fail_('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+  state.count++;p.setProperty(property,JSON.stringify(state));
+  return property;
+}
+
+function authNewSession_(ctx,user){
+  const token=authRandom_();
+  const expiresAt=Date.now()+PDA_AUTH_SESSION_HOURS*3600000;
+  change_(ctx,'Sessoes',id_('SES',token),{
+    usuarioId:user.id,tokenHash:hash_(token),expiraEm:new Date(expiresAt).toISOString(),
+    sessionVersion:Number(user.sessionVersion||0),revogada:false
+  });
+  return {status:'AUTHENTICATED',sessionToken:token,expiresAt,usuario:authPublicUser_(user)};
+}
+
+function authSessionRead_(token){
+  if(!/^[a-f0-9]{64}$/.test(String(token||'')))fail_('AUTH: entre com seu e-mail e senha.');
+  resetData_();authEnsureSchema_();
+  const session=all_('Sessoes').find(s=>s.tokenHash===hash_(token));
+  const user=session&&all_('Usuarios').find(u=>u.id===session.usuarioId);
+  if(!session||bool_(session.revogada)||!(Date.parse(session.expiraEm)>Date.now())||
+     !user||!bool_(user.ativo)||Number(user.sessionVersion||0)!==Number(session.sessionVersion))
+    fail_('AUTH: sua sessão expirou. Entre novamente.');
+  return {email:user.email,user,session,expiresAt:Date.parse(session.expiraEm)};
+}
+
+function withAuthSession_(token,fn){
+  // Validação e uso sob o mesmo lock: sem corrida com reset/desativação.
   return lock_(()=>{
-    resetData_();
+    const session=authSessionRead_(token),before=PDA_AUTH_CONTEXT_EMAIL_;
+    PDA_AUTH_CONTEXT_EMAIL_=session.email;
+    try{return fn(session);}finally{PDA_AUTH_CONTEXT_EMAIL_=before;}
+  });
+}
 
-    const existing=
-      authFindUser_(
-        identity.email
-      );
+function authRegister(q){
+  q=q||{};
+  const email=authEmail_(q.email),senha=authPassword_(q.senha);
+  const nome=String(q.nome||'').trim().replace(/\s+/g,' '),funcao=String(q.funcao||'').trim();
+  if(!nome||nome.length>140)fail_('Informe seu nome, com até 140 caracteres.');
+  if(!SELF_REGISTRATION_FUNCTIONS.includes(funcao))fail_('Selecione sua função no projeto.');
+  return lock_(()=>{
+    resetData_();authEnsureSchema_();
+    authLimit_('register-global','global',40,60);authLimit_('register',email,5,15);
+    authCheckAvailableEmail_(email);
+    // Códigos por função são opcionais, sem aprovações individuais.
+    let codes={};
+    try{codes=JSON.parse(props_().getProperty('AUTH_ROLE_CODES')||'{}');}catch(e){fail_('Configuração de códigos de acesso inválida.');}
+    if(codes[funcao]&&String(q.codigo||'')!==String(codes[funcao]))fail_('Código de acesso à função inválido.');
+    const access=selfRegistrationAccess_(funcao),ctx=authContext_(email);
+    const user=change_(ctx,'Usuarios',id_('USR',uid_()),Object.assign({
+      email,nome,nomeUsuario:nome,funcao,perfil:access.perfil,ativo:true,
+      permissoes:JSON.stringify(access.permissoes),permissoesVersao:2,
+      sessionVersion:1,ultimoLogin:now_(),emailsAnteriores:'[]'
+    },authPasswordFields_(senha)));
+    const result=authNewSession_(ctx,user);authPersist_(ctx);return result;
+  });
+}
 
-    if(existing){
-      if(!bool_(existing.ativo)){
-        fail_(
-          'Este usuário está desativado. Procure a Administração.'
-        );
-      }
+function authLogin(emailInput,senhaInput){
+  const email=authEmail_(emailInput),senha=authPassword_(senhaInput);
+  return lock_(()=>{
+    resetData_();authEnsureSchema_();authLimit_('login-global','global',120,1);
+    const limit=authLimit_('login',email,8,15),user=authFindUser_(email);
+    // Trabalho equivalente para e-mails inexistentes, sem revelar cadastro.
+    const ok=user&&user.senhaHash?authPasswordMatches_(user,senha):
+      (PDA_BCRYPT_.hashSync(hash_(senha),'$2a$12$......................')&&false);
+    if(!ok||!bool_(user.ativo))fail_('E-mail ou senha incorretos.');
+    const ctx=authContext_(email);
+    const updated=change_(ctx,'Usuarios',user.id,Object.assign({},user,{ultimoLogin:now_()}),user.versao);
+    const result=authNewSession_(ctx,updated);authPersist_(ctx);props_().deleteProperty(limit);return result;
+  });
+}
 
-      return {
-        status:'AUTHENTICATED',
-        sessionToken:
-          authSessionCreate_(
-            identity.email
-          ),
-        email:identity.email,
-        nome:existing.nome||cleanName
-      };
-    }
+function authResume(token){
+  return withAuthSession_(token,s=>({status:'AUTHENTICATED',expiresAt:s.expiresAt,usuario:authPublicUser_(s.user)}));
+}
 
-    const access=
-      selfRegistrationAccess_(
-        cleanFunction
-      );
+function authLogout(token){
+  return lock_(()=>{
+    let s;try{s=authSessionRead_(token);}catch(e){return {ok:true};}
+    const ctx=authContext_(s.email);
+    change_(ctx,'Sessoes',s.session.id,Object.assign({},s.session,{revogada:true}),s.session.versao);
+    authPersist_(ctx);return {ok:true};
+  });
+}
 
-    const permissions=
-      Array.from(
-        access.permissoes
-      );
-
-    const ctx={
-      email:identity.email,
-      op:id_(
-        'OP',
-        'SELF_REGISTER:'+
-        identity.email+
-        ':'+
-        Utilities.getUuid()
-      ),
-      hash:hash_({
-        email:identity.email,
-        nome:cleanName,
-        funcao:cleanFunction
-      }),
-      changes:[],
-      effects:[]
-    };
-
-    const user=
-      change_(
-        ctx,
-        'Usuarios',
-        id_(
-          'USR',
-          identity.email
-        ),
-        {
-          email:identity.email,
-          perfil:access.perfil,
-          ativo:true,
-          nome:cleanName,
-          funcao:cleanFunction,
-          permissoes:JSON.stringify(
-            permissions
-          ),
-          permissoesVersao:2
-        }
-      );
-
-    commit_(
-      ctx,
-      {
-        email:user.email,
-        perfil:user.perfil,
-        criado:true,
-        permissoes:permissions
-      }
-    );
-
-    /*
-     * Mantém acesso de leitura aos arquivos do Drive usados pelos links
-     * diretos da interface. As gravações do sistema são executadas pelo
-     * proprietário da única implantação.
-     */
+function authRequestRecovery(emailInput){
+  const email=authEmail_(emailInput);
+  const response={ok:true,mensagem:'Se este e-mail possui uma conta ativa, o link de recuperação será enviado. Confira também a pasta de spam.'};
+  return lock_(()=>{
+    resetData_();authEnsureSchema_();authLimit_('recovery-global','global',30,60);authLimit_('recovery',email,3,15);
+    const user=authFindUser_(email);
+    if(!user||!bool_(user.ativo))return response;
+    const appUrl=String(ScriptApp.getService().getUrl()||'');
+    if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(appUrl))fail_('Publique o aplicativo para habilitar a recuperação de senha.');
+    const token=authRandom_(),ctx=authContext_(email);
+    change_(ctx,'Recuperacoes',id_('REC',token),{
+      usuarioId:user.id,tokenHash:hash_(token),expiraEm:new Date(Date.now()+PDA_AUTH_RECOVERY_MINUTES*60000).toISOString(),
+      sessionVersion:Number(user.sessionVersion||0),usada:false
+    });
+    authPersist_(ctx);
     try{
-      syncGoogleResourcesForUser_(
-        Object.assign(
-          {},
-          user,
-          {
-            ativo:true
-          }
-        ),
-        {
-          effects:[]
-        }
-      );
-    }catch(e){}
-
-    return {
-      status:'AUTHENTICATED',
-      sessionToken:
-        authSessionCreate_(
-          identity.email
-        ),
-      email:user.email,
-      nome:user.nome,
-      perfil:user.perfil,
-      permissoes,
-      resumoAcesso:access.resumo
-    };
+      MailApp.sendEmail({to:email,subject:'Povo das Águas — recuperação de senha',name:'Povo das Águas',
+        body:'Para definir uma nova senha, abra este link:\n\n'+appUrl+'?reset='+encodeURIComponent(token)+
+          '\n\nO link vale por 30 minutos e pode ser usado uma única vez. Se não solicitou a recuperação, ignore esta mensagem.'});
+    }catch(e){fail_('Não foi possível enviar o link. Tente novamente mais tarde.');}
+    return response;
   });
 }
 
-function authResume(sessionToken){
-  const session=
-    authSessionRead_(
-      sessionToken
-    );
-
+function authResetPassword(token,senhaInput){
+  const senha=authPassword_(senhaInput);
+  if(!/^[a-f0-9]{64}$/.test(String(token||'')))fail_('Link de recuperação inválido ou expirado.');
   return lock_(()=>{
-    resetData_();
-
-    const user=
-      authFindUser_(
-        session.email
-      );
-
-    if(
-      !user||
-      !bool_(user.ativo)
-    ){
-      fail_(
-        'AUTH: usuário inexistente ou desativado.'
-      );
-    }
-
-    return {
-      status:'AUTHENTICATED',
-      email:user.email,
-      nome:user.nome||'',
-      funcao:user.funcao||'',
-      perfil:user.perfil,
-      expiresAt:session.expiresAt
-    };
+    resetData_();authEnsureSchema_();authLimit_('reset-global','global',40,15);
+    const recovery=all_('Recuperacoes').find(r=>r.tokenHash===hash_(token));
+    const user=recovery&&all_('Usuarios').find(u=>u.id===recovery.usuarioId);
+    if(!recovery||bool_(recovery.usada)||!(Date.parse(recovery.expiraEm)>Date.now())||
+       !user||!bool_(user.ativo)||Number(user.sessionVersion||0)!==Number(recovery.sessionVersion))
+      fail_('Link de recuperação inválido ou expirado.');
+    const ctx=authContext_(user.email);
+    change_(ctx,'Usuarios',user.id,Object.assign({},user,authPasswordFields_(senha),{
+      sessionVersion:Number(user.sessionVersion||0)+1
+    }),user.versao);
+    change_(ctx,'Recuperacoes',recovery.id,Object.assign({},recovery,{usada:true}),recovery.versao);
+    authPersist_(ctx);props_().deleteProperty('AUTH_LIMIT_login_'+hash_(user.email));
+    return {ok:true,mensagem:'Senha alterada. Entre com seu e-mail e a nova senha.'};
   });
-}
-
-function withAuthSession_(sessionToken,fn){
-  const session=
-    authSessionRead_(
-      sessionToken
-    );
-
-  PDA_AUTH_CONTEXT_EMAIL_=
-    session.email;
-
-  try{
-    return fn(
-      session
-    );
-  }finally{
-    PDA_AUTH_CONTEXT_EMAIL_='';
-  }
 }
 
 function authPageBootstrap_(e){
-  const config=
-    googleOAuthStatus_();
-
-  const out={
-    configured:
-      config.configurada,
-    clientId:
-      config.clientId,
-    redirectUri:
-      config.redirectUri,
-    appUrl:
-      String(
-        ScriptApp.getService().getUrl()||
-        ''
-      ),
-    loginUrl:'',
-    initialSessionToken:'',
-    initialRegistrationProof:'',
-    googleEmail:'',
-    googleName:'',
-    status:'',
-    error:''
-  };
-
-  if(!config.configurada){
-    out.error=
-      'O Login Google ainda não foi configurado. Cadastre o Client ID e o Client Secret OAuth 2.0 nas Propriedades do script.';
-    return out;
-  }
-
-  out.loginUrl=
-    googleOAuthLoginUrl_();
-
-  const params=
-    e&&e.parameter
-      ?e.parameter
-      :{};
-
-  if(params.error){
-    out.error=
-      'O Google não concluiu o login: '+
-      String(
-        params.error_description||
-        params.error
-      );
-
-    return out;
-  }
-
-  if(!params.code){
-    return out;
-  }
-
-  try{
-    authStateRead_(
-      params.state
-    );
-
-    const tokens=
-      googleOAuthTokenExchange_(
-        params.code
-      );
-
-    const identity=
-      googleIdentityVerify_(
-        tokens.id_token
-      );
-
-    const result=
-      authAfterGoogle_(
-        identity
-      );
-
-    out.status=
-      result.status||
-      '';
-
-    out.googleEmail=
-      result.email||
-      identity.email||
-      '';
-
-    out.googleName=
-      result.nome||
-      identity.nome||
-      '';
-
-    out.initialSessionToken=
-      result.sessionToken||
-      '';
-
-    out.initialRegistrationProof=
-      result.registrationProof||
-      '';
-
-    if(
-      result.status==='BLOCKED'
-    ){
-      out.error=
-        result.mensagem||
-        'Este usuário está desativado.'
-    }
-
-  }catch(error){
-    out.error=
-      error.message||
-      String(error);
-  }
-
-  return out;
+  const reset=String(e&&e.parameter&&e.parameter.reset||'');
+  let codes={};try{codes=JSON.parse(props_().getProperty('AUTH_ROLE_CODES')||'{}');}catch(error){}
+  return {appUrl:String(ScriptApp.getService().getUrl()||''),resetToken:/^[a-f0-9]{64}$/.test(reset)?reset:'',
+    funcoes:Array.from(SELF_REGISTRATION_FUNCTIONS),funcoesComCodigo:Object.keys(codes).filter(k=>!!codes[k])};
 }

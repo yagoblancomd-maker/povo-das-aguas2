@@ -1,467 +1,88 @@
 <script>
-'use strict';
 window.PDA_AUTH=(()=>{
-  const boot=
-    window.PDA_AUTH_BOOTSTRAP||
-    {};
-
-  const STORAGE_KEY=
-    'pda.auth.session';
-
-  let sessionToken='';
-  let resolver=null;
-
-  const raw=(name,...args)=>
-    new Promise((resolve,reject)=>
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)[name](...args)
-    );
-
-  const overlay=()=>document.getElementById('pda-auth-overlay');
-  const appShell=()=>document.getElementById('app-shell');
-  const message=()=>document.getElementById('pda-auth-message');
-
-  const ACCESS_BY_FUNCTION={
-    Professor:{
-      title:'Professor · acesso inicial',
-      html:'Você iniciará com <b>Consulta</b> e <b>Cadastro</b>. As demais permissões operacionais dependem de aprovação administrativa. <b>Administração</b> e <b>Distribuir processos</b> não são concedidas automaticamente.'
-    },
-    Residente:{
-      title:'Residente · acesso inicial',
-      html:'Você iniciará com <b>Consulta</b> e <b>Cadastro</b>. As demais permissões operacionais dependem de aprovação administrativa. <b>Administração</b> e <b>Distribuir processos</b> não são concedidas automaticamente.'
-    },
-    Colaborador:{
-      title:'Colaborador · acesso inicial',
-      html:'Você receberá <b>Consulta</b>, <b>Cadastro</b> e <b>Retificação dos próprios cadastros</b>.'
-    },
-    Aluno:{
-      title:'Aluno · acesso inicial',
-      html:'Você receberá <b>Consulta</b> e <b>Distribuir processos</b>, podendo receber e concluir tarefas atribuídas a você.'
-    }
-  };
-
-  function setMessage_(text,error=false){
-    const node=message();
-    if(!node)return;
-
-    node.hidden=!text;
-    node.textContent=text||'';
-    node.className=
-      'pda-auth-message'+
-      (error?' error':'');
+  'use strict';
+  const boot=window.PDA_AUTH_BOOTSTRAP||{};
+  const STORAGE_KEY='pda.auth.password.v1.'+(boot.appUrl||'app');
+  const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
+  let sessionToken='',resolver=null,initialized=false,working=false;
+  const node=id=>document.getElementById(id);
+  function setMessage(text,error=false){
+    const n=node('pda-auth-message');n.hidden=!text;n.textContent=text||'';
+    n.className='pda-auth-message'+(error?' error':'');
   }
-
-  function showApp_(){
-    const o=overlay();
-    const shell=appShell();
-
-    if(o)o.hidden=true;
-    if(shell)shell.hidden=false;
-
-    document.body.classList.remove(
-      'auth-pending'
-    );
+  function store(token){
+    sessionToken=token||'';
+    try{if(token)localStorage.setItem(STORAGE_KEY,token);else localStorage.removeItem(STORAGE_KEY);}catch(e){}
   }
-
-  function showAuth_(){
-    const o=overlay();
-    const shell=appShell();
-
-    if(o)o.hidden=false;
-    if(shell)shell.hidden=true;
-
-    document.body.classList.add(
-      'auth-pending'
-    );
+  function saved(){try{return localStorage.getItem(STORAGE_KEY)||'';}catch(e){return '';}}
+  function showApp(){node('pda-auth-overlay').hidden=true;node('app-shell').hidden=false;document.body.classList.remove('auth-pending');}
+  function showPage(page){
+    if(working)return;
+    if(page!=='reset')boot.resetToken='';
+    node('pda-auth-overlay').hidden=false;node('app-shell').hidden=true;document.body.classList.add('auth-pending');
+    ['login','register','recovery','reset'].forEach(code=>node('pda-auth-'+code+'-form').hidden=code!==page);
+    const copy={login:['Entre no Povo das Águas','Entre com seu e-mail e senha.'],register:['Crie seu acesso','Preencha seus dados para começar.'],recovery:['Recuperar senha','Receba um link no seu e-mail.'],reset:['Defina sua nova senha','Digite a senha que deseja utilizar.']};
+    node('pda-auth-title').textContent=copy[page][0];node('pda-auth-subtitle').textContent=copy[page][1];setMessage('');
   }
-
-  function store_(token){
-    sessionToken=
-      String(token||'');
-
-    if(sessionToken){
-      localStorage.setItem(
-        STORAGE_KEY,
-        sessionToken
-      );
-    }else{
-      localStorage.removeItem(
-        STORAGE_KEY
-      );
-    }
+  function finish(result){
+    boot.resetToken='';store(result.sessionToken);showApp();
+    document.querySelectorAll('.pda-auth-form input[name="senha"]').forEach(n=>{n.value='';n.type='password';});
+    document.querySelectorAll('.pda-password-toggle').forEach(b=>{b.textContent='Mostrar';b.setAttribute('aria-label','Mostrar senha');});
+    if(resolver){const resolve=resolver;resolver=null;resolve({sessionToken});}
+    else if(window.App)window.App.start();
   }
-
-  function cleanOAuthUrl_(){
-    if(
-      window.location.search&&
-      (
-        boot.initialSessionToken||
-        boot.initialRegistrationProof||
-        boot.status||
-        boot.error
-      )
-    ){
-      try{
-        history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-      }catch(e){}
-    }
+  async function submit(form,job){
+    if(working)return;
+    working=true;setMessage('');
+    const submit=form.querySelector('button[type="submit"]'),label=submit.textContent;
+    form.setAttribute('aria-busy','true');
+    document.querySelectorAll('.pda-auth-form button').forEach(b=>b.disabled=true);
+    submit.textContent='Aguarde…';
+    try{await job();}catch(e){setMessage(e.message||String(e),true);}
+    finally{working=false;form.removeAttribute('aria-busy');submit.textContent=label;document.querySelectorAll('.pda-auth-form button').forEach(b=>b.disabled=false);}
   }
-
-  function setupLogin_(){
-    showAuth_();
-
-    const loginPanel=
-      document.getElementById(
-        'pda-auth-google-panel'
-      );
-
-    const registerForm=
-      document.getElementById(
-        'pda-auth-register-form'
-      );
-
-    if(loginPanel)loginPanel.hidden=false;
-    if(registerForm)registerForm.hidden=true;
-
-    const title=
-      document.getElementById(
-        'pda-auth-title'
-      );
-
-    const subtitle=
-      document.getElementById(
-        'pda-auth-subtitle'
-      );
-
-    if(title)title.textContent=
-      'Entre no Povo das Águas';
-
-    if(subtitle)subtitle.textContent=
-      'Use sua Conta Google para continuar.';
-
-    const button=
-      document.getElementById(
-        'pda-auth-google-button'
-      );
-
-    if(button){
-      if(
-        boot.configured&&
-        boot.loginUrl
-      ){
-        button.href=
-          boot.loginUrl;
-        button.removeAttribute(
-          'aria-disabled'
-        );
-      }else{
-        button.href='#';
-        button.setAttribute(
-          'aria-disabled',
-          'true'
-        );
-        button.onclick=event=>
-          event.preventDefault();
-      }
-    }
-
-    if(!boot.configured){
-      setMessage_(
-        'O Login Google ainda não foi configurado. O administrador deve cadastrar GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET nas Propriedades do script antes da primeira implantação.',
-        true
-      );
-    }else if(boot.error){
-      setMessage_(
-        boot.error,
-        true
-      );
-    }else{
-      setMessage_('');
-    }
-  }
-
-  function setupRegistration_(){
-    showAuth_();
-
-    const loginPanel=
-      document.getElementById(
-        'pda-auth-google-panel'
-      );
-
-    const form=
-      document.getElementById(
-        'pda-auth-register-form'
-      );
-
-    if(loginPanel)loginPanel.hidden=true;
-    if(form)form.hidden=false;
-
-    const title=
-      document.getElementById(
-        'pda-auth-title'
-      );
-
-    const subtitle=
-      document.getElementById(
-        'pda-auth-subtitle'
-      );
-
-    if(title)title.textContent=
-      'Crie seu acesso';
-
-    if(subtitle)subtitle.textContent=
-      'Sua Conta Google já foi verificada. Complete seu primeiro acesso.';
-
-    const email=
-      document.getElementById(
-        'pda-auth-email'
-      );
-
-    const name=
-      document.getElementById(
-        'pda-auth-name'
-      );
-
-    const func=
-      document.getElementById(
-        'pda-auth-function'
-      );
-
-    const permTitle=
-      document.getElementById(
-        'pda-auth-permissions-title'
-      );
-
-    const permText=
-      document.getElementById(
-        'pda-auth-permissions-text'
-      );
-
-    if(email)email.textContent=
-      boot.googleEmail||'';
-
-    if(
-      name&&
-      !name.value
-    ){
-      name.value=
-        boot.googleName||'';
-    }
-
-    const syncPermissions=()=>{
-      const info=
-        ACCESS_BY_FUNCTION[
-          func.value
-        ];
-
-      if(!info){
-        permTitle.textContent=
-          'Seu perfil inicial';
-        permText.textContent=
-          'Selecione sua função para ver as permissões iniciais.';
-        return;
-      }
-
-      permTitle.textContent=
-        info.title;
-      permText.innerHTML=
-        info.html;
-    };
-
-    func.onchange=
-      syncPermissions;
-
-    syncPermissions();
-
-    form.onsubmit=async event=>{
-      event.preventDefault();
-
-      const nome=String(
-        name.value||
-        ''
-      )
-        .trim()
-        .replace(/\s+/g,' ');
-
-      const funcao=
-        func.value;
-
-      if(
-        nome.length<3||
-        !funcao
-      ){
-        form.reportValidity();
-        return;
-      }
-
-      const submit=
-        form.querySelector(
-          'button[type="submit"]'
-        );
-
-      submit.disabled=true;
-      submit.textContent=
-        'Criando seu acesso…';
-
-      setMessage_('');
-
-      try{
-        const result=
-          await raw(
-            'authRegister',
-            boot.initialRegistrationProof,
-            nome,
-            funcao
-          );
-
-        if(
-          !result||
-          !result.sessionToken
-        ){
-          throw new Error(
-            'O acesso foi criado, mas a sessão não foi iniciada.'
-          );
-        }
-
-        store_(
-          result.sessionToken
-        );
-
-        showApp_();
-
-        if(resolver){
-          const resolve=resolver;
-          resolver=null;
-          resolve({
-            sessionToken
-          });
-        }
-
-      }catch(error){
-        setMessage_(
-          error.message||
-          String(error),
-          true
-        );
-
-      }finally{
-        submit.disabled=false;
-        submit.textContent=
-          'Criar meu acesso ao Povo das Águas';
-      }
-    };
-
-    setMessage_(
-      boot.error||''
-    );
-  }
-
-  async function ensureAuthenticated(){
-    cleanOAuthUrl_();
-
-    if(boot.initialSessionToken){
-      store_(
-        boot.initialSessionToken
-      );
-
-      showApp_();
-
-      return {
-        sessionToken
-      };
-    }
-
-    const stored=
-      localStorage.getItem(
-        STORAGE_KEY
-      );
-
-    if(stored){
-      try{
-        const resumed=
-          await raw(
-            'authResume',
-            stored
-          );
-
-        if(
-          resumed&&
-          resumed.status===
-          'AUTHENTICATED'
-        ){
-          store_(stored);
-          showApp_();
-
-          return {
-            sessionToken
-          };
-        }
-      }catch(e){
-        store_('');
-      }
-    }
-
-    if(boot.initialRegistrationProof){
-      setupRegistration_();
-    }else{
-      setupLogin_();
-    }
-
-    return new Promise(resolve=>{
-      resolver=resolve;
+  function initialize(){
+    if(initialized)return;initialized=true;
+    document.querySelectorAll('[data-auth-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.authPage));
+    document.querySelectorAll('.pda-password-toggle').forEach(b=>b.onclick=()=>{
+      const input=b.parentElement.querySelector('input'),show=input.type==='password';input.type=show?'text':'password';b.textContent=show?'Ocultar':'Mostrar';b.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');
     });
+    const login=node('pda-auth-login-form'),register=node('pda-auth-register-form'),recovery=node('pda-auth-recovery-form'),reset=node('pda-auth-reset-form');
+    const field=(form,name)=>form.elements.namedItem(name);
+    login.onsubmit=e=>{e.preventDefault();submit(login,async()=>finish(await raw('authLogin',field(login,'email').value,field(login,'senha').value)));};
+    register.onsubmit=e=>{e.preventDefault();submit(register,async()=>finish(await raw('authRegister',{
+      nome:field(register,'nome').value,email:field(register,'email').value,funcao:field(register,'funcao').value,
+      senha:field(register,'senha').value,codigo:field(register,'codigo').value
+    })));};
+    field(register,'funcao').onchange=()=>{
+      const required=(boot.funcoesComCodigo||[]).includes(field(register,'funcao').value);
+      node('pda-auth-code-label').hidden=!required;field(register,'codigo').required=required;
+    };
+    recovery.onsubmit=e=>{e.preventDefault();submit(recovery,async()=>setMessage((await raw('authRequestRecovery',field(recovery,'email').value)).mensagem));};
+    reset.onsubmit=e=>{e.preventDefault();submit(reset,async()=>{
+      const result=await raw('authResetPassword',boot.resetToken,field(reset,'senha').value);
+      field(reset,'senha').value='';boot.resetToken='';store('');
+      working=false;showPage('login');setMessage(result.mensagem);
+    });};
   }
-
-  function getSessionToken(){
-    return sessionToken||
-      localStorage.getItem(
-        STORAGE_KEY
-      )||
-      '';
+  async function ensureAuthenticated(){
+    initialize();
+    if(boot.resetToken){showPage('reset');return new Promise(resolve=>resolver=resolve);}
+    const token=sessionToken||saved();
+    if(token){try{await raw('authResume',token);store(token);showApp();return {sessionToken};}catch(e){store('');}}
+    showPage('login');return new Promise(resolve=>resolver=resolve);
   }
-
-  function logout(){
-    store_('');
-
-    const target=
-      boot.appUrl||
-      '';
-
-    if(target){
-      try{
-        window.top.location.replace(
-          target
-        );
-        return;
-      }catch(e){}
-    }
-
-    window.location.reload();
+  async function logout(){
+    const token=sessionToken||saved();
+    // Só encerra localmente quando o servidor confirmar a revogação.
+    const button=node('logoutButton');if(button)button.disabled=true;
+    try{await raw('authLogout',token);store('');showPage('login');node('app').replaceChildren();}
+    catch(e){if(window.App)window.App.status('Não foi possível encerrar a sessão. Tente novamente.',true);}
+    finally{if(button)button.disabled=false;}
   }
-
-  function sessionExpired(messageText){
-    store_('');
-
-    boot.error=
-      messageText||
-      'Sua sessão expirou. Entre novamente com o Google.';
-
-    boot.initialSessionToken='';
-    boot.initialRegistrationProof='';
-
-    setupLogin_();
-  }
-
-  return {
-    ensureAuthenticated,
-    getSessionToken,
-    logout,
-    sessionExpired
-  };
+  function sessionExpired(text){store('');working=false;showPage('login');setMessage(text||'Sua sessão expirou. Entre novamente.',true);node('app').replaceChildren();}
+  function getSessionToken(){return sessionToken||saved();}
+  function acceptSession(result){if(result.sessionToken)store(result.sessionToken);}
+  return {ensureAuthenticated,getSessionToken,logout,sessionExpired,acceptSession,request:raw};
 })();
 </script>

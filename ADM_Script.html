@@ -259,127 +259,9 @@ window.PDA_MODULES.ADM = (()=>{
         :'Salvar chave DeepSeek'
     );
 
-    const googleLogin=
-      card(
-        'Login Google e primeiro acesso'
-      );
-
-    root.append(
-      googleLogin
-    );
-
-    const oauth=
-      d.googleOAuth||
-      {};
-
-    googleLogin.append(
-      el(
-        'p',
-        oauth.configurada
-          ?'Login Google ativo em uma única implantação.'
-          :'Login Google ainda não configurado.',
-        oauth.configurada
-          ?'badge'
-          :'warn'
-      )
-    );
-
-    googleLogin.append(
-      el(
-        'p',
-        'O Povo das Águas usa uma única implantação executada como proprietário. A identidade de cada pessoa é confirmada diretamente pelo Google OAuth e as permissões continuam sendo controladas pela tabela de usuários do sistema. Não existe mais gateway ou segunda implantação de autocadastro.',
-        'hint'
-      )
-    );
-
-    const oauthInfo=
-      el(
-        'div',
-        undefined,
-        'adm-oauth-info'
-      );
-
-    const redirectBox=
-      el(
-        'div'
-      );
-
-    redirectBox.append(
-      el(
-        'strong',
-        'URI de redirecionamento autorizado'
-      ),
-      el(
-        'code',
-        oauth.redirectUri||
-        'Publique a implantação principal para obter a URL /exec.'
-      )
-    );
-
-    oauthInfo.append(
-      redirectBox
-    );
-
-    googleLogin.append(
-      oauthInfo
-    );
-
-    form(
-      googleLogin,
-      [
-        {
-          key:'clientId',
-          label:'Google OAuth Client ID',
-          required:true,
-          placeholder:'000000000000-xxxxxxxx.apps.googleusercontent.com'
-        },
-        {
-          key:'clientSecret',
-          label:
-            oauth.clientSecretConfigurado
-              ?'Google OAuth Client Secret — deixe vazio para manter o atual'
-              :'Google OAuth Client Secret',
-          type:'password',
-          required:!oauth.clientSecretConfigurado,
-          placeholder:
-            oauth.clientSecretConfigurado
-              ?'••••••••••••'
-              :'Cole o Client Secret'
-        }
-      ],
-      {
-        clientId:
-          oauth.clientId||
-          '',
-        clientSecret:''
-      },
-      async q=>{
-        const result=
-          await call(
-            'googleOAuthConfigSalvar',
-            q,
-            true
-          );
-
-        App.state.boot=
-          await call(
-            'bootstrap'
-          );
-
-        await go(
-          'ADM'
-        );
-
-        status(
-          result.mensagem||
-          'Login Google atualizado.'
-        );
-      },
-      oauth.configurada
-        ?'Atualizar Login Google'
-        :'Salvar configuração do Login Google'
-    );
-
+    const loginInfo=card('Acesso ao sistema');
+    loginInfo.append(el('p','As pessoas criam o próprio acesso com e-mail e senha. Alterações de perfil e recuperação de senha estão disponíveis na tela de entrada e em Meu perfil.','hint'));
+    root.append(loginInfo);
 
     const labels={
       rascunhos:
@@ -502,7 +384,7 @@ window.PDA_MODULES.ADM = (()=>{
     users.append(
       el(
         'p',
-        'Cadastre a pessoa responsável pelo acesso, informe sua função no projeto, a conta Google usada para entrar no sistema, escolha um perfil-base e, se necessário, personalize permissões específicas. O perfil sugere um conjunto padrão; as permissões marcadas definem o acesso efetivo daquele usuário.',
+        'Cadastre a pessoa responsável pelo acesso, informe sua função no projeto, o e-mail usado para entrar no sistema, escolha um perfil-base e, se necessário, personalize permissões específicas. O perfil sugere um conjunto padrão; as permissões marcadas definem o acesso efetivo daquele usuário.',
         'hint'
       )
     );
@@ -654,7 +536,7 @@ window.PDA_MODULES.ADM = (()=>{
       },
       {
         key:'email',
-        label:'Usuário Google',
+        label:'E-mail de acesso',
         type:'email',
         required:true,
         placeholder:'nome@gmail.com'
@@ -924,7 +806,7 @@ window.PDA_MODULES.ADM = (()=>{
       ){
         emailInput.readOnly=true;
         emailInput.title=
-          'O usuário Google identifica o registro. Para trocar o e-mail, desative este usuário e cadastre outro.';
+          'O próprio usuário pode trocar o e-mail em Meu perfil.';
       }
 
       if(!isNew){
@@ -1206,7 +1088,7 @@ window.PDA_MODULES.ADM = (()=>{
     add.append(
       el(
         'p',
-        'Informe quem é a pessoa, qual função exerce e qual conta Google ela utilizará. Depois escolha o perfil-base e ajuste as permissões somente quando houver uma necessidade específica.',
+        'Informe quem é a pessoa, qual função exerce e qual e-mail ela utilizará. Depois escolha o perfil-base e ajuste as permissões somente quando houver uma necessidade específica.',
         'hint'
       )
     );
@@ -1229,3 +1111,4 @@ window.PDA_MODULES.ADM = (()=>{
   };
 })();
 </script>
+

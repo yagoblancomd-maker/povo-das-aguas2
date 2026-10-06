@@ -25,7 +25,8 @@
       "parcelasNaoRecebidas",
       "jurisdicao",
       "cep",
-      "email"
+      "email",
+      "criadoPor"
     ],
     "Atendimentos": [
       "pessoaId",
@@ -98,7 +99,33 @@
     "Usuarios": [
       "email",
       "perfil",
-      "ativo"
+      "ativo",
+      "nome",
+      "funcao",
+      "permissoes",
+      "permissoesVersao",
+      "senhaHash",
+      "senhaSalt",
+      "senhaAlgoritmo",
+      "sessionVersion",
+      "ultimoLogin",
+      "nomeUsuario",
+      "fotoId",
+      "emailsAnteriores"
+    ],
+    "Sessoes": [
+      "usuarioId",
+      "tokenHash",
+      "expiraEm",
+      "sessionVersion",
+      "revogada"
+    ],
+    "Recuperacoes": [
+      "usuarioId",
+      "tokenHash",
+      "expiraEm",
+      "sessionVersion",
+      "usada"
     ],
     "Distribuicao": [
       "atendimentoId",
@@ -108,6 +135,18 @@
       "data",
       "responsavel",
       "protocoloId"
+    ],
+    "Tarefas": [
+      "tipo",
+      "pessoaId",
+      "responsavel",
+      "situacao",
+      "jurisdicao",
+      "valorCausa",
+      "atribuidaEm",
+      "concluidaEm",
+      "processoId",
+      "observacoes"
     ],
     "Processos": [
       "pessoaId",
@@ -121,105 +160,6 @@
     "Operacoes": [
       "hash",
       "resultado"
-    ]
-  },
-  "roles": {
-    "CONSULTA": [
-      "consulta"
-    ],
-    "CADASTRO": [
-      "consulta",
-      "cadastro"
-    ],
-    "CONFERENCIA": [
-      "consulta",
-      "cadastro",
-      "retificacao",
-      "conferencia"
-    ],
-    "JURIDICO": [
-      "consulta",
-      "cadastro",
-      "retificacao",
-      "conferencia",
-      "minuta"
-    ],
-    "ADMIN": [
-      "consulta",
-      "cadastro",
-      "retificacao",
-      "conferencia",
-      "minuta",
-      "administracao"
-    ]
-  },
-  "defaults": {
-    "rascunhos": "PENDENTE",
-    "vencimentoFuturo": "PENDENTE",
-    "anexoOrientacao": "",
-    "templateId": "",
-    "templateAprovado": false,
-    "entidades": [
-      "COPAPEL — COLÔNIA DOS PESCADORES E AQUICULTORES PROFISSIONAIS ARTESANAIS DE PELOTAS",
-      "COLÔNIA Z-1",
-      "COLÔNIA Z-2",
-      "COLÔNIA Z-3",
-      "COLÔNIA Z-11",
-      "Outro"
-    ],
-    "municipios": [
-      "Amaral Ferrador",
-      "Arroio do Padre",
-      "Arroio do Sal",
-      "Arroio Grande",
-      "Balneário Pinhal",
-      "Canguçu",
-      "Capão da Canoa",
-      "Capão do Leão",
-      "Caraá",
-      "Cerrito",
-      "Chuí",
-      "Cidreira",
-      "Dom Pedro de Alcântara",
-      "Herval",
-      "Imbé",
-      "Itati",
-      "Jaguarão",
-      "Mampituba",
-      "Maquiné",
-      "Morrinhos do Sul",
-      "Morro Redondo",
-      "Osório",
-      "Pedro Osório",
-      "Pelotas",
-      "Piratini",
-      "Rio Grande",
-      "Santa Vitória do Palmar",
-      "São José do Norte",
-      "São Lourenço do Sul",
-      "Terra de Areia",
-      "Torres",
-      "Tramandaí",
-      "Três Cachoeiras",
-      "Três Forquilhas",
-      "Turuçu",
-      "Xangri-lá"
-    ],
-    "demandas": [
-      "Seguro-Defeso 2025"
-    ],
-    "categorias": [
-      "RG_CPF",
-      "RESIDENCIA",
-      "PROCESSO_ADMINISTRATIVO",
-      "PESCA",
-      "PROCURACAO",
-      "HIPOSSUFICIENCIA"
-    ],
-    "situacoes": [
-      "EM_PREPARACAO",
-      "ENCAMINHADO",
-      "CONFERIDO"
     ]
   }
 }

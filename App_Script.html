@@ -736,7 +736,7 @@ s.remove();
 }renderNavigation_();
 status('');
 await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
-}catch(e){if(token===epoch)status(e.message||String(e),true);
+}catch(e){if(/AUTH:/.test(e.message)&&window.PDA_AUTH)window.PDA_AUTH.sessionExpired(e.message);if(token===epoch)status(e.message||String(e),true);
 }finally{if(token===epoch)root.setAttribute('aria-busy','false');
 }}
  const alive=ctx=>ctx.token===epoch;
@@ -862,7 +862,7 @@ f.insertBefore(file,f.firstChild);
   if(identity){
     const user=boot.usuario||{};
     const parts=[
-      user.nome||boot.email,
+      user.nomeUsuario||user.nome||boot.email,
       user.funcao||'',
       boot.perfil
     ].filter(Boolean);
@@ -1055,13 +1055,15 @@ f.insertBefore(file,f.firstChild);
     'DISTRIBUICAO'
   );
 
+  appendDirect('PERF','Meu perfil');
+
   appendDirect(
     'ADM',
     'Administração'
   );
  }
 
- async function start(){
+ async function start(preferredModule){
   try{
     const auth=
       await window.PDA_AUTH
@@ -1092,7 +1094,7 @@ f.insertBefore(file,f.firstChild);
     renderNavigation_();
 
     await go(
-      boot.home||
+      preferredModule||boot.home||
       'PAINEL'
     );
 
@@ -1125,5 +1127,7 @@ f.insertBefore(file,f.firstChild);
 renderNavigation_();
 }}};
 })();
+window.App=App;
 App.start();
 </script>
+

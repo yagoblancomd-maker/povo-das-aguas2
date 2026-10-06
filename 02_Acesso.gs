@@ -8,7 +8,7 @@ function identity_(){
 
   if(!email){
     fail_(
-      'AUTH: sessão autenticada necessária. Entre novamente com o Google.'
+      'AUTH: sessão autenticada necessária. Entre novamente com seu e-mail e senha.'
     );
   }
 
@@ -26,7 +26,7 @@ function activeUser_(){
 
   if(!user){
     fail_(
-      'Seu usuário Google não está autorizado ou está com o acesso desativado.'
+      'Seu usuário não está autorizado ou está com o acesso desativado.'
     );
   }
 
@@ -180,7 +180,7 @@ function canRetifyPerson_(user,p){
 
   const creator=personCreatorEmail_(p);
 
-  return !!creator&&creator===String(user.email||'').trim().toLowerCase();
+  return !!creator&&authUserEmailMatches_(user,creator);
 }
 
 function authorizePersonRetification_(p){
@@ -210,13 +210,7 @@ function canWritePersonContent_(user,p){
 
   const own=
     !!creator&&
-    creator===
-      String(
-        user.email||
-        ''
-      )
-        .trim()
-        .toLowerCase();
+    authUserEmailMatches_(user,creator);
 
   if(!own){
     return false;
@@ -361,45 +355,11 @@ function syncGoogleResourcesForUser_(user,ctx){
       user
     );
 
-  const resources=[];
-
-  try{
-    resources.push({
-      nome:'pasta principal do Povo das Águas',
-      item:DriveApp.getFolderById(
-        PDA.parent
-      )
-    });
-  }catch(e){
-    fail_(
-      'Não foi possível localizar a pasta principal do Povo das Águas para sincronizar o acesso Google.'
-    );
-  }
-
-  const sid=String(
-    props_().getProperty(
-      'SPREADSHEET_ID'
-    )||''
-  ).trim();
-
-  if(!sid){
-    fail_(
-      'SPREADSHEET_ID não está configurado.'
-    );
-  }
-
-  try{
-    resources.push({
-      nome:'banco de dados do Povo das Águas',
-      item:DriveApp.getFileById(
-        sid
-      )
-    });
-  }catch(e){
-    fail_(
-      'Não foi possível localizar a planilha do Povo das Águas para sincronizar o acesso Google.'
-    );
-  }
+  // Compartilhamento explícito somente dos documentos, nunca da raiz ou do banco.
+  const fileIds=new Set();
+  all_('Documentos').forEach(r=>{if(r.fileId)fileIds.add(r.fileId);});
+  all_('Minutas').forEach(r=>{if(r.fileId)fileIds.add(r.fileId);if(r.pdfFileId)fileIds.add(r.pdfFileId);});
+  const resources=Array.from(fileIds).map(id=>({nome:'documento '+id,item:DriveApp.getFileById(id)}));
 
   resources.forEach(resource=>{
     setGoogleAccess_(
@@ -468,9 +428,9 @@ function selfRegistrationAccess_(funcao){
   if(clean==='Professor'||clean==='Residente'){
     return {
       perfil:'PROFESSOR_RESIDENTE',
-      permissoes:['consulta','cadastro'],
-      aprovacaoPendente:true,
-      resumo:'Consulta e Cadastro inicialmente. As demais permissões operacionais de Professor/Residente dependem de aprovação do Administrador.'
+      permissoes:rolePermissions_('PROFESSOR_RESIDENTE'),
+      aprovacaoPendente:false,
+      resumo:'Acesso operacional automático de Professor/Residente, sem aprovação individual.'
     };
   }
 
@@ -495,7 +455,9 @@ function selfRegistrationAccess_(funcao){
   fail_('Função de autocadastro inválida.');
 }
 
+let PDA_LOCK_DEPTH_=0;
 function lock_(fn){
+  if(PDA_LOCK_DEPTH_>0)return fn();
   const lock=LockService.getScriptLock();
 
   if(!lock.tryLock(30000)){
@@ -505,8 +467,11 @@ function lock_(fn){
   }
 
   try{
+    PDA_LOCK_DEPTH_++;
     return fn();
   }finally{
+    PDA_LOCK_DEPTH_--;
     lock.releaseLock();
   }
 }
+

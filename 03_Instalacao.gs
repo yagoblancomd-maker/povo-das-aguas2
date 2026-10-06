@@ -83,7 +83,7 @@ function instalar_(){
       }
     });
 
-    if(!all_('Usuarios').some(r=>r.email===email)){
+    if(!all_('Usuarios').some(r=>r.id===id_('USR',email)||authUserEmailMatches_(r,email))){
       change_(
         ctx,
         'Usuarios',
@@ -99,3 +99,4 @@ function instalar_(){
     });
   });
 }
+

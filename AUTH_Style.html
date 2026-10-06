@@ -161,88 +161,6 @@
 }
 .pda-auth-card h3{margin:0;font-size:19px;letter-spacing:-.025em}
 .pda-auth-card-head p{margin:3px 0 0;color:#607984;font-size:10.5px}
-.pda-auth-google-account,.pda-auth-verified{
-  display:flex;
-  align-items:center;
-  gap:9px;
-  margin:0 0 12px;
-  padding:10px 11px;
-  border:1px solid #d4e4e7;
-  border-radius:11px;
-  background:#f5fafb
-}
-.pda-auth-g{
-  display:grid;
-  place-items:center;
-  width:31px;height:31px;flex:0 0 auto;
-  border-radius:50%;
-  color:#1a73e8;background:#fff;font-weight:800;
-  box-shadow:0 2px 6px rgba(0,0,0,.15)
-}
-.pda-auth-google-account small,.pda-auth-verified small{
-  display:block;color:#748892;font-size:8px;font-weight:800;letter-spacing:.08em
-}
-.pda-auth-google-account strong,.pda-auth-verified strong{
-  display:block;margin-top:2px;color:#214c5d;font-size:10.5px
-}
-.pda-auth-google-button,.pda-auth-create{
-  width:100%;
-  min-height:44px;
-  border-radius:11px;
-  cursor:pointer;
-  font:750 12px/1 inherit;
-  text-decoration:none
-}
-.pda-auth-google-button{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:9px;
-  border:1px solid #c8d9de;
-  color:#244c5b;
-  background:#fff;
-  box-shadow:0 5px 14px rgba(15,48,70,.08)
-}
-.pda-auth-google-button:hover{border-color:#8ab9c2;box-shadow:0 9px 20px rgba(15,48,70,.12)}
-.pda-auth-create{
-  border:0;
-  color:#fff;
-  background:linear-gradient(145deg,#0a7d89,#08616e);
-  box-shadow:0 10px 22px rgba(8,97,110,.24)
-}
-.pda-auth-register-form label{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  margin-bottom:10px
-}
-.pda-auth-register-form label>span{
-  color:#315667;
-  font-size:9.5px;
-  font-weight:700
-}
-.pda-auth-register-form input,.pda-auth-register-form select{
-  width:100%;
-  min-height:42px;
-  padding:9px 10px;
-  border:1px solid #b9d1d8;
-  border-radius:10px;
-  color:#173f51;
-  background:#fff;
-  font:500 12px/1.2 inherit
-}
-.pda-auth-register-form input:focus,.pda-auth-register-form select:focus{
-  outline:none;border-color:#0b7e8a;box-shadow:0 0 0 3px rgba(11,126,138,.10)
-}
-.pda-auth-permissions{
-  margin:12px 0;
-  padding:10px 11px;
-  border:1px solid #cfe1e4;
-  border-radius:11px;
-  background:#eef7f8
-}
-.pda-auth-permissions strong{display:block;color:#0c6874;font-size:9.8px}
-.pda-auth-permissions p{margin:4px 0 0;color:#5f7883;font-size:9px;line-height:1.4}
 .pda-auth-message{
   margin:12px 0 0;
   padding:10px 11px;
@@ -283,4 +201,17 @@
   .pda-auth-features{grid-template-columns:1fr}
   .pda-auth-card{padding:18px;border-radius:18px}
 }
+.pda-auth-form{display:grid;gap:18px}
+.pda-auth-form[hidden],[hidden]{display:none!important}
+.pda-auth-form label{display:grid;gap:7px;font-size:14px;font-weight:600}
+.pda-auth-form input,.pda-auth-form select{width:100%;box-sizing:border-box;padding:13px;border:1px solid #c5d7df;border-radius:9px;background:#fff;color:#173f51;font:inherit}
+.pda-auth-form input:focus,.pda-auth-form select:focus{outline:2px solid #128090;outline-offset:2px}
+.pda-auth-form .pda-auth-create{border:0;border-radius:9px;padding:14px;background:#076478;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.pda-auth-form button:disabled{opacity:.6;cursor:wait}
+.pda-auth-links{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.pda-auth-links button,.pda-auth-back{border:0;background:transparent;color:#076478;font:inherit;font-size:14px;cursor:pointer;padding:4px}
+.pda-password-field{display:flex;align-items:center;gap:7px}
+.pda-password-field input{min-width:0;flex:1}
+.pda-password-toggle{border:0;background:transparent;color:#076478;cursor:pointer;font:inherit;font-size:12px;padding:5px}
 </style>
+

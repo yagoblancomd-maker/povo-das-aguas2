@@ -1,18 +1,15 @@
 # Povo das Águas
 
-Esta entrega contém o código-fonte de um projeto independente em Google Apps Script, com cadastro, atendimentos, ficha, documentos, conferência, pendências e minutas. **A pasta-pai configurada é `1wKO6B73R2e-H8E5R_vxRAHmUOIFz3bu7`. Nenhuma pasta ou planilha foi criada na conta Google durante esta entrega.**
+Sistema modular em Google Apps Script para cadastro, organização de documentos, minutas, distribuição de tarefas e acompanhamento de processos. O código está na raiz do repositório, com o banco em Google Sheets e os documentos em Google Drive.
 
-O diretório `src` contém os arquivos a importar. `Povo_das_Aguas.json` reúne os mesmos arquivos no formato de exportação usado pelo Salém, com `server_js`, `html` e `json`. O conteúdo `server_js` corresponde a arquivos `.gs`; conteúdo `html` corresponde a arquivos `.html`. **Nunca cole HTML em um arquivo `.gs`.** O editor do Apps Script não importa esse JSON por simples upload; ele serve para automação via API ou ferramentas de importação compatíveis.
+A autenticação própria utiliza e-mail e senha em uma única implantação executada como proprietário. O autocadastro é imediato, sem confirmação de e-mail, repetição de senha ou aprovação individual. Meu perfil reúne nome, nome de usuário, e-mail, foto e troca de senha. A recuperação funciona por link enviado ao e-mail cadastrado.
 
-A estrutura do arquivo de referência `SALEM 3 (5)(2).json` foi examinada. Foram preservados o padrão de quatro arquivos por módulo e a navegação central, sem reutilizar o banco, as rotinas de negócio ou os identificadores do Salém.
+As permissões são verificadas no servidor. Professor/Residente recebem seu acesso operacional automaticamente; Colaborador e Aluno mantêm suas permissões específicas. O autocadastro não concede ADMIN. Códigos por função são opcionais e podem ser definidos nas propriedades, sem aprovação posterior.
 
-A instalação, o acesso, a aprovação do modelo e o roteiro de homologação estão descritos em `docs/Instalacao.md`. O dicionário das abas está em `docs/Dados.md`. O mapeamento dos marcadores está em `docs/Placeholders.md`. O escopo verificado e suas limitações constam de `docs/Validacao.md`.
+A instalação e o procedimento de atualização estão em [Instalacao.md](Instalacao.md). Os usuários que já existiam ativam a senha por Esqueci minha senha. [Dados.md](Dados.md) descreve as abas; [Placeholders.md](Placeholders.md) descreve os marcadores das minutas.
 
-O modelo em `modelos/Modelo_ultima_parcela_placeholders.docx` mantém os argumentos e os pedidos do documento fornecido. **As alterações de texto ficam em negrito** e se restringem aos campos variáveis, ao endereçamento e ao espaço que separa o telefone da expressão seguinte. O original também acompanha o pacote, sem alteração. Não houve validação jurídica da fundamentação, dos números, dos precedentes ou dos fatos narrados no modelo.
+`Povo_das_Aguas.json` reúne exatamente os arquivos `.gs`, `.html` e o manifesto, no formato de exportação do Apps Script. `server_js` corresponde a `.gs` e `html` a `.html`. O JSON é destinado a ferramentas de importação compatíveis; não se cola conteúdo HTML em um arquivo `.gs`.
 
-**O sistema ainda não deve ser apresentado como operacional.** Os testes executados foram locais, com serviços Google simulados. Não houve publicação de aplicativo web, autorização OAuth, criação real de recursos, nem geração nativa de Google Docs nesta conta. O pacote inclui testes reproduzíveis e o roteiro de homologação com dados fictícios.
+A atualização mantém a regra dos 36 municípios, a jurisdição gravada em Pessoas e a substituição dos marcadores na minuta. Mantém os IDs e os cadastros existentes e faz uma migração aditiva dos cabeçalhos de Usuarios.
 
-Para executar os testes locais, na pasta do projeto, use `node tests/server.test.cjs` e `node tests/interface.test.cjs`. Os testes não acessam contas Google e não enviam documentos.
-
-
-**Atualização de jurisdição: os 36 municípios passam a integrar a lista existente. O cadastro salva automaticamente Pessoas.jurisdicao; a geração aceita <<JURISDIÇÃO>> e <<JURISDICAO>>. A próxima abertura após atualizar o código completa a lista salva, acrescenta a coluna e atualiza os registros existentes. O cálculo de 1 a 4 parcelas e os demais módulos permanecem preservados. Execute node jurisdicoes.test.cjs para verificar os 11 cenários específicos com serviços Google simulados.**
+Execute `node auth.test.cjs` e `node auth-interface.test.cjs` para as verificações desta atualização. Os testes usam Google Drive, Sheets, envio de e-mail e DOM simulados. Não substituem a verificação na implantação real. Os arquivos antigos `server.test.cjs`, `interface.test.cjs` e `jurisdicoes.test.cjs` são testes legados de versões anteriores e não constituem a suite atual da autenticação.

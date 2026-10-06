@@ -50,63 +50,42 @@
           </span>
           <div>
             <h3 id="pda-auth-title">Entre no Povo das Águas</h3>
-            <p id="pda-auth-subtitle">Use sua Conta Google para continuar.</p>
+            <p id="pda-auth-subtitle">Entre com seu e-mail e senha.</p>
           </div>
         </div>
 
-        <div id="pda-auth-google-panel">
-          <div class="pda-auth-google-account">
-            <span class="pda-auth-g">G</span>
-            <div>
-              <small>LOGIN SEGURO</small>
-              <strong>Conta Google</strong>
-            </div>
-          </div>
-
-          <a id="pda-auth-google-button" class="pda-auth-google-button" href="#" target="_top" rel="noopener">
-            <span class="pda-auth-g">G</span>
-            <span>Continuar com Google</span>
-          </a>
-        </div>
-
-        <form id="pda-auth-register-form" class="pda-auth-register-form" hidden>
-          <div class="pda-auth-verified">
-            <span class="pda-auth-g">G</span>
-            <div>
-              <small>CONTA GOOGLE VERIFICADA</small>
-              <strong id="pda-auth-email"></strong>
-            </div>
-          </div>
-
-          <label>
-            <span>Seu nome completo</span>
-            <input id="pda-auth-name" name="nome" maxlength="140" required autocomplete="name">
-          </label>
-
-          <label>
-            <span>Sua função no projeto</span>
-            <select id="pda-auth-function" name="funcao" required>
-              <option value="">Selecione</option>
-              <option value="Professor">Professor</option>
-              <option value="Residente">Residente</option>
-              <option value="Colaborador">Colaborador</option>
-              <option value="Aluno">Aluno</option>
-            </select>
-          </label>
-
-          <div class="pda-auth-permissions">
-            <strong id="pda-auth-permissions-title">Seu perfil inicial</strong>
-            <p id="pda-auth-permissions-text">Selecione sua função para ver as permissões iniciais.</p>
-          </div>
-
-          <button class="pda-auth-create" type="submit">Criar meu acesso ao Povo das Águas</button>
+        <form id="pda-auth-login-form" class="pda-auth-form">
+          <label>E-mail<input name="email" type="email" required maxlength="254" autocomplete="username"></label>
+          <label>Senha<span class="pda-password-field"><input name="senha" type="password" required maxlength="4096" autocomplete="current-password"><button type="button" class="pda-password-toggle" aria-label="Mostrar senha">Mostrar</button></span></label>
+          <button class="pda-auth-create" type="submit">Entrar</button>
+          <div class="pda-auth-links"><button type="button" data-auth-page="register">Criar meu acesso</button><button type="button" data-auth-page="recovery">Esqueci minha senha</button></div>
+        </form>
+        <form id="pda-auth-register-form" class="pda-auth-form" hidden>
+          <label>Nome completo<input name="nome" required maxlength="140" autocomplete="name"></label>
+          <label>E-mail<input name="email" type="email" required maxlength="254" autocomplete="email"></label>
+          <label>Função no projeto<select name="funcao" required><option value="">Selecione</option><option>Professor</option><option>Residente</option><option>Colaborador</option><option>Aluno</option></select></label>
+          <label id="pda-auth-code-label" hidden>Código de acesso<input name="codigo" autocomplete="off"></label>
+          <label>Senha<span class="pda-password-field"><input name="senha" type="password" required maxlength="4096" autocomplete="new-password"><button type="button" class="pda-password-toggle" aria-label="Mostrar senha">Mostrar</button></span></label>
+          <button class="pda-auth-create" type="submit">Criar meu acesso</button>
+          <button type="button" class="pda-auth-back" data-auth-page="login">Já tenho acesso</button>
+        </form>
+        <form id="pda-auth-recovery-form" class="pda-auth-form" hidden>
+          <p>Informe o e-mail cadastrado para receber um link e definir uma nova senha.</p>
+          <label>E-mail<input name="email" type="email" required maxlength="254" autocomplete="email"></label>
+          <button class="pda-auth-create" type="submit">Enviar link de recuperação</button>
+          <button type="button" class="pda-auth-back" data-auth-page="login">Voltar para entrar</button>
+        </form>
+        <form id="pda-auth-reset-form" class="pda-auth-form" hidden>
+          <label>Nova senha<span class="pda-password-field"><input name="senha" type="password" required maxlength="4096" autocomplete="new-password"><button type="button" class="pda-password-toggle" aria-label="Mostrar senha">Mostrar</button></span></label>
+          <button class="pda-auth-create" type="submit">Salvar nova senha</button>
+          <button type="button" class="pda-auth-back" data-auth-page="recovery">Solicitar outro link</button>
         </form>
 
         <div id="pda-auth-message" class="pda-auth-message" hidden></div>
 
         <div class="pda-auth-security">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3"></path><path d="M5 10h14v10H5z"></path></svg>
-          <span>A autenticação ocorre diretamente com o Google. O sistema não recebe nem armazena sua senha.</span>
+          <span>Seu acesso e suas informações de perfil ficam no Povo das Águas.</span>
         </div>
       </aside>
     </div>
@@ -116,3 +95,4 @@
     </footer>
   </div>
 </section>
+

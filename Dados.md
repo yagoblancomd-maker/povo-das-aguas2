@@ -92,3 +92,12 @@ O perfil CADASTRO pode criar pessoas e atendimentos, anexar documentos e encamin
 
 
 **Pessoas.jurisdicao é calculada no servidor a partir de Pessoas.cidade e UF RS. A coluna é adicionada ao final da aba, depois de parcelasNaoRecebidas, sem mover os dados anteriores. O campo Município existente utiliza a lista ampliada nas configurações.**
+
+
+## Autenticação própria e perfil
+
+Usuarios mantém as colunas anteriores e acrescenta senhaHash, senhaSalt, senhaAlgoritmo, sessionVersion, ultimoLogin, nomeUsuario, fotoId e emailsAnteriores. A identificação estável é o ID, preservado quando o próprio usuário altera o e-mail. Autoria histórica usa os e-mails anteriores vinculados à conta.
+
+Sessoes contém usuarioId, tokenHash, expiraEm, sessionVersion e revogada, além das colunas comuns. Recuperacoes contém usuarioId, tokenHash, expiraEm, sessionVersion e usada. Nenhuma dessas abas guarda o token bruto. A senha também não é gravada em texto puro. Hashes de senha, salts e hashes de tokens são omitidos da auditoria e das respostas de usuário/Administração.
+
+O cadastro atribui os perfis operacionais automaticamente. Professor e Residente não dependem de aprovação individual. Meu perfil pode modificar somente os dados da própria conta, sem alterar função, perfil-base ou permissões.

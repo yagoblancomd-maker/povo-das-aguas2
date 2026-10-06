@@ -1,8 +1,10 @@
 # Arquivos de implementação
 
-44 arquivos no projeto Apps Script. A exportação JSON contém exatamente o mesmo conteúdo da pasta src.
+59 arquivos no projeto Apps Script. A exportação JSON contém o mesmo conteúdo dos arquivos da raiz.
 
 `00_Config.gs`
+
+`00_Jurisdicoes.gs`
 
 `01_Dados.gs`
 
@@ -32,17 +34,31 @@
 
 `ADM_View.html`
 
-`ATEND_Modulo.gs`
+`API_CEP.gs`
 
-`ATEND_Script.html`
+`API_DeepSeek.gs`
 
-`ATEND_Style.html`
+`API_SeguroDefeso.gs`
 
-`ATEND_View.html`
+`AUTH_Crypto.gs`
+
+`AUTH_Modulo.gs`
+
+`AUTH_Script.html`
+
+`AUTH_Style.html`
+
+`AUTH_View.html`
 
 `App_Script.html`
 
 `App_Style.html`
+
+`DEFESO_Script.html`
+
+`DEFESO_Style.html`
+
+`DEFESO_View.html`
 
 `DIST_Modulo.gs`
 
@@ -72,6 +88,14 @@
 
 `PAINEL_View.html`
 
+`PERF_Modulo.gs`
+
+`PERF_Script.html`
+
+`PERF_Style.html`
+
+`PERF_View.html`
+
 `PESS_Modulo.gs`
 
 `PESS_Script.html`
@@ -87,5 +111,11 @@
 `PROC_Style.html`
 
 `PROC_View.html`
+
+`TAREFAS_Script.html`
+
+`TAREFAS_Style.html`
+
+`TAREFAS_View.html`
 
 `appsscript.json`

@@ -206,7 +206,7 @@ function userDelete_(ctx,q){
 
   if(
     owner&&
-    email===owner
+    (email===owner||user.id===id_('USR',owner))
   ){
     fail_(
       'O usuário proprietário do sistema não pode ser excluído.'
@@ -338,7 +338,7 @@ function userApproveProfessorResident_(ctx,q){
     ])
   ];
 
-  const userData={
+  const userData=Object.assign({},user,{
     email:user.email,
     perfil:'PROFESSOR_RESIDENTE',
     ativo:bool_(user.ativo),
@@ -348,20 +348,14 @@ function userApproveProfessorResident_(ctx,q){
       permissions
     ),
     permissoesVersao:2
-  };
+  });
 
   syncGoogleResourcesForUser_(
     userData,
     ctx
   );
 
-  return change_(
-    ctx,
-    'Usuarios',
-    user.id,
-    userData,
-    q.versao
-  );
+  return authPublicUser_(change_(ctx,'Usuarios',user.id,userData,q.versao));
 }
 
 function userSave_(ctx,q){
@@ -393,7 +387,7 @@ function userSave_(ctx,q){
     !ROLES[perfil]
   ){
     fail_(
-      'E-mail Google ou perfil inválido.'
+      'E-mail ou perfil inválido.'
     );
   }
 
@@ -427,7 +421,7 @@ function userSave_(ctx,q){
     get_('Usuarios',q.id).email!==email
   ){
     fail_(
-      'O e-mail Google identifica o usuário e não pode ser alterado. Desative o antigo e cadastre outro.'
+      'O próprio usuário pode alterar seu e-mail em Meu perfil.'
     );
   }
 
@@ -466,23 +460,8 @@ function userSave_(ctx,q){
     permissoesVersao:2
   };
 
-  /*
-   * Antes de confirmar o cadastro, garante que a conta Google tenha acesso
-   * material aos recursos usados pelo Web App. Isso evita o erro
-   * SpreadsheetApp.openById(...) para usuários autorizados apenas na tabela.
-   */
-  syncGoogleResourcesForUser_(
-    userData,
-    ctx
-  );
-
-  return change_(
-    ctx,
-    'Usuarios',
-    old
-      ?old.id
-      :id_('USR',email),
-    userData,
-    q.versao
-  );
+  authCheckAvailableEmail_(email,old&&old.id);
+  return authPublicUser_(change_(ctx,'Usuarios',old?old.id:id_('USR',email),
+    Object.assign({},old||{},userData),q.versao));
 }
+

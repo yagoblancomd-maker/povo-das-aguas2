@@ -1,0 +1,60 @@
+<script>
+window.PDA_MODULES.PERF=async(token)=>{
+  const App=window.App;
+  const {el,card,button,status}=App,root=token.root,auth=window.PDA_AUTH;
+  let result;
+  try{result=await auth.request('authProfile',auth.getSessionToken());}catch(e){if(/AUTH:/.test(e.message))auth.sessionExpired(e.message);throw e;}
+  if(!App.alive(token))return;
+  const user=result.usuario;
+  root.append(el('h2','Meu perfil'),el('p','Atualize seus dados e a senha de acesso.','hint'));
+  const layout=el('div',undefined,'perf-layout'),personal=card('Dados do perfil'),security=card('Alterar senha');security.classList.add('perf-security');layout.append(personal,security);root.append(layout);
+  const photo=el('img',undefined,'perf-avatar');photo.alt='Foto do perfil';photo.hidden=!result.foto;if(result.foto)photo.src=result.foto;personal.append(photo);
+  const controls=el('div',undefined,'perf-photo-controls'),file=el('input');file.type='file';file.accept='image/jpeg,image/png,image/webp';file.setAttribute('aria-label','Inserir ou alterar foto');controls.append(file);personal.append(controls);
+  let photoPayload=null,removePhoto=false,saving=false;
+  controls.append(button('Remover foto',()=>{if(saving)return;photoPayload=null;removePhoto=true;file.value='';photo.removeAttribute('src');photo.hidden=true;},true));
+  async function readPhoto(selected){
+    if(!selected||selected.size>10*1024*1024)throw Error('Selecione uma imagem de até 10 MB.');
+    const url=URL.createObjectURL(selected);
+    try{
+      const image=new Image();image.src=url;await image.decode();
+      const canvas=document.createElement('canvas'),scale=Math.min(1,320/Math.max(image.width,image.height));
+      canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      const data=canvas.toDataURL('image/jpeg',.85);return {base64:data.split(',')[1],mime:'image/jpeg',preview:data};
+    }finally{URL.revokeObjectURL(url);}
+  }
+  file.onchange=async()=>{
+    if(saving)return;
+    file.disabled=true;
+    try{if(!file.files[0])return;const payload=await readPhoto(file.files[0]);if(!App.alive(token))return;photoPayload=payload;removePhoto=false;photo.src=payload.preview;photo.hidden=false;status('Foto preparada. Clique em Salvar perfil para confirmar.');}
+    catch(e){file.value='';status(e.message||String(e),true);}finally{file.disabled=false;}
+  };
+  function input(form,label,name,value='',type='text',required=true){
+    const wrap=el('label',label),n=el('input');n.name=name;n.type=type;n.value=value;n.required=required;
+    if(type==='password'){n.maxLength=4096;n.autocomplete=name==='novaSenha'?'new-password':'current-password';}else n.maxLength=name==='nome'?140:name==='nomeUsuario'?80:254;
+    wrap.append(n);form.append(wrap);return n;
+  }
+  const form=el('form',undefined,'perf-form');personal.append(form);
+  const name=input(form,'Nome completo','nome',user.nome),username=input(form,'Nome de usuário','nomeUsuario',user.nomeUsuario||user.nome),email=input(form,'E-mail de acesso','email',user.email,'email'),current=input(form,'Senha atual (para trocar o e-mail)','senhaAtual','','password',false);
+  const save=el('button','Salvar perfil');save.type='submit';form.append(save);
+  const passForm=el('form',undefined,'perf-form');security.append(passForm);
+  const oldPass=input(passForm,'Senha atual','senhaAtual','','password'),newPass=input(passForm,'Nova senha','novaSenha','','password');
+  const change=el('button','Alterar senha');change.type='submit';passForm.append(change);
+  async function saveAction(job){
+    if(saving)return;saving=true;root.setAttribute('aria-busy','true');root.querySelectorAll('button,input').forEach(n=>n.disabled=true);
+    try{await job();}catch(e){if(/AUTH:/.test(e.message))auth.sessionExpired(e.message);status(e.message||String(e),true);}
+    finally{saving=false;root.removeAttribute('aria-busy');root.querySelectorAll('button,input').forEach(n=>n.disabled=false);}
+  }
+  form.onsubmit=e=>{e.preventDefault();saveAction(async()=>{
+    const response=await auth.request('authUpdateProfile',auth.getSessionToken(),{
+      versao:user.versao,nome:name.value,nomeUsuario:username.value,email:email.value,senhaAtual:current.value,
+      removerFoto:removePhoto,base64:photoPayload?photoPayload.base64:'',mime:photoPayload?photoPayload.mime:''
+    });
+    current.value='';auth.acceptSession(response);await App.start('PERF');status('Perfil atualizado.');
+  });};
+  passForm.onsubmit=e=>{e.preventDefault();saveAction(async()=>{
+    const response=await auth.request('authChangePassword',auth.getSessionToken(),oldPass.value,newPass.value);
+    oldPass.value='';newPass.value='';auth.acceptSession(response);await App.start('PERF');status('Senha alterada. As outras sessões foram encerradas.');
+  });};
+};
+</script>
