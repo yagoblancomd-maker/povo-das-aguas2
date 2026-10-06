@@ -14,25 +14,66 @@
 
   <div id="app-shell" hidden>
     <header class="app-header">
-      <div class="app-header-inner">
-        <div class="app-header-balance" aria-hidden="true"></div>
+      <div class="app-header-glow app-header-glow-a" aria-hidden="true"></div>
+      <div class="app-header-glow app-header-glow-b" aria-hidden="true"></div>
 
+      <div class="app-header-inner">
         <div class="app-header-brand">
           <div class="app-brand-logo-wrap">
             <?!= include_('Logo'); ?>
           </div>
 
           <div class="app-header-copy">
+            <span class="app-header-eyebrow">CIDIJUS · EMAJ · FURG</span>
             <h1>Povo das Águas</h1>
-            <p>CIDIJUS · Cadastro, organização documental e preparação de ações</p>
+            <p>Sistema integrado de atendimento, documentação e acesso à Justiça.</p>
+          </div>
+        </div>
+
+        <div class="app-header-mission" aria-hidden="true">
+          <span class="app-header-mission-icon">
+            <svg viewBox="0 0 64 28">
+              <path d="M2 10c8-8 16 8 24 0s16 8 24 0 8-2 12 1"></path>
+              <path d="M2 19c8-8 16 8 24 0s16 8 24 0 8-2 12 1"></path>
+            </svg>
+          </span>
+          <div>
+            <strong>Comunidades pesqueiras</strong>
+            <span>Direitos · organização · cuidado</span>
           </div>
         </div>
 
         <div class="app-header-user">
-          <span class="app-header-user-label">USUÁRIO</span>
-          <p id="identity"></p>
-          <button id="logoutButton" class="app-logout-button" type="button">Sair</button>
+          <button id="profileShortcut" class="app-user-avatar" type="button" aria-label="Abrir meu perfil">
+            <img id="headerUserPhoto" alt="" hidden>
+            <span id="headerUserInitials" class="app-user-avatar-fallback">US</span>
+            <span class="app-user-presence" aria-hidden="true"></span>
+          </button>
+
+          <div class="app-header-user-copy">
+            <span class="app-header-user-label">SUA CONTA</span>
+            <strong id="identity" class="app-header-user-name">Usuário</strong>
+            <div class="app-header-user-meta">
+              <span id="headerUserFunction" class="app-user-chip"></span>
+              <span id="headerUserProfile" class="app-user-chip app-user-chip-accent"></span>
+            </div>
+          </div>
+
+          <div class="app-header-user-actions">
+            <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>
+              <span>Perfil</span>
+            </button>
+            <button id="logoutButton" class="app-logout-button" type="button" title="Sair">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path></svg>
+              <span>Sair</span>
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div class="app-header-waterline" aria-hidden="true">
+        <span></span><span></span><span></span>
       </div>
     </header>
 
