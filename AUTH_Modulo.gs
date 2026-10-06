@@ -293,27 +293,25 @@ function authPageBootstrap_(e){
 
 
 function authPortalPeople(){
-  // Elementos decorativos do portal público: retorna somente a imagem de perfil,
-  // sem nome, e-mail, função, ID ou qualquer outro dado da conta.
-  return lock_(()=>{
-    resetData_();
-    authEnsureSchema_();
+  // Recurso visual somente de leitura. Nunca deve disputar o ScriptLock
+  // usado por login, cadastro, perfil ou operações de negócio.
+  resetData_();
+  authEnsureSchema_();
 
-    return all_('Usuarios')
-      .filter(user=>bool_(user.ativo)&&String(user.fotoId||'').trim())
-      .sort((a,b)=>{
-        const ad=Date.parse(a.ultimoLogin||'')||0;
-        const bd=Date.parse(b.ultimoLogin||'')||0;
-        return bd-ad;
-      })
-      .slice(0,5)
-      .map(user=>{
-        try{
-          return {foto:profilePhoto_(user)};
-        }catch(e){
-          return {foto:''};
-        }
-      })
-      .filter(item=>!!item.foto);
-  });
+  return all_('Usuarios')
+    .filter(user=>bool_(user.ativo)&&String(user.fotoId||'').trim())
+    .sort((a,b)=>{
+      const ad=Date.parse(a.ultimoLogin||'')||0;
+      const bd=Date.parse(b.ultimoLogin||'')||0;
+      return bd-ad;
+    })
+    .slice(0,5)
+    .map(user=>{
+      try{
+        return {foto:profilePhoto_(user)};
+      }catch(e){
+        return {foto:''};
+      }
+    })
+    .filter(item=>!!item.foto);
 }
