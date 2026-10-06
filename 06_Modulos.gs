@@ -16,7 +16,7 @@ const MODULE_PERMISSION=Object.freeze({
   PESS:'cadastro',
   ACOMP:'consulta',
   DEFESO:'consulta',
-  TAREFAS:'distribuicao',
+  TAREFAS:'consulta',
   MIN:'minuta',
   DIST:'gestao_distribuicao',
   PROC:'consulta',
@@ -280,8 +280,10 @@ function apiAuthenticated_(action,q,sessionToken){
     ficha:()=>dossier_(q),
     painel:()=>dashboard_(),
     distribuicaoFila:()=>distributionQueue_(),
-    tarefasMinhas:()=>myDistributionTasks_(),
+    tarefasMinhas:()=>myTasks_(),
     tarefaDistribuicaoDetalhe:()=>distributionTaskDetail_(q),
+    tarefaGeralDetalhe:()=>generalTaskDetail_(q),
+    tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
     processos:()=>processList_(),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
@@ -343,7 +345,13 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
-    tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_]
+    tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_],
+    tarefaGeralCriar:['gestao_distribuicao',generalTaskCreate_],
+    tarefaGeralReatribuir:['consulta',generalTaskAssign_],
+    tarefaGeralConcluir:['consulta',generalTaskComplete_],
+    tarefaGeralReabrir:['consulta',generalTaskReopen_],
+    tarefaGeralMensagemEnviar:['consulta',generalTaskMessageSend_],
+    tarefaGeralAnexoAdicionar:['consulta',generalTaskAttachmentAdd_]
   };
 
   if(reads[action]){
@@ -351,8 +359,10 @@ function apiAuthenticated_(action,q,sessionToken){
       admin:'administracao',
       documentosImportar:'cadastro',
       distribuicaoFila:'gestao_distribuicao',
-      tarefasMinhas:'distribuicao',
-      tarefaDistribuicaoDetalhe:'distribuicao'
+      tarefasMinhas:'consulta',
+      tarefaDistribuicaoDetalhe:'distribuicao',
+      tarefaGeralDetalhe:'consulta',
+      tarefaGeralAnexoConteudo:'consulta'
     };
 
     authorize_(
