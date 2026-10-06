@@ -3181,4 +3181,194 @@ summary:focus-visible{
 @media(prefers-reduced-motion:reduce){
   .app-module-enter{animation:none!important}
 }
+
+
+/* Ajustes finais dos módulos: retirar bento/gradientes residuais */
+#pess-root::before{display:none!important}
+#app .pess-import-start{
+  overflow:hidden!important;
+  border:1px solid var(--pda-line)!important;
+  border-radius:5px!important;
+  background:var(--pda-white)!important;
+  box-shadow:none!important
+}
+#app .pess-import-head{
+  padding:12px 14px!important;
+  border-bottom:1px solid var(--pda-line)!important;
+  color:var(--pda-ink)!important;
+  background:#eeeae1!important
+}
+#app .pess-import-kicker{color:var(--pda-sea)!important}
+#app .pess-import-head h3{color:var(--pda-ink)!important}
+#app .pess-import-head p{color:var(--pda-muted)!important}
+#app .pess-import-head-icon{
+  color:var(--pda-sea)!important;
+  border-color:var(--pda-line)!important;
+  background:transparent!important;
+  box-shadow:none!important
+}
+#app .pess-import-upload-card{
+  border-color:var(--pda-line)!important;
+  border-radius:4px!important;
+  background:#fff!important;
+  box-shadow:none!important
+}
+#app .pess-import-upload-card:hover,
+#app .pess-import-upload-card.has-file{
+  transform:none!important;
+  border-color:#a8aaa4!important;
+  background:#f7f4ed!important;
+  box-shadow:none!important
+}
+#app .pess-import-upload-icon{
+  border-radius:50%!important;
+  color:var(--pda-sea)!important;
+  border-color:var(--pda-line)!important;
+  background:var(--pda-sea-soft)!important
+}
+#app .pess-import-upload-card input[type=file]::file-selector-button{
+  border-radius:3px!important;
+  background:var(--pda-sea)!important;
+  font-family:var(--pda-ui)!important
+}
+#app .pess-import-meta,
+#app .pess-import-actions{
+  border-color:var(--pda-line)!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+
+#app .acomp-person-view{
+  border:0!important;
+  background:transparent!important
+}
+#app .acomp-person-view-grid{
+  gap:0!important;
+  border-top:1px solid var(--pda-line)!important;
+  border-bottom:1px solid var(--pda-line)!important
+}
+#app .acomp-person-view-item{
+  padding:9px 10px!important;
+  border:0!important;
+  border-right:1px solid var(--pda-line)!important;
+  border-bottom:1px solid #e5e0d6!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+#app .acomp-person-view-value{
+  color:var(--pda-ink)!important;
+  font-size:11px!important
+}
+#app .acomp-generate-menu>summary{
+  border-radius:4px!important;
+  color:#fff!important;
+  background:var(--pda-sea)!important;
+  box-shadow:none!important
+}
+#app .acomp-generate-menu-panel{
+  border-color:var(--pda-line)!important;
+  border-radius:4px!important;
+  background:var(--pda-white)!important;
+  box-shadow:0 12px 26px rgba(27,43,40,.10)!important;
+  backdrop-filter:none!important
+}
+
+#app .dist-workload,
+#app .dist-section,
+#app .dist-general-section,
+#app .tasks-section{
+  margin-top:22px!important;
+  padding:0!important;
+  border:0!important;
+  border-top:1px solid var(--pda-line)!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important
+}
+#app .dist-section-head,
+#app .tasks-section-head{
+  min-height:45px!important;
+  margin:0!important;
+  padding:10px 0!important
+}
+#app .dist-workload-grid{
+  gap:0!important;
+  border-bottom:1px solid var(--pda-line)!important
+}
+#app .dist-user{
+  padding:8px 10px!important;
+  border:0!important;
+  border-right:1px solid var(--pda-line)!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+#app .dist-user:last-child{border-right:0!important}
+#app .dist-task-info,
+#app .dist-general-meta,
+#app .dist-general-overview,
+#app .task-card-meta,
+#app .task-detail-grid,
+#app .task-distribution-banner,
+#app .task-general-overview{
+  gap:0!important;
+  border-top:1px solid #e2ddd3!important;
+  border-bottom:1px solid #e2ddd3!important
+}
+#app .dist-task-info>div,
+#app .dist-general-meta>div,
+#app .dist-general-overview>div,
+#app .task-detail-item,
+#app .task-distribution-banner>div,
+#app .task-general-overview>div{
+  padding:7px 9px!important;
+  border:0!important;
+  border-right:1px solid #e2ddd3!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+#app .dist-task-info>div:last-child,
+#app .dist-general-meta>div:last-child,
+#app .dist-general-overview>div:last-child,
+#app .task-detail-item:last-child,
+#app .task-distribution-banner>div:last-child,
+#app .task-general-overview>div:last-child{
+  border-right:0!important
+}
+#app .dist-general-text,
+#app .task-general-text{
+  padding:10px 0!important;
+  border:0!important;
+  border-top:1px solid var(--pda-line)!important;
+  border-bottom:1px solid var(--pda-line)!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+#app .dist-chat-message,
+#app .task-chat-message{
+  border-radius:4px!important;
+  border-color:var(--pda-line)!important;
+  background:#f8f5ee!important
+}
+#app .dist-chat-message.mine,
+#app .task-chat-message.mine{
+  border-left:3px solid var(--pda-sea)!important;
+  background:#edf3f1!important
+}
+#app .dist-general-file,
+#app .task-general-file,
+#app .task-doc,
+#app .task-lawyer{
+  border-radius:4px!important;
+  border-color:var(--pda-line)!important;
+  background:#fff!important
+}
+
+#app .task-complete-box{
+  border-radius:4px!important;
+  border-color:var(--pda-line)!important;
+  background:#f4f1e9!important
+}
+#app .task-dialog-actions{
+  background:var(--pda-white)!important
+}
 </style>
