@@ -517,11 +517,11 @@ window.PDA_MODULES.ADM = (()=>{
     accessNotice.append(
       el(
         'strong',
-        'Acesso Google Drive'
+        'Acesso direto aos arquivos do Google Drive'
       ),
       el(
         'p',
-        'O cadastro de usuário e a permissão dos arquivos Google são sincronizados. Usuários somente de Consulta recebem leitura; usuários com qualquer permissão de alteração recebem edição. Use o botão abaixo para corrigir usuários já cadastrados antes desta regra.',
+        'O Web App executa como proprietário e realiza todas as gravações no servidor. Usuários ativos recebem somente leitura direta dos arquivos do Google Drive para abrir PDFs, imagens e pacotes ZIP. O botão abaixo reaplica essa regra aos usuários já cadastrados.',
         'hint'
       )
     );
