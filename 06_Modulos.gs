@@ -325,6 +325,16 @@ function doGet(e){
   template.authBootstrap=
     authPageBootstrap_(e);
 
+  template.authView=
+    include_(
+      'AUTH_View'
+    ).replace(
+      '<!--PDA_AUTH_LOGO-->',
+      include_(
+        'Logo'
+      )
+    );
+
   return template
     .evaluate()
     .setTitle(PDA.name)
