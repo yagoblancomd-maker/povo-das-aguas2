@@ -131,14 +131,65 @@ function authNewSession_(ctx,user){
 }
 
 function authSessionRead_(token){
-  if(!/^[a-f0-9]{64}$/.test(String(token||'')))fail_('AUTH: entre com seu e-mail e senha.');
-  resetData_();authEnsureSchema_();
-  const session=all_('Sessoes').find(s=>s.tokenHash===hash_(token));
-  const user=session&&all_('Usuarios').find(u=>u.id===session.usuarioId);
-  if(!session||bool_(session.revogada)||!(Date.parse(session.expiraEm)>Date.now())||
-     !user||!bool_(user.ativo)||Number(user.sessionVersion||0)!==Number(session.sessionVersion))
-    fail_('AUTH: sua sessão expirou. Entre novamente.');
-  return {email:user.email,user,session,expiresAt:Date.parse(session.expiraEm)};
+  if(!/^[a-f0-9]{64}$/.test(String(token||''))){
+    fail_('AUTH: entre com seu e-mail e senha.');
+  }
+
+  /*
+   * Caminho quente: validar uma sessão não deve executar manutenção de
+   * esquema, criar planilhas nem revisar permissões do Drive.
+   */
+  resetData_();
+
+  const spreadsheet=ss_();
+
+  if(
+    !spreadsheet.getSheetByName('Sessoes')||
+    !spreadsheet.getSheetByName('Usuarios')
+  ){
+    fail_(
+      'AUTH: estrutura de autenticação indisponível. Recarregue o sistema.'
+    );
+  }
+
+  const session=
+    all_('Sessoes')
+      .find(s=>
+        s.tokenHash===
+        hash_(token)
+      );
+
+  const user=
+    session&&
+    all_('Usuarios')
+      .find(u=>
+        u.id===
+        session.usuarioId
+      );
+
+  if(
+    !session||
+    bool_(session.revogada)||
+    !(Date.parse(session.expiraEm)>Date.now())||
+    !user||
+    !bool_(user.ativo)||
+    Number(user.sessionVersion||0)!==
+      Number(session.sessionVersion)
+  ){
+    fail_(
+      'AUTH: sua sessão expirou. Entre novamente.'
+    );
+  }
+
+  return {
+    email:user.email,
+    user,
+    session,
+    expiresAt:
+      Date.parse(
+        session.expiraEm
+      )
+  };
 }
 
 function withAuthSession_(token,fn){
@@ -293,10 +344,13 @@ function authPageBootstrap_(e){
 
 
 function authPortalPeople(){
-  // Recurso visual somente de leitura. Nunca deve disputar o ScriptLock
-  // usado por login, cadastro, perfil ou operações de negócio.
+  // Recurso visual somente de leitura. Nunca deve disputar lock nem executar
+  // manutenção estrutural da autenticação.
   resetData_();
-  authEnsureSchema_();
+
+  if(!ss_().getSheetByName('Usuarios')){
+    return [];
+  }
 
   return all_('Usuarios')
     .filter(user=>bool_(user.ativo)&&String(user.fotoId||'').trim())
