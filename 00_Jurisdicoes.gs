@@ -72,11 +72,24 @@ function atualizarJurisdicoesSeNecessario_(){
     return false;
   }
 
-  atualizarJurisdicoes_();
-  props_().setProperty(
-    key,
-    current
-  );
+  return lock_(()=>{
+    /*
+     * Reconfere depois de adquirir o lock para que dois logins simultâneos
+     * não executem a mesma migração.
+     */
+    if(
+      props_().getProperty(key)===
+      current
+    ){
+      return false;
+    }
 
-  return true;
+    atualizarJurisdicoes_();
+    props_().setProperty(
+      key,
+      current
+    );
+
+    return true;
+  });
 }
