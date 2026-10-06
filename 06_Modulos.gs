@@ -138,6 +138,39 @@ function carregarModulo(code,sessionToken){
   );
 }
 
+/**
+ * Pré-carrega vários módulos em uma única viagem ao Apps Script.
+ * Só devolve módulos efetivamente permitidos ao usuário autenticado.
+ */
+function carregarModulos(codes,sessionToken){
+  return withAuthSession_(
+    sessionToken,
+    ()=>{
+      const allowed=availableModules_(activeUser_());
+      const unique=[
+        ...new Set(
+          (Array.isArray(codes)?codes:[])
+            .map(code=>String(code||'').trim())
+            .filter(Boolean)
+        )
+      ].slice(0,Object.keys(MODULES).length);
+
+      return unique.reduce((out,code)=>{
+        if(
+          MODULES[code]&&
+          Object.prototype.hasOwnProperty.call(
+            allowed,
+            code
+          )
+        ){
+          out[code]=carregarModulo_(code);
+        }
+        return out;
+      },{});
+    }
+  );
+}
+
 function apiAuthenticated_(action,q){
   resetData_();
   q=q||{};
@@ -151,6 +184,7 @@ function apiAuthenticated_(action,q){
   const reads={
     bootstrap:()=>{
       const user=activeUser_();
+      const home=homeModule_(user);
 
       return {
         email:user.email,
@@ -159,7 +193,11 @@ function apiAuthenticated_(action,q){
         permissoes:effectivePermissions_(user),
         config:cfg_(),
         modulos:availableModules_(user),
-        home:homeModule_(user),
+        home,
+        initialModule:{
+          code:home,
+          bundle:carregarModulo_(home)
+        },
         modelo:templateStatus_(),
         portalTransparencia:portalTransparenciaStatus_(),
         deepseek:deepseekStatus_()
@@ -251,7 +289,18 @@ function apiAuthenticated_(action,q){
     );
     return lock_(()=>{
       resetData_();
-      atualizarJurisdicoes_();
+
+      /*
+       * A atualização global de jurisdições é uma migração de consistência,
+       * não uma etapa necessária a cada consulta. Executá-la somente no
+       * bootstrap evita varrer Pessoas/Atendimentos em toda navegação.
+       * Novos cadastros continuam calculando a jurisdição em validatePerson_.
+       */
+      if(action==='bootstrap'){
+        atualizarJurisdicoes_();
+        resetData_();
+      }
+
       return reads[action]();
     });
   }
@@ -262,7 +311,6 @@ function apiAuthenticated_(action,q){
     resetData_();
 
     const email=authorize_(mutations[action][0]);
-    atualizarJurisdicoes_();
 
     if(!/^[a-zA-Z0-9_-]{16,100}$/.test(q.op||'')){
       fail_('Identificador de operação inválido.');
