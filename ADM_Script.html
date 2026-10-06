@@ -259,86 +259,111 @@ window.PDA_MODULES.ADM = (()=>{
         :'Salvar chave DeepSeek'
     );
 
-    const selfRegistration=
+    const googleLogin=
       card(
-        'Primeiro acesso e autocadastro'
+        'Login Google e primeiro acesso'
       );
 
     root.append(
-      selfRegistration
+      googleLogin
     );
 
-    selfRegistration.append(
+    const oauth=
+      d.googleOAuth||
+      {};
+
+    googleLogin.append(
       el(
         'p',
-        d.autocadastro&&
-        d.autocadastro.configurada
-          ?'Autocadastro ativo. Novas pessoas podem criar o próprio usuário sem aprovação manual.'
-          :'Autocadastro ainda não concluído.',
-        d.autocadastro&&
-        d.autocadastro.configurada
+        oauth.configurada
+          ?'Login Google ativo em uma única implantação.'
+          :'Login Google ainda não configurado.',
+        oauth.configurada
           ?'badge'
           :'warn'
       )
     );
 
-    selfRegistration.append(
+    googleLogin.append(
       el(
         'p',
-        'O primeiro acesso identifica a Conta Google e solicita nome e função. Professor e Residente iniciam com Consulta e Cadastro e aguardam aprovação administrativa para receber as demais permissões operacionais do perfil; Administração e Distribuir processos continuam dependentes de concessão específica. Colaborador recebe Consulta, Cadastro e Retificação somente dos próprios cadastros. Aluno recebe Consulta e Distribuir processos. Para preservar a segurança do banco, a ativação utiliza uma segunda implantação do mesmo Apps Script executada como proprietário.',
+        'O Povo das Águas usa uma única implantação executada como proprietário. A identidade de cada pessoa é confirmada diretamente pelo Google OAuth e as permissões continuam sendo controladas pela tabela de usuários do sistema. Não existe mais gateway ou segunda implantação de autocadastro.',
         'hint'
       )
     );
 
-    const setupSteps=
+    const oauthInfo=
       el(
         'div',
         undefined,
-        'adm-autocadastro-steps'
+        'adm-oauth-info'
       );
 
-    [
-      '1. Em Implantar → Gerenciar implantações, crie uma nova implantação do tipo Aplicativo da Web.',
-      '2. Configure essa implantação para executar como você/proprietário do sistema.',
-      '3. Permita o acesso necessário para que o link de ativação possa ser aberto.',
-      '4. Copie a URL /exec dessa implantação e salve abaixo. Esta configuração é feita uma única vez.'
-    ].forEach(text=>{
-      setupSteps.append(
-        el(
-          'div',
-          text,
-          'adm-autocadastro-step'
-        )
+    const redirectBox=
+      el(
+        'div'
       );
-    });
 
-    selfRegistration.append(
-      setupSteps
+    redirectBox.append(
+      el(
+        'strong',
+        'URI de redirecionamento autorizado'
+      ),
+      el(
+        'code',
+        oauth.redirectUri||
+        'Publique a implantação principal para obter a URL /exec.'
+      )
+    );
+
+    oauthInfo.append(
+      redirectBox
+    );
+
+    googleLogin.append(
+      oauthInfo
     );
 
     form(
-      selfRegistration,
+      googleLogin,
       [
         {
-          key:'url',
-          label:'URL /exec da implantação de autocadastro',
+          key:'clientId',
+          label:'Google OAuth Client ID',
           required:true,
-          placeholder:'https://script.google.com/macros/s/.../exec'
+          placeholder:'000000000000-xxxxxxxx.apps.googleusercontent.com'
+        },
+        {
+          key:'clientSecret',
+          label:
+            oauth.clientSecretConfigurado
+              ?'Google OAuth Client Secret — deixe vazio para manter o atual'
+              :'Google OAuth Client Secret',
+          type:'password',
+          required:!oauth.clientSecretConfigurado,
+          placeholder:
+            oauth.clientSecretConfigurado
+              ?'••••••••••••'
+              :'Cole o Client Secret'
         }
       ],
       {
-        url:
-          d.autocadastro&&
-          d.autocadastro.url
-            ?d.autocadastro.url
-            :''
+        clientId:
+          oauth.clientId||
+          '',
+        clientSecret:''
       },
       async q=>{
         const result=
           await call(
-            'autocadastroGatewaySalvar',
+            'googleOAuthConfigSalvar',
             q,
             true
+          );
+
+        App.state.boot=
+          await call(
+            'bootstrap'
           );
 
         await go(
@@ -347,14 +372,14 @@ window.PDA_MODULES.ADM = (()=>{
 
         status(
           result.mensagem||
-          'Gateway de autocadastro configurado.'
+          'Login Google atualizado.'
         );
       },
-      d.autocadastro&&
-      d.autocadastro.configurada
-        ?'Atualizar gateway de autocadastro'
-        :'Ativar gateway de autocadastro'
+      oauth.configurada
+        ?'Atualizar Login Google'
+        :'Salvar configuração do Login Google'
     );
+
 
     const labels={
       rascunhos:
