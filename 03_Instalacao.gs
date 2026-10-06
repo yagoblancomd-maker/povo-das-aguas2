@@ -1,5 +1,5 @@
 /** Executar somente no editor, nunca pelo navegador. Configure OWNER_EMAIL nas propriedades primeiro. */
-function instalar(){
+function instalar_(){
   return lock_(function(){
     resetData_();
 
