@@ -133,7 +133,7 @@ window.PDA_MODULES.ADM = (()=>{
             );
 
           App.state.boot=
-            await call('bootstrap');
+            await call('bootstrap',{light:true});
 
           await go('ADM');
 
@@ -192,7 +192,7 @@ window.PDA_MODULES.ADM = (()=>{
         );
 
         App.state.boot=
-          await call('bootstrap');
+          await call('bootstrap',{light:true});
 
         await go('ADM');
         status(result.mensagem||'Chave da API salva.');
@@ -245,7 +245,7 @@ window.PDA_MODULES.ADM = (()=>{
         );
 
         App.state.boot=
-          await call('bootstrap');
+          await call('bootstrap',{light:true});
 
         await go('ADM');
 
@@ -361,7 +361,7 @@ window.PDA_MODULES.ADM = (()=>{
             );
 
             App.state.boot=
-              await call('bootstrap');
+              await call('bootstrap',{light:true});
 
             await go('ADM');
           }
@@ -660,9 +660,7 @@ window.PDA_MODULES.ADM = (()=>{
             );
 
             App.state.boot=
-              await call(
-                'bootstrap'
-              );
+              await call('bootstrap',{light:true});
 
             await go(
               'ADM'
@@ -772,9 +770,7 @@ window.PDA_MODULES.ADM = (()=>{
                 );
 
                 App.state.boot=
-                  await call(
-                    'bootstrap'
-                  );
+                  await call('bootstrap',{light:true});
 
                 await go(
                   'ADM'
@@ -892,9 +888,7 @@ window.PDA_MODULES.ADM = (()=>{
                 );
 
               App.state.boot=
-                await call(
-                  'bootstrap'
-                );
+                await call('bootstrap',{light:true});
 
               await go(
                 'ADM'
