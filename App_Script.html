@@ -2,7 +2,7 @@
 'use strict';
 window.PDA_MODULES={};
 const App=(()=>{
- let epoch=0,busy=0,boot=null,current='PAINEL',selection=null,authSessionToken='';
+ let epoch=0,busy=0,boot=null,current='PAINEL',selection=null,authSessionToken='',headerProfilePhoto='';
  const el=(tag,text,cls)=>{const n=document.createElement(tag);
 if(text!==undefined)n.textContent=text;
 if(cls)n.className=cls;
@@ -935,7 +935,8 @@ f.insertBefore(file,f.firstChild);
   MIN:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M15 4v5h4"></path><path d="m8.5 14 2 2 5-5"></path></svg>',
   ADM:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3.5v2"></path><path d="M12 18.5v2"></path><path d="M3.5 12h2"></path><path d="M18.5 12h2"></path><path d="m5.9 5.9 1.4 1.4"></path><path d="m16.7 16.7 1.4 1.4"></path><path d="m18.1 5.9-1.4 1.4"></path><path d="m7.3 16.7-1.4 1.4"></path></svg>',
   CONSULTAS:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="m15 15 5 5"></path></svg>',
-  DISTRIBUICAO:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5z"></path><path d="M14 14h5v5h-5z"></path><path d="M14 5h5v5h-5z"></path><path d="M10 7.5h4"></path><path d="M16.5 10v4"></path></svg>'
+  DISTRIBUICAO:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5z"></path><path d="M14 14h5v5h-5z"></path><path d="M14 5h5v5h-5z"></path><path d="M10 7.5h4"></path><path d="M16.5 10v4"></path></svg>',
+  PERF:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>'
  };
 
  function navIcon_(code){
@@ -969,24 +970,92 @@ f.insertBefore(file,f.firstChild);
  function renderNavigation_(){
   if(!boot)return;
 
+  const user=boot.usuario||{};
   const identity=
     document.getElementById('identity');
+  const functionNode=
+    document.getElementById('headerUserFunction');
+  const profileNode=
+    document.getElementById('headerUserProfile');
+  const photo=
+    document.getElementById('headerUserPhoto');
+  const fallback=
+    document.getElementById('headerUserInitials');
+  const profileShortcut=
+    document.getElementById('profileShortcut');
+  const profileButton=
+    document.getElementById('profileButton');
+
+  const displayName=
+    user.nomeUsuario||
+    user.nome||
+    boot.email||
+    'Usuário';
 
   if(identity){
-    const user=boot.usuario||{};
-    const parts=[
-      user.nomeUsuario||user.nome||boot.email,
-      user.funcao||'',
-      boot.perfil
-    ].filter(Boolean);
-
-    identity.textContent=
-      parts.join(' · ');
-
+    identity.textContent=displayName;
     identity.title=
-      boot.email+
-      ' · permissões: '+
-      (boot.permissoes||[]).join(', ');
+      (boot.email||'')+
+      (
+        boot.permissoes&&boot.permissoes.length
+          ?' · permissões: '+boot.permissoes.join(', ')
+          :''
+      );
+  }
+
+  if(functionNode){
+    functionNode.textContent=
+      user.funcao||'';
+  }
+
+  if(profileNode){
+    profileNode.textContent=
+      boot.perfil||user.perfil||'';
+  }
+
+  if(fallback){
+    const words=
+      String(displayName)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    fallback.textContent=
+      (
+        (words[0]&&words[0][0]||'U')+
+        (
+          words.length>1
+            ?words[words.length-1][0]
+            :''
+        )
+      ).toUpperCase();
+
+    fallback.hidden=
+      !!headerProfilePhoto;
+  }
+
+  if(photo){
+    if(headerProfilePhoto){
+      photo.src=headerProfilePhoto;
+      photo.alt='Foto de '+displayName;
+      photo.hidden=false;
+    }else{
+      photo.removeAttribute('src');
+      photo.alt='';
+      photo.hidden=true;
+    }
+  }
+
+  if(profileShortcut){
+    profileShortcut.title=
+      'Abrir perfil de '+displayName;
+    profileShortcut.onclick=
+      ()=>go('PERF');
+  }
+
+  if(profileButton){
+    profileButton.onclick=
+      ()=>go('PERF');
   }
 
   const nav=
@@ -1205,6 +1274,33 @@ f.insertBefore(file,f.firstChild);
 
     boot=await call('bootstrap');
     renderNavigation_();
+
+    window.PDA_AUTH
+      .request(
+        'authProfile',
+        authSessionToken
+      )
+      .then(profile=>{
+        if(
+          profile&&
+          profile.usuario
+        ){
+          boot.usuario=
+            Object.assign(
+              {},
+              boot.usuario||{},
+              profile.usuario
+            );
+        }
+
+        headerProfilePhoto=
+          profile&&profile.foto
+            ?profile.foto
+            :'';
+
+        renderNavigation_();
+      })
+      .catch(()=>{});
 
     await go(
       preferredModule||boot.home||
