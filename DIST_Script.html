@@ -4,65 +4,179 @@ window.PDA_MODULES.DIST = (()=>{
     el,button,call,alive,status
   }=App;
 
+  const MAX_FILE_BYTES=5*1024*1024;
+
   function money_(value){
     return Number(value||0).toLocaleString(
       'pt-BR',
-      {
-        style:'currency',
-        currency:'BRL'
-      }
+      {style:'currency',currency:'BRL'}
     );
   }
 
   function cpf_(value){
-    const d=String(value||'')
-      .replace(/\D/g,'');
-
+    const d=String(value||'').replace(/\D/g,'');
     return d.length===11
-      ?d.replace(
-          /(\d{3})(\d{3})(\d{3})(\d{2})/,
-          '$1.$2.$3-$4'
-        )
+      ?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')
       :String(value||'');
   }
 
+  function date_(value){
+    const text=String(value||'').trim();
+    if(!text)return '—';
+    const m=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m
+      ?m[3]+'/'+m[2]+'/'+m[1]
+      :text;
+  }
+
+  function dateTime_(value){
+    const text=String(value||'').trim();
+    if(!text)return '';
+    const d=new Date(text);
+    if(Number.isNaN(d.getTime()))return text;
+    return d.toLocaleString('pt-BR');
+  }
+
+  function priority_(value){
+    return ({
+      BAIXA:'Baixa',
+      NORMAL:'Normal',
+      ALTA:'Alta',
+      URGENTE:'Urgente'
+    })[String(value||'NORMAL').toUpperCase()]||'Normal';
+  }
+
+  function bytes_(value){
+    const n=Number(value||0);
+    if(!n)return '';
+    if(n<1024)return n+' B';
+    if(n<1024*1024)return (n/1024).toFixed(1)+' KB';
+    return (n/(1024*1024)).toFixed(1)+' MB';
+  }
+
+  function field_(label,control){
+    const field=el('label',undefined,'field');
+    field.append(el('span',label),control);
+    return field;
+  }
+
+  function fileBase64_(file){
+    return new Promise((resolve,reject)=>{
+      if(!file||file.type!=='application/pdf'){
+        reject(new Error('Somente arquivos PDF podem ser anexados.'));
+        return;
+      }
+
+      if(file.size>MAX_FILE_BYTES){
+        reject(new Error('Cada PDF deve ter no máximo 5 MB.'));
+        return;
+      }
+
+      const reader=new FileReader();
+
+      reader.onerror=()=>reject(
+        new Error('Não foi possível ler o PDF '+file.name+'.')
+      );
+
+      reader.onload=()=>{
+        const value=String(reader.result||'');
+        const comma=value.indexOf(',');
+        resolve(comma>=0?value.slice(comma+1):value);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadFiles_(taskId,files){
+    const list=Array.from(files||[]);
+
+    for(let i=0;i<list.length;i++){
+      const file=list[i];
+      status(
+        'Anexando PDF '+(i+1)+' de '+list.length+'…'
+      );
+
+      await call(
+        'tarefaGeralAnexoAdicionar',
+        {
+          id:taskId,
+          nome:file.name,
+          mime:file.type,
+          base64:await fileBase64_(file)
+        },
+        true
+      );
+    }
+  }
+
+  async function openPdf_(taskId,attachment){
+    const tab=window.open('','_blank');
+
+    if(tab){
+      tab.document.title='Abrindo PDF…';
+      tab.document.body.innerHTML=
+        '<div style="font:14px system-ui;padding:24px;color:#173f51">Carregando PDF…</div>';
+    }
+
+    try{
+      const result=await call(
+        'tarefaGeralAnexoConteudo',
+        {
+          id:taskId,
+          anexoId:attachment.id
+        }
+      );
+
+      const raw=atob(result.base64);
+      const bytes=new Uint8Array(raw.length);
+
+      for(let i=0;i<raw.length;i++){
+        bytes[i]=raw.charCodeAt(i);
+      }
+
+      const url=URL.createObjectURL(
+        new Blob([bytes],{type:result.mime||'application/pdf'})
+      );
+
+      if(tab){
+        tab.location.replace(url);
+      }else{
+        const a=document.createElement('a');
+        a.href=url;
+        a.target='_blank';
+        a.rel='noopener';
+        document.body.append(a);
+        a.click();
+        a.remove();
+      }
+
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(e){
+      if(tab&&!tab.closed)tab.close();
+      throw e;
+    }
+  }
+
   function assignmentCard_(task,users,refresh){
-    const card=
-      el(
-        'article',
-        undefined,
-        'dist-task-card '+(
-          task.situacao==='PENDENTE_ATRIBUICAO'
-            ?'unassigned'
-            :'assigned'
-        )
-      );
+    const card=el(
+      'article',
+      undefined,
+      'dist-task-card '+(
+        task.situacao==='PENDENTE_ATRIBUICAO'
+          ?'unassigned'
+          :'assigned'
+      )
+    );
 
-    const top=
-      el(
-        'div',
-        undefined,
-        'dist-task-top'
-      );
-
-    const copy=
-      el(
-        'div'
-      );
+    const top=el('div',undefined,'dist-task-top');
+    const copy=el('div');
 
     copy.append(
-      el(
-        'strong',
-        task.pessoa
-      ),
+      el('strong',task.pessoa),
       el(
         'small',
-        cpf_(task.cpf)+
-        (
-          task.cidade
-            ?' · '+task.cidade
-            :''
-        )
+        cpf_(task.cpf)+(task.cidade?' · '+task.cidade:'')
       )
     );
 
@@ -77,100 +191,37 @@ window.PDA_MODULES.DIST = (()=>{
       )
     );
 
-    const info=
-      el(
-        'div',
-        undefined,
-        'dist-task-info'
-      );
+    const info=el('div',undefined,'dist-task-info');
 
     [
-      [
-        'Jurisdição',
-        task.jurisdicao||'—'
-      ],
-      [
-        'Valor da causa',
-        money_(task.valorCausa)
-      ],
+      ['Jurisdição',task.jurisdicao||'—'],
+      ['Valor da causa',money_(task.valorCausa)],
       [
         'Responsável atual',
-        task.responsavelNome||
-        task.responsavel||
-        'Não atribuído'
+        task.responsavelNome||task.responsavel||'Não atribuído'
       ]
     ].forEach(([label,value])=>{
       const item=el('div');
-
-      item.append(
-        el(
-          'span',
-          label
-        ),
-        el(
-          'strong',
-          value
-        )
-      );
-
+      item.append(el('span',label),el('strong',value));
       info.append(item);
     });
 
-    const assign=
-      el(
-        'div',
-        undefined,
-        'dist-assign-row'
-      );
-
-    const field=
-      el(
-        'label',
-        undefined,
-        'field'
-      );
-
-    field.append(
-      el(
-        'span',
-        'Atribuir distribuição para'
-      )
-    );
-
-    const select=
-      el(
-        'select'
-      );
+    const assign=el('div',undefined,'dist-assign-row');
+    const select=el('select');
 
     select.append(
-      new Option(
-        'Selecione o responsável',
-        ''
-      )
+      new Option('Selecione o responsável','')
     );
 
     users.forEach(user=>{
-      const label=[
-        user.nome,
-        user.funcao,
+      const option=new Option(
+        [user.nome,user.funcao,user.email].filter(Boolean).join(' · '),
         user.email
-      ].filter(Boolean).join(' · ');
-
-      const option=
-        new Option(
-          label,
-          user.email
-        );
+      );
 
       if(
-        String(
-          task.responsavel||
-          ''
-        ).toLowerCase()===
-        String(
-          user.email||
-          ''
-        ).toLowerCase()
+        String(task.responsavel||'').toLowerCase()===
+        String(user.email||'').toLowerCase()
       ){
         option.selected=true;
       }
@@ -178,52 +229,571 @@ window.PDA_MODULES.DIST = (()=>{
       select.append(option);
     });
 
-    field.append(select);
+    const save=button(
+      task.responsavel?'Reatribuir tarefa':'Atribuir tarefa',
+      async()=>{
+        if(!select.value){
+          throw new Error(
+            'Selecione um usuário responsável pela distribuição.'
+          );
+        }
 
-    const save=
+        const result=await call(
+          'tarefaDistribuicaoAtribuir',
+          {id:task.id,responsavel:select.value},
+          true
+        );
+
+        status('Tarefa atribuída a '+result.responsavel+'.');
+        await refresh();
+      }
+    );
+
+    assign.append(
+      field_('Atribuir distribuição para',select),
+      save
+    );
+
+    card.append(top,info,assign);
+    return card;
+  }
+
+  function generalCard_(task,onOpen){
+    const done=task.situacao==='CONCLUIDA';
+    const card=el(
+      'article',
+      undefined,
+      'dist-general-card'+(done?' done':'')
+    );
+
+    const top=el('div',undefined,'dist-general-top');
+    const copy=el('div');
+
+    copy.append(
+      el('strong',task.titulo),
+      el(
+        'small',
+        'Criada por '+(task.criadoPorNome||task.criadoPor||'—')
+      )
+    );
+
+    top.append(
+      copy,
+      el(
+        'span',
+        done?'CONCLUÍDA':priority_(task.prioridade).toUpperCase(),
+        'dist-general-status '+String(task.prioridade||'NORMAL').toLowerCase()
+      )
+    );
+
+    const description=el(
+      'p',
+      task.descricao||'Sem informações adicionais.',
+      'dist-general-description'
+    );
+
+    const meta=el('div',undefined,'dist-general-meta');
+
+    [
+      ['Responsável',task.responsavelNome||task.responsavel||'—'],
+      ['Prazo',date_(task.prazo)],
+      ['Mensagens',String(task.mensagens||0)],
+      ['PDFs',String(task.anexos||0)]
+    ].forEach(([label,value])=>{
+      const item=el('div');
+      item.append(el('span',label),el('strong',value));
+      meta.append(item);
+    });
+
+    const actions=el('div',undefined,'actions');
+    actions.append(
       button(
-        task.responsavel
-          ?'Reatribuir tarefa'
-          :'Atribuir tarefa',
-        async()=>{
-          if(!select.value){
-            throw new Error(
-              'Selecione um usuário responsável pela distribuição.'
-            );
-          }
+        done?'Abrir histórico':'Abrir / conversar',
+        ()=>onOpen(task)
+      )
+    );
 
-          const result=
+    card.append(top,description,meta,actions);
+    return card;
+  }
+
+  function renderMessages_(container,detail){
+    container.replaceChildren();
+
+    if(!detail.mensagens||!detail.mensagens.length){
+      container.append(
+        el(
+          'div',
+          'Nenhuma mensagem nesta tarefa.',
+          'dist-chat-empty'
+        )
+      );
+      return;
+    }
+
+    detail.mensagens.forEach(message=>{
+      const item=el('div',undefined,'dist-chat-message');
+      const head=el('div',undefined,'dist-chat-message-head');
+
+      head.append(
+        el('strong',message.autorNome||message.autor||'Usuário'),
+        el('span',dateTime_(message.criadoEm))
+      );
+
+      item.append(
+        head,
+        el('p',message.mensagem)
+      );
+
+      container.append(item);
+    });
+
+    container.scrollTop=container.scrollHeight;
+  }
+
+  function renderAttachments_(container,detail){
+    container.replaceChildren();
+
+    if(!detail.anexos||!detail.anexos.length){
+      container.append(
+        el('div','Nenhum PDF anexado.','dist-chat-empty')
+      );
+      return;
+    }
+
+    detail.anexos.forEach(attachment=>{
+      const row=el('div',undefined,'dist-general-file');
+      const copy=el('div');
+
+      copy.append(
+        el('strong',attachment.nome),
+        el(
+          'small',
+          [
+            bytes_(attachment.bytes),
+            attachment.enviadoPorNome||attachment.enviadoPor,
+            dateTime_(attachment.criadoEm)
+          ].filter(Boolean).join(' · ')
+        )
+      );
+
+      row.append(
+        copy,
+        button(
+          'Abrir PDF',
+          ()=>openPdf_(detail.tarefa.id,attachment),
+          true
+        )
+      );
+
+      container.append(row);
+    });
+  }
+
+  async function openGeneralDialog_(root,task,refresh){
+    const detail=await call(
+      'tarefaGeralDetalhe',
+      {id:task.id}
+    );
+
+    const prior=root.querySelector('.dist-general-dialog');
+    if(prior)prior.remove();
+
+    const dialog=el('dialog',undefined,'dist-general-dialog');
+    const shell=el('div',undefined,'dist-general-dialog-shell');
+    const head=el('div',undefined,'dist-general-dialog-head');
+    const headCopy=el('div');
+
+    headCopy.append(
+      el('h3',detail.tarefa.titulo),
+      el(
+        'p',
+        'Criada por '+(
+          detail.tarefa.criadoPorNome||
+          detail.tarefa.criadoPor||
+          '—'
+        )
+      )
+    );
+
+    head.append(
+      headCopy,
+      button('Fechar',()=>dialog.close(),true)
+    );
+
+    const body=el('div',undefined,'dist-general-dialog-body');
+
+    const overview=el('div',undefined,'dist-general-overview');
+
+    [
+      ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
+      ['Prioridade',priority_(detail.tarefa.prioridade)],
+      ['Prazo',date_(detail.tarefa.prazo)],
+      ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
+    ].forEach(([label,value])=>{
+      const item=el('div');
+      item.append(el('span',label),el('strong',value||'—'));
+      overview.append(item);
+    });
+
+    body.append(
+      overview,
+      el(
+        'div',
+        detail.tarefa.descricao||'Sem informações adicionais.',
+        'dist-general-text'
+      )
+    );
+
+    if(
+      detail.permissoes&&
+      detail.permissoes.gerenciar&&
+      detail.tarefa.situacao!=='CONCLUIDA'
+    ){
+      const manage=el('section',undefined,'dist-general-panel');
+      manage.append(el('h4','Responsável pela tarefa'));
+
+      const select=el('select');
+
+      (detail.usuarios||[]).forEach(user=>{
+        const option=new Option(
+          [user.nome,user.funcao,user.email].filter(Boolean).join(' · '),
+          user.email
+        );
+
+        if(
+          String(user.email||'').toLowerCase()===
+          String(detail.tarefa.responsavel||'').toLowerCase()
+        ){
+          option.selected=true;
+        }
+
+        select.append(option);
+      });
+
+      manage.append(
+        el(
+          'p',
+          'A reatribuição preserva o histórico de mensagens e PDFs.',
+          'hint'
+        ),
+        field_('Responsável',select),
+        button(
+          'Salvar responsável',
+          async()=>{
             await call(
-              'tarefaDistribuicaoAtribuir',
+              'tarefaGeralReatribuir',
               {
-                id:task.id,
+                id:detail.tarefa.id,
                 responsavel:select.value
               },
               true
             );
-
-          status(
-            'Tarefa atribuída a '+
-            result.responsavel+
-            '.'
-          );
-
-          await refresh();
-        }
+            status('Responsável atualizado.');
+            dialog.close();
+            await refresh();
+          }
+        )
       );
 
-    assign.append(
-      field,
-      save
+      body.append(manage);
+    }
+
+    const files=el('section',undefined,'dist-general-panel');
+    const filesHead=el('div',undefined,'dist-general-panel-head');
+    const fileGrid=el('div',undefined,'dist-general-files');
+
+    filesHead.append(el('h4','PDFs da tarefa'));
+
+    const addFile=el('input');
+    addFile.type='file';
+    addFile.accept='application/pdf,.pdf';
+    addFile.multiple=true;
+
+    const upload=button(
+      'Adicionar PDF',
+      ()=>addFile.click(),
+      true
     );
 
-    card.append(
-      top,
-      info,
-      assign
+    addFile.addEventListener('change',async()=>{
+      if(!addFile.files||!addFile.files.length)return;
+
+      await uploadFiles_(
+        detail.tarefa.id,
+        addFile.files
+      );
+
+      status('PDF(s) anexado(s).');
+      dialog.close();
+      await refresh();
+      await openGeneralDialog_(
+        root,
+        detail.tarefa,
+        refresh
+      );
+    });
+
+    filesHead.append(upload,addFile);
+    files.append(filesHead,fileGrid);
+    renderAttachments_(fileGrid,detail);
+    body.append(files);
+
+    const chat=el('section',undefined,'dist-general-panel');
+    chat.append(el('h4','Diálogo da tarefa'));
+
+    const messages=el('div',undefined,'dist-chat');
+    renderMessages_(messages,detail);
+
+    const composer=el('div',undefined,'dist-chat-compose');
+    const textarea=el('textarea');
+    textarea.rows=3;
+    textarea.maxLength=3000;
+    textarea.placeholder='Escreva uma mensagem para o responsável…';
+
+    composer.append(
+      textarea,
+      button(
+        'Enviar mensagem',
+        async()=>{
+          const message=String(textarea.value||'').trim();
+
+          if(!message){
+            throw new Error('Digite uma mensagem.');
+          }
+
+          await call(
+            'tarefaGeralMensagemEnviar',
+            {
+              id:detail.tarefa.id,
+              mensagem:message
+            },
+            true
+          );
+
+          status('Mensagem enviada.');
+          dialog.close();
+          await refresh();
+          await openGeneralDialog_(
+            root,
+            detail.tarefa,
+            refresh
+          );
+        }
+      )
     );
 
-    return card;
+    chat.append(messages,composer);
+    body.append(chat);
+
+    const actions=el('div',undefined,'dist-general-dialog-actions');
+
+    if(
+      detail.tarefa.situacao==='CONCLUIDA'&&
+      detail.permissoes&&
+      detail.permissoes.gerenciar
+    ){
+      actions.append(
+        button(
+          'Reabrir tarefa',
+          async()=>{
+            await call(
+              'tarefaGeralReabrir',
+              {id:detail.tarefa.id},
+              true
+            );
+
+            status('Tarefa reaberta.');
+            dialog.close();
+            await refresh();
+          },
+          true
+        )
+      );
+    }
+
+    if(
+      detail.tarefa.situacao!=='CONCLUIDA'&&
+      detail.permissoes&&
+      detail.permissoes.concluir
+    ){
+      actions.append(
+        button(
+          'Marcar como concluída',
+          async()=>{
+            await call(
+              'tarefaGeralConcluir',
+              {id:detail.tarefa.id},
+              true
+            );
+
+            status('Tarefa concluída.');
+            dialog.close();
+            await refresh();
+          }
+        )
+      );
+    }
+
+    if(actions.childNodes.length){
+      body.append(actions);
+    }
+
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
+    dialog.showModal();
+  }
+
+  function openCreateDialog_(root,data,refresh){
+    const prior=root.querySelector('.dist-create-dialog');
+    if(prior)prior.remove();
+
+    const dialog=el('dialog',undefined,'dist-create-dialog');
+    const shell=el('div',undefined,'dist-create-shell');
+    const head=el('div',undefined,'dist-create-head');
+    const headCopy=el('div');
+
+    headCopy.append(
+      el('h3','Nova tarefa'),
+      el(
+        'p',
+        'Crie uma tarefa interna, atribua a uma pessoa e anexe PDFs.'
+      )
+    );
+
+    head.append(
+      headCopy,
+      button('Fechar',()=>dialog.close(),true)
+    );
+
+    const body=el('div',undefined,'dist-create-body');
+
+    const title=el('input');
+    title.type='text';
+    title.maxLength=160;
+    title.placeholder='Ex.: Conferir documentos pendentes';
+
+    const description=el('textarea');
+    description.rows=6;
+    description.maxLength=6000;
+    description.placeholder=
+      'Inclua aqui todas as informações necessárias para executar a tarefa.';
+
+    const responsible=el('select');
+    responsible.append(
+      new Option('Selecione o responsável','')
+    );
+
+    (data.usuariosTarefas||[]).forEach(user=>{
+      responsible.append(
+        new Option(
+          [user.nome,user.funcao,user.email].filter(Boolean).join(' · '),
+          user.email
+        )
+      );
+    });
+
+    const priority=el('select');
+    [
+      ['NORMAL','Normal'],
+      ['BAIXA','Baixa'],
+      ['ALTA','Alta'],
+      ['URGENTE','Urgente']
+    ].forEach(([value,label])=>
+      priority.append(new Option(label,value))
+    );
+
+    const deadline=el('input');
+    deadline.type='date';
+
+    const files=el('input');
+    files.type='file';
+    files.accept='application/pdf,.pdf';
+    files.multiple=true;
+
+    const grid=el('div',undefined,'dist-create-grid');
+
+    grid.append(
+      field_('Título',title),
+      field_('Responsável',responsible),
+      field_('Prioridade',priority),
+      field_('Prazo',deadline)
+    );
+
+    body.append(
+      grid,
+      field_('Informações da tarefa',description),
+      field_('PDFs (opcional, até 5 MB por arquivo)',files)
+    );
+
+    const actions=el('div',undefined,'dist-create-actions');
+
+    actions.append(
+      button('Cancelar',()=>dialog.close(),true),
+      button(
+        'Criar e atribuir tarefa',
+        async()=>{
+          const taskTitle=String(title.value||'').trim();
+
+          if(!taskTitle){
+            throw new Error('Informe o título da tarefa.');
+          }
+
+          if(!responsible.value){
+            throw new Error('Selecione o responsável.');
+          }
+
+          const result=await call(
+            'tarefaGeralCriar',
+            {
+              titulo:taskTitle,
+              descricao:String(description.value||'').trim(),
+              responsavel:responsible.value,
+              prioridade:priority.value,
+              prazo:deadline.value
+            },
+            true
+          );
+
+          if(files.files&&files.files.length){
+            await uploadFiles_(
+              result.tarefa.id,
+              files.files
+            );
+          }
+
+          status(
+            result.mensagem||
+            'Tarefa criada.'
+          );
+
+          dialog.close();
+          await refresh();
+        }
+      )
+    );
+
+    body.append(actions);
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
+    dialog.showModal();
+    requestAnimationFrame(()=>title.focus());
   }
 
   return async function(ctx){
@@ -232,164 +802,138 @@ window.PDA_MODULES.DIST = (()=>{
     const render=async()=>{
       root.replaceChildren();
 
-      const data=
-        await call(
-          'distribuicaoFila'
-        );
-
+      const data=await call('distribuicaoFila');
       if(!alive(ctx))return;
 
-      const head=
-        el(
-          'div',
-          undefined,
-          'dist-head'
-        );
-
-      const headCopy=
-        el(
-          'div'
-        );
+      const head=el('div',undefined,'dist-head');
+      const headCopy=el('div');
 
       headCopy.append(
-        el(
-          'h2',
-          'Distribuição'
-        ),
+        el('h2','Atribuir tarefas'),
         el(
           'p',
-          'Atribua individualmente cada tarefa de distribuição aos usuários autorizados. Depois da atribuição, a tarefa aparecerá em Minhas tarefas para o responsável.',
+          'Gerencie distribuições processuais e crie tarefas internas com informações, PDFs e diálogo entre criador e responsável.',
           'hint'
         )
       );
 
-      const reconcile=
+      const headActions=el('div',undefined,'dist-head-actions');
+
+      headActions.append(
+        button(
+          'Nova tarefa',
+          ()=>openCreateDialog_(root,data,render)
+        ),
         button(
           'Criar tarefas faltantes',
           async()=>{
-            const result=
-              await call(
-                'tarefasDistribuicaoReconciliar',
-                {},
-                true
-              );
-
-            status(
-              result.mensagem||
-              'Tarefas reconciliadas.'
+            const result=await call(
+              'tarefasDistribuicaoReconciliar',
+              {},
+              true
             );
 
+            status(result.mensagem||'Tarefas reconciliadas.');
             await render();
           },
           true
-        );
-
-      head.append(
-        headCopy,
-        reconcile
+        )
       );
 
+      head.append(headCopy,headActions);
       root.append(head);
 
-      const stats=
-        el(
-          'div',
-          undefined,
-          'dist-stats'
-        );
+      const stats=el('div',undefined,'dist-stats');
 
       [
+        [data.indicadores.semResponsavel,'Distribuições sem responsável'],
+        [data.indicadores.atribuidas,'Distribuições atribuídas'],
         [
-          data.indicadores.semResponsavel,
-          'Sem responsável'
+          data.indicadores.geraisAbertas||0,
+          'Tarefas internas abertas'
         ],
         [
-          data.indicadores.atribuidas,
-          'Atribuídas'
-        ],
-        [
-          data.indicadores.concluidas,
-          'Concluídas'
-        ],
-        [
-          data.usuarios.length,
-          'Usuários aptos a distribuir'
+          (data.usuariosTarefas||[]).length,
+          'Usuários disponíveis'
         ]
       ].forEach(([value,label])=>{
-        const box=
-          el(
-            'div',
-            undefined,
-            'dist-stat'
-          );
-
-        box.append(
-          el(
-            'strong',
-            String(value||0)
-          ),
-          el(
-            'span',
-            label
-          )
-        );
-
+        const box=el('div',undefined,'dist-stat');
+        box.append(el('strong',String(value||0)),el('span',label));
         stats.append(box);
       });
 
       root.append(stats);
 
-      const workload=
-        el(
-          'section',
-          undefined,
-          'dist-workload'
-        );
+      const generalSection=el(
+        'section',
+        undefined,
+        'dist-section dist-general-section'
+      );
 
-      workload.append(
+      const generalHead=el('div',undefined,'dist-section-head');
+      const generalTasks=data.tarefasGerais||[];
+
+      generalHead.append(
+        el('h3','Tarefas internas'),
         el(
-          'h3',
-          'Equipe de distribuição'
+          'span',
+          generalTasks.filter(task=>task.situacao!=='CONCLUIDA').length+
+          ' abertas',
+          'hint'
         )
       );
 
-      const workloadGrid=
-        el(
-          'div',
-          undefined,
-          'dist-workload-grid'
-        );
+      const generalGrid=el('div',undefined,'dist-general-grid');
 
-      data.usuarios.forEach(user=>{
-        const assigned=
-          data.tarefas.filter(t=>
-            t.situacao!=='CONCLUIDA'&&
-            String(t.responsavel||'').toLowerCase()===
-            String(user.email||'').toLowerCase()
-          ).length;
-
-        const item=
+      if(!generalTasks.length){
+        generalGrid.append(
           el(
             'div',
-            undefined,
-            'dist-user'
-          );
+            'Nenhuma tarefa interna foi criada.',
+            'dist-empty'
+          )
+        );
+      }else{
+        generalTasks.forEach(task=>
+          generalGrid.append(
+            generalCard_(
+              task,
+              item=>openGeneralDialog_(root,item,render)
+            )
+          )
+        );
+      }
+
+      generalSection.append(generalHead,generalGrid);
+      root.append(generalSection);
+
+      const workload=el('section',undefined,'dist-workload');
+      workload.append(el('h3','Equipe de distribuição'));
+
+      const workloadGrid=el('div',undefined,'dist-workload-grid');
+
+      data.usuarios.forEach(user=>{
+        const distributionCount=data.tarefas.filter(t=>
+          t.situacao!=='CONCLUIDA'&&
+          String(t.responsavel||'').toLowerCase()===
+          String(user.email||'').toLowerCase()
+        ).length;
+
+        const generalCount=generalTasks.filter(t=>
+          t.situacao!=='CONCLUIDA'&&
+          String(t.responsavel||'').toLowerCase()===
+          String(user.email||'').toLowerCase()
+        ).length;
+
+        const item=el('div',undefined,'dist-user');
 
         item.append(
-          el(
-            'strong',
-            user.nome
-          ),
+          el('strong',user.nome),
           el(
             'small',
             (user.funcao||user.email)+
-            ' · '+
-            assigned+
-            (
-              assigned===1
-                ?' tarefa pendente'
-                :' tarefas pendentes'
-            )
+            ' · '+distributionCount+' distribuição(ões) · '+
+            generalCount+' tarefa(s) interna(s)'
           )
         );
 
@@ -409,50 +953,23 @@ window.PDA_MODULES.DIST = (()=>{
       workload.append(workloadGrid);
       root.append(workload);
 
-      const active=
-        data.tarefas.filter(t=>
-          t.situacao!=='CONCLUIDA'
-        );
+      const active=data.tarefas.filter(
+        task=>task.situacao!=='CONCLUIDA'
+      );
 
-      const section=
-        el(
-          'section',
-          undefined,
-          'dist-section'
-        );
-
-      const sectionHead=
-        el(
-          'div',
-          undefined,
-          'dist-section-head'
-        );
+      const section=el('section',undefined,'dist-section');
+      const sectionHead=el('div',undefined,'dist-section-head');
 
       sectionHead.append(
-        el(
-          'h3',
-          'Fila de distribuição'
-        ),
+        el('h3','Fila de distribuição processual'),
         el(
           'span',
-          active.length+
-          (
-            active.length===1
-              ?' tarefa'
-              :' tarefas'
-          ),
+          active.length+(active.length===1?' tarefa':' tarefas'),
           'hint'
         )
       );
 
-      section.append(sectionHead);
-
-      const grid=
-        el(
-          'div',
-          undefined,
-          'dist-grid'
-        );
+      const grid=el('div',undefined,'dist-grid');
 
       if(!active.length){
         grid.append(
@@ -465,76 +982,44 @@ window.PDA_MODULES.DIST = (()=>{
       }else{
         active.forEach(task=>
           grid.append(
-            assignmentCard_(
-              task,
-              data.usuarios,
-              render
-            )
+            assignmentCard_(task,data.usuarios,render)
           )
         );
       }
 
-      section.append(grid);
+      section.append(sectionHead,grid);
       root.append(section);
 
-      const completed=
-        data.tarefas.filter(t=>
-          t.situacao==='CONCLUIDA'
-        );
+      const completed=data.tarefas.filter(
+        task=>task.situacao==='CONCLUIDA'
+      );
 
       if(completed.length){
-        const done=
-          el(
-            'details',
-            undefined,
-            'dist-completed'
-          );
+        const done=el('details',undefined,'dist-completed');
 
         done.append(
           el(
             'summary',
-            'Distribuições concluídas ('+
-            completed.length+
-            ')'
+            'Distribuições concluídas ('+completed.length+')'
           )
         );
 
-        const doneGrid=
-          el(
-            'div',
-            undefined,
-            'dist-done-grid'
+        const doneGrid=el('div',undefined,'dist-done-grid');
+
+        completed.slice(0,30).forEach(task=>{
+          const row=el('div',undefined,'dist-done-row');
+
+          row.append(
+            el('strong',task.pessoa),
+            el('span',task.jurisdicao||'—'),
+            el(
+              'span',
+              task.responsavelNome||task.responsavel||'—'
+            )
           );
 
-        completed
-          .slice(0,30)
-          .forEach(task=>{
-            const row=
-              el(
-                'div',
-                undefined,
-                'dist-done-row'
-              );
-
-            row.append(
-              el(
-                'strong',
-                task.pessoa
-              ),
-              el(
-                'span',
-                task.jurisdicao||'—'
-              ),
-              el(
-                'span',
-                task.responsavelNome||
-                task.responsavel||
-                '—'
-              )
-            );
-
-            doneGrid.append(row);
-          });
+          doneGrid.append(row);
+        });
 
         done.append(doneGrid);
         root.append(done);
