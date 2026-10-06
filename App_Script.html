@@ -1541,7 +1541,10 @@ f.insertBefore(file,f.firstChild);
     try{
       await call(
         'notificacoesTarefasMarcarLidas',
-        {},
+        {
+          nonce:
+            crypto.randomUUID()
+        },
         true,
         {silent:true}
       );
