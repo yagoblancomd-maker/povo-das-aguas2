@@ -15,6 +15,28 @@ n.className='status '+(error?'error':'ok');
  const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
 
  const PROCESSING_PROFILES={
+  bootstrap:{
+    seconds:8,
+    title:'Abrindo o Povo das Águas',
+    phases:[
+      [0,'Validando sua sessão'],
+      [.16,'Carregando permissões e configurações'],
+      [.42,'Preparando os dados do sistema'],
+      [.68,'Organizando os módulos disponíveis'],
+      [.90,'Abrindo seu ambiente de trabalho']
+    ]
+  },
+  carregarModulo:{
+    seconds:5,
+    title:'Carregando módulo',
+    phases:[
+      [0,'Solicitando o módulo ao servidor'],
+      [.25,'Carregando interface e recursos'],
+      [.55,'Organizando as informações da tela'],
+      [.82,'Preparando os últimos detalhes'],
+      [.94,'Quase pronto']
+    ]
+  },
   documentosImportar:{
     seconds:22,
     title:'Lendo documentos',
@@ -185,13 +207,16 @@ n.className='status '+(error?'error':'ok');
   }
  };
 
+ const LOADING_PHRASES=["A pesca sustenta famílias e preserva histórias.","Cada pescador carrega saberes construídos ao longo de gerações.","O trabalho no mar exige experiência, atenção e respeito.","A pesca artesanal faz parte da identidade de muitas comunidades.","Entre redes e embarcações, constroem-se histórias de vida.","O pescador conhece o tempo, a água e o vento.","Pescar também é preservar tradições.","O trabalho da pesca começa antes de lançar a rede.","Cada jornada de pesca exige planejamento e dedicação.","A experiência transforma a água em conhecimento.","A pesca artesanal aproxima pessoas e comunidades.","O pescador aprende diariamente com a natureza.","Cada rede lançada representa trabalho e esperança.","A pesca é trabalho, cultura e sustento.","O conhecimento do pescador nasce da prática.","A água ensina paciência a quem vive da pesca.","A pesca conecta gerações.","O pescador preserva memórias de sua comunidade.","A experiência da pesca é transmitida entre famílias.","A rotina do pescador começa muito antes do amanhecer.","O trabalho coletivo fortalece as comunidades pesqueiras.","A união torna o trabalho mais seguro.","Nenhuma comunidade se fortalece sozinha.","A cooperação aproxima pessoas.","Amizades também são construídas durante o trabalho.","Compartilhar conhecimento fortalece todos.","A experiência de um pode orientar o caminho de muitos.","Trabalhar em conjunto amplia possibilidades.","A solidariedade nasce de pequenos gestos.","Uma comunidade unida enfrenta melhor suas dificuldades.","A amizade torna a caminhada mais leve.","Cada pessoa pode contribuir para transformar uma comunidade.","O diálogo cria pontes.","Ouvir também é uma forma de ajudar.","A confiança se constrói com presença e respeito.","Bons amigos permanecem mesmo nos dias difíceis.","O trabalho coletivo transforma desafios em soluções.","A união fortalece quem trabalha.","A solidariedade aproxima pessoas diferentes.","Toda parceria começa com confiança.","Amizade também significa estar presente.","Um bom companheiro divide responsabilidades.","Compartilhar dificuldades fortalece vínculos.","O respeito é a base de qualquer parceria.","A amizade cresce quando existe confiança.","O trabalho aproxima pessoas que compartilham objetivos.","Juntos, caminhos difíceis tornam-se possíveis.","A cooperação transforma esforço individual em resultado coletivo.","Cada ajuda pode fazer diferença.","A comunidade cresce quando seus membros crescem juntos.","O trabalho social começa pela escuta.","A transformação social exige presença.","Cada atendimento representa uma história.","Por trás de cada processo existe uma pessoa.","O acesso a direitos também depende de informação.","Informação clara aproxima cidadãos de seus direitos.","O trabalho social exige compromisso com as pessoas.","Atender é também compreender.","Escutar com atenção é parte do cuidado.","Orientação adequada pode mudar caminhos.","O acesso à Justiça começa pelo acolhimento.","Direitos precisam ser conhecidos para serem exercidos.","O trabalho social conecta pessoas e instituições.","Cada atendimento pode abrir novas possibilidades.","A universidade também transforma a realidade fora da sala de aula.","Extensão universitária aproxima conhecimento e comunidade.","O conhecimento ganha sentido quando chega às pessoas.","A atuação social transforma teoria em prática.","A comunidade também ensina.","O aprendizado acontece nos dois sentidos.","Quem trabalha com pessoas aprende todos os dias.","A experiência comunitária amplia o conhecimento.","O trabalho social exige responsabilidade.","A confiança é essencial no atendimento.","Cada pessoa merece ser ouvida com atenção.","O atendimento humanizado começa pelo respeito.","Pequenas ações podem gerar grandes mudanças.","O acesso à informação fortalece comunidades.","Conhecimento compartilhado gera autonomia.","Uma orientação pode evitar muitos problemas.","A cidadania também se constrói com informação.","O trabalho jurídico pode aproximar pessoas de seus direitos.","O direito precisa chegar a quem dele necessita.","A Justiça deve ser compreensível para todos.","O acesso à Justiça não termina na porta do fórum.","Orientação jurídica também é trabalho social.","Cada direito reconhecido representa uma conquista.","A cidadania depende da possibilidade de exercer direitos.","A informação jurídica deve ser clara e acessível.","O atendimento jurídico exige escuta e responsabilidade.","A Justiça ganha sentido quando alcança as pessoas.","Direitos sociais fazem parte da dignidade humana.","O trabalho jurídico também pode transformar comunidades.","Cada processo possui uma história própria.","Nenhum atendimento deve ser tratado apenas como um número.","Por trás de documentos existem pessoas e famílias.","Cada demanda merece atenção.","O trabalho responsável começa pela compreensão dos fatos.","O cuidado com informações também é respeito.","Organização melhora o atendimento.","Tecnologia pode aproximar serviços das pessoas.","Sistemas bem organizados facilitam o trabalho social.","A tecnologia deve servir às pessoas.","Um bom sistema reduz dificuldades e aproxima soluções.","Organizar informações também melhora o atendimento.","A tecnologia pode tornar direitos mais acessíveis.","Ferramentas simples podem gerar grandes melhorias.","Um processo organizado economiza tempo de todos.","Informação organizada facilita decisões.","O trabalho social também depende de boa gestão.","Planejamento permite atender melhor.","Organização transforma esforço em resultado.","Uma equipe organizada atende com mais eficiência.","Cada tarefa realizada contribui para o todo.","O trabalho de cada pessoa importa.","Resultados coletivos dependem de contribuições individuais.","A dedicação diária constrói projetos duradouros.","Todo projeto começa com pessoas dispostas a colaborar.","O compromisso mantém projetos vivos.","A continuidade transforma iniciativas em resultados.","O trabalho diário constrói mudanças de longo prazo.","Persistência é parte de qualquer transformação.","Projetos sociais crescem com participação.","A participação fortalece a comunidade.","Cada voluntário acrescenta uma nova perspectiva.","Cada colaborador contribui para a construção coletiva.","Nenhuma função é pequena quando o objetivo é coletivo.","O trabalho compartilhado cria pertencimento.","Participar também significa assumir responsabilidades.","Uma equipe forte valoriza cada integrante.","O respeito fortalece equipes.","Comunicação clara evita conflitos.","Ouvir colegas melhora o trabalho.","Boas equipes aprendem juntas.","Erros também podem gerar aprendizado.","Compartilhar experiências ajuda todos a evoluir.","O conhecimento cresce quando é dividido.","Ensinar também é aprender.","Quem compartilha experiência fortalece sua comunidade.","As melhores soluções muitas vezes surgem do diálogo.","O diálogo aproxima diferentes pontos de vista.","Diferenças podem gerar novas ideias.","Cooperação não significa pensar igual.","Respeitar diferenças fortalece relações.","A diversidade de experiências melhora o trabalho.","Cada pessoa traz conhecimentos diferentes.","A comunidade é formada por muitas histórias.","Toda história merece respeito.","Conhecer histórias ajuda a compreender realidades.","O trabalho social aproxima diferentes realidades.","Estar presente é uma forma de compromisso.","Confiança exige tempo.","O cuidado se demonstra por atitudes.","Solidariedade é transformar preocupação em ação.","Ajudar também significa orientar.","Uma boa orientação pode devolver tranquilidade.","A informação correta reduz inseguranças.","Compartilhar conhecimento fortalece autonomia.","Autonomia começa pelo acesso à informação.","Cada pessoa deve poder compreender seus próprios direitos.","O conhecimento pertence a todos.","A educação fortalece comunidades.","Aprender abre possibilidades.","Ensinar amplia caminhos.","A troca de saberes aproxima universidade e comunidade.","Conhecimento acadêmico e conhecimento popular podem caminhar juntos.","O saber do pescador também é conhecimento.","Experiência prática possui valor.","A tradição preserva conhecimentos importantes.","As comunidades pesqueiras guardam saberes próprios.","A pesca artesanal representa patrimônio cultural.","A relação com a água faz parte da identidade de muitos povos.","O território também conta histórias.","Rios, lagoas e mares conectam comunidades.","A água é espaço de trabalho, cultura e memória.","O pescador conhece caminhos que não aparecem nos mapas.","Cada embarcação carrega histórias.","Cada porto marca encontros e despedidas.","O retorno da pesca também é parte da jornada.","O trabalho na água depende de confiança entre companheiros.","Companheirismo é essencial durante a pesca.","Um pescador cuida do outro.","Segurança também depende de cooperação.","A experiência coletiva protege a equipe.","Na água, confiança faz diferença.","A parceria começa antes da saída da embarcação.","Cada viagem exige responsabilidade compartilhada.","O trabalho de pesca também depende de preparação em terra.","Famílias inteiras participam da atividade pesqueira.","A pesca movimenta comunidades.","O pescado gera trabalho dentro e fora da embarcação.","A cadeia da pesca envolve muitas pessoas.","Valorizar o pescador é valorizar a comunidade.","Reconhecer o trabalho artesanal é reconhecer sua importância social.","Políticas públicas precisam considerar a realidade das comunidades.","Direitos devem acompanhar as necessidades das pessoas.","O diálogo entre instituições e comunidades melhora políticas públicas.","A participação social ajuda a construir soluções mais adequadas.","Quem vive a realidade deve ser ouvido.","As melhores políticas começam pela compreensão da comunidade.","O trabalho social precisa conhecer o território.","Cada comunidade possui necessidades próprias.","Soluções eficientes respeitam diferenças locais.","O atendimento deve considerar a realidade de cada pessoa.","A proximidade melhora a compreensão.","Conhecer o território melhora o trabalho.","Presença gera confiança.","Confiança facilita o diálogo.","O diálogo permite identificar necessidades.","Identificar necessidades é o primeiro passo para construir soluções.","Uma boa equipe transforma informação em ação.","Ação responsável gera confiança.","Resultados consistentes dependem de continuidade.","Continuidade fortalece vínculos.","Vínculos fortalecem comunidades.","Comunidades fortes ampliam oportunidades.","O trabalho conjunto cria novas possibilidades.","Toda transformação começa com uma iniciativa.","Uma iniciativa cresce quando encontra parceiros.","Parcerias ampliam resultados.","Resultados duradouros são construídos coletivamente.","A amizade fortalece os dias de trabalho.","Companheirismo transforma rotina em convivência.","Bons projetos também criam boas relações.","As pessoas são o centro de qualquer projeto social.","Cuidar das pessoas também é cuidar da comunidade.","Cada encontro pode gerar aprendizado.","Cada conversa pode revelar uma necessidade.","Cada atendimento pode representar um novo começo.","Cada conquista individual fortalece o trabalho coletivo.","Toda comunidade possui capacidade de transformação.","A transformação começa quando as pessoas participam.","O trabalho social ganha força quando existe confiança.","A pesca conecta trabalho, cultura e comunidade.","O pescador representa conhecimento, trabalho e tradição.","A água aproxima quem aprende a trabalhar em conjunto.","A solidariedade também navega entre comunidades.","Nenhuma rede é construída com apenas um fio.","Assim como uma rede de pesca, uma comunidade se fortalece pelas conexões.","Cada pessoa é parte importante dessa rede.","Quando pessoas se unem, o trabalho alcança mais longe.","Amizade, trabalho e solidariedade constroem comunidades mais fortes.","O Povo das Águas é feito de pessoas, histórias e caminhos compartilhados."];
+
  let processingState=null;
  let processingTimer=null;
  let processingHideTimer=null;
+ let processingPhraseTimer=null;
+ let processingPhraseIndex=0;
 
  function ensureProcessingOverlay_(){
   let overlay=document.getElementById('pda-processing-overlay');
-
   if(overlay)return overlay;
 
   overlay=el('div',undefined,'processing-overlay');
@@ -203,17 +228,54 @@ n.className='status '+(error?'error':'ok');
   overlay.setAttribute('aria-describedby','pda-processing-message');
 
   const panel=el('div',undefined,'processing-panel');
-  const visual=el('div',undefined,'processing-visual');
 
-  const spinner=el('div',undefined,'processing-spinner');
-  spinner.setAttribute('aria-hidden','true');
-
-  const percent=el('strong','0%','processing-percent');
-  percent.id='pda-processing-percent';
-
-  visual.append(spinner,percent);
+  const scene=el('div',undefined,'processing-scene');
+  scene.setAttribute('aria-hidden','true');
+  scene.innerHTML=`
+    <svg class="processing-fisher-svg" viewBox="0 0 420 300" focusable="false">
+      <defs>
+        <linearGradient id="pdaSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#dff5f4"/>
+          <stop offset="1" stop-color="#f8fbf7"/>
+        </linearGradient>
+        <linearGradient id="pdaWater" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#0b7582"/>
+          <stop offset=".5" stop-color="#1493a0"/>
+          <stop offset="1" stop-color="#0b6172"/>
+        </linearGradient>
+      </defs>
+      <rect width="420" height="300" rx="28" fill="url(#pdaSky)"/>
+      <circle class="processing-sun" cx="326" cy="68" r="34"/>
+      <path class="processing-cloud processing-cloud-a" d="M45 76c10-16 30-15 38 0 18-8 35 6 34 21H38c-2-11 1-17 7-21Z"/>
+      <path class="processing-cloud processing-cloud-b" d="M286 119c7-11 22-11 28 0 14-6 27 5 26 17h-60c-1-8 1-13 6-17Z"/>
+      <path class="processing-water processing-water-back" d="M0 211c61-16 112 18 171 3 58-15 108-16 159 1 33 11 62 8 90-2v87H0Z"/>
+      <path class="processing-water processing-water-front" d="M0 238c56-17 102 11 158 2 72-12 123-16 180 3 30 10 56 8 82-1v58H0Z"/>
+      <g class="processing-boat">
+        <path class="processing-boat-top" d="M84 190h188l-20 22H105Z"/>
+        <path class="processing-boat-body" d="M102 207h153l-29 43H126Z"/>
+        <path class="processing-boat-line" d="M93 193h173"/>
+        <g class="processing-fisher">
+          <circle class="processing-fisher-head" cx="180" cy="132" r="13"/>
+          <path class="processing-fisher-body" d="M180 146l-6 43m7-31 28 17m-30-12-25 23"/>
+          <path class="processing-fisher-leg" d="M174 188l-19 20m20-19 21 18"/>
+          <path class="processing-fisher-hat" d="M162 128h36m-29-6c5-7 18-7 23 0"/>
+          <g class="processing-cast">
+            <path class="processing-rope" d="M205 175c35-46 76-59 111-52"/>
+            <path class="processing-net-outline" d="M315 123c43 21 62 58 52 95-25-3-53-19-75-47-12-16-5-34 23-48Z"/>
+            <path class="processing-net-grid" d="M306 136c18 24 36 45 58 65M298 151c24 17 43 31 67 39M297 170c21 9 42 17 65 21M321 128c-2 30 6 57 26 82M339 140c-9 27-5 49 10 68"/>
+          </g>
+        </g>
+      </g>
+      <g class="processing-ripples">
+        <path d="M53 267c34-8 70-8 105 0"/>
+        <path d="M275 268c29-7 57-7 87 0"/>
+      </g>
+    </svg>
+    <div class="processing-scene-caption">Povo das Águas</div>
+  `;
 
   const copy=el('div',undefined,'processing-copy');
+  const eyebrow=el('div','POVO DAS ÁGUAS','processing-eyebrow');
   const title=el('h2','Processando','processing-title');
   title.id='pda-processing-title';
 
@@ -222,6 +284,12 @@ n.className='status '+(error?'error':'ok');
 
   const remaining=el('p','Calculando tempo restante…','processing-remaining');
   remaining.id='pda-processing-remaining';
+
+  const progressHead=el('div',undefined,'processing-progress-head');
+  const progressLabel=el('span','Progresso estimado','processing-progress-label');
+  const percent=el('strong','0%','processing-percent');
+  percent.id='pda-processing-percent';
+  progressHead.append(progressLabel,percent);
 
   const progress=el('div',undefined,'processing-progress');
   progress.setAttribute('role','progressbar');
@@ -233,20 +301,24 @@ n.className='status '+(error?'error':'ok');
   bar.id='pda-processing-bar';
   progress.append(bar);
 
+  const phraseBox=el('div',undefined,'processing-phrase-box');
+  const phraseLabel=el('span','ENQUANTO ISSO…','processing-phrase-label');
+  const phrase=el('p','A pesca sustenta famílias e preserva histórias.','processing-phrase');
+  phrase.id='pda-processing-phrase';
+  phraseBox.append(phraseLabel,phrase);
+
   const note=el(
     'small',
-    'Progresso e tempo restante são estimativas enquanto o servidor conclui a operação.',
+    'O percentual e o tempo restante são estimativas enquanto o Google Apps Script conclui a operação.',
     'processing-note'
   );
 
-  copy.append(title,message,remaining,progress,note);
-  panel.append(visual,copy);
+  copy.append(eyebrow,title,message,remaining,progressHead,progress,phraseBox,note);
+  panel.append(scene,copy);
   overlay.append(panel);
   document.body.append(overlay);
-
   return overlay;
  }
-
  function processingProfile_(action,write){
   if(PROCESSING_PROFILES[action]){
     return PROCESSING_PROFILES[action];
@@ -307,6 +379,33 @@ n.className='status '+(error?'error':'ok');
   });
 
   return message;
+ }
+
+ function setProcessingPhrase_(immediate=false){
+  const phrase=document.getElementById('pda-processing-phrase');
+  if(!phrase||!LOADING_PHRASES.length)return;
+  const apply=()=>{
+    phrase.textContent=LOADING_PHRASES[processingPhraseIndex%LOADING_PHRASES.length];
+    processingPhraseIndex=(processingPhraseIndex+1)%LOADING_PHRASES.length;
+    phrase.classList.remove('is-changing');
+  };
+  if(immediate){apply();return;}
+  phrase.classList.add('is-changing');
+  setTimeout(apply,180);
+ }
+
+ function startProcessingPhrases_(){
+  if(processingPhraseTimer)clearInterval(processingPhraseTimer);
+  processingPhraseIndex=Math.floor(Math.random()*LOADING_PHRASES.length);
+  setProcessingPhrase_(true);
+  processingPhraseTimer=setInterval(()=>setProcessingPhrase_(false),4800);
+ }
+
+ function stopProcessingPhrases_(){
+  if(processingPhraseTimer){
+    clearInterval(processingPhraseTimer);
+    processingPhraseTimer=null;
+  }
  }
 
  function renderProcessing_(){
@@ -370,15 +469,17 @@ n.className='status '+(error?'error':'ok');
     remainingText='Finalizado.';
   }else if(elapsed<1){
     remainingText=
-      'Estimando o tempo restante…';
+      'Tempo estimado: cerca de '+
+      Math.ceil(profile.seconds)+
+      ' segundos';
   }else if(estimatedLeft>1){
     remainingText=
-      'Aproximadamente '+
+      'Tempo estimado: cerca de '+
       estimatedLeft+
-      ' segundos restantes';
+      ' segundos';
   }else{
     remainingText=
-      'Concluindo — menos de alguns segundos';
+      'Tempo estimado: menos de alguns segundos';
   }
 
   overlay.querySelector('#pda-processing-remaining').textContent=
@@ -418,6 +519,7 @@ n.className='status '+(error?'error':'ok');
     'processing-active'
   );
 
+  startProcessingPhrases_();
   renderProcessing_();
 
   if(processingTimer){
@@ -447,15 +549,24 @@ n.className='status '+(error?'error':'ok');
     processingTimer=null;
   }
 
+  stopProcessingPhrases_();
+
   if(success){
     processingState.complete=true;
     renderProcessing_();
   }
 
+  if(!success){
+    const overlay=ensureProcessingOverlay_();
+    overlay.querySelector('#pda-processing-title').textContent='Não foi possível concluir';
+    overlay.querySelector('#pda-processing-message').textContent='A operação foi interrompida. Verifique a mensagem exibida no sistema.';
+    overlay.querySelector('#pda-processing-remaining').textContent='Carregamento interrompido.';
+  }
+
   const delay=
     success
-      ?360
-      :80;
+      ?520
+      :900;
 
   processingHideTimer=
     setTimeout(
@@ -726,8 +837,9 @@ status('Carregando…');
 const root=document.getElementById('app');
 root.replaceChildren();
 root.setAttribute('aria-busy','true');
+const moduleProcessingId=beginProcessing_('carregarModulo',false);
 try{const m=await raw('carregarModulo',code,authSessionToken);
-if(token!==epoch)return;
+if(token!==epoch){endProcessing_(moduleProcessingId,false);return;}
 root.innerHTML=m.style+m.view;
 if(!window.PDA_MODULES[code]){const s=document.createElement('script');
 s.textContent=m.script.replace(/^\s*<script>/,'').replace(/<\/script>\s*$/,'');
@@ -736,7 +848,8 @@ s.remove();
 }renderNavigation_();
 status('');
 await window.PDA_MODULES[code]({root:root.querySelector('section'),token});
-}catch(e){if(/AUTH:/.test(e.message)&&window.PDA_AUTH)window.PDA_AUTH.sessionExpired(e.message);if(token===epoch)status(e.message||String(e),true);
+endProcessing_(moduleProcessingId,true);
+}catch(e){endProcessing_(moduleProcessingId,false);if(/AUTH:/.test(e.message)&&window.PDA_AUTH)window.PDA_AUTH.sessionExpired(e.message);if(token===epoch)status(e.message||String(e),true);
 }finally{if(token===epoch)root.setAttribute('aria-busy','false');
 }}
  const alive=ctx=>ctx.token===epoch;
