@@ -171,6 +171,65 @@ function carregarModulos(codes,sessionToken){
   );
 }
 
+
+const SERVER_CACHEABLE_READS=new Set([
+  'painel',
+  'tarefasMinhas',
+  'distribuicaoFila',
+  'processos'
+]);
+
+function serverCachedRead_(action,q,producer){
+  if(
+    !SERVER_CACHEABLE_READS.has(action)||
+    typeof CacheService==='undefined'
+  ){
+    return producer();
+  }
+
+  const revision=
+    props_().getProperty(
+      'PDA_DATA_REVISION'
+    )||
+    '0';
+
+  const key=
+    'PDA_READ_'+
+    hash_({
+      revision,
+      action,
+      q:q||{},
+      email:identity_()
+    }).slice(0,48);
+
+  const cache=
+    CacheService.getScriptCache();
+
+  try{
+    const hit=cache.get(key);
+
+    if(hit!==null){
+      return JSON.parse(hit);
+    }
+  }catch(e){}
+
+  const result=producer();
+
+  try{
+    const json=JSON.stringify(result);
+
+    if(json.length<90000){
+      cache.put(
+        key,
+        json,
+        12
+      );
+    }
+  }catch(e){}
+
+  return result;
+}
+
 function apiAuthenticated_(action,q){
   resetData_();
   q=q||{};
@@ -314,7 +373,11 @@ function apiAuthenticated_(action,q){
         resetData_();
       }
 
-      return reads[action]();
+      return serverCachedRead_(
+        action,
+        q,
+        reads[action]
+      );
     });
   }
 
