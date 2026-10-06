@@ -68,6 +68,24 @@
           </div>
 
           <div class="app-header-user-actions">
+            <div class="app-task-notifications">
+              <button id="taskNotificationButton" class="app-notification-button" type="button" title="Notificações de tarefas" aria-label="Notificações de tarefas" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                <span id="taskNotificationBadge" class="app-notification-badge" hidden>0</span>
+              </button>
+              <div id="taskNotificationPanel" class="app-notification-panel" hidden>
+                <div class="app-notification-head">
+                  <div>
+                    <strong>Tarefas</strong>
+                    <small>Novas atribuições para você</small>
+                  </div>
+                  <button id="taskNotificationClose" type="button" aria-label="Fechar notificações">×</button>
+                </div>
+                <div id="taskNotificationList" class="app-notification-list">
+                  <div class="app-notification-empty">Carregando…</div>
+                </div>
+              </div>
+            </div>
             <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil" aria-label="Meu perfil">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>
             </button>
