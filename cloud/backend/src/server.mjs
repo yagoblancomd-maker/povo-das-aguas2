@@ -6,6 +6,7 @@ import {getPool,closeDb} from './db.mjs';
 import {ensureSchema} from './schema.mjs';
 import {login,logout,bearer,requireAuth} from './auth.mjs';
 import {modules,permissions,publicUser,has} from './access.mjs';
+import {coreRoutes} from './modules.mjs';
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const app=Fastify({logger:true,trustProxy:true,bodyLimit:6*1024*1024});
@@ -74,6 +75,8 @@ app.get('/api/v1/pessoas',{preHandler:requireAuth},async(req,reply)=>{
   );
   return q.rows;
 });
+
+await app.register(coreRoutes);
 
 app.get('/api/v1/pessoas/:id',{preHandler:requireAuth},async(req,reply)=>{
   if(!has(req.auth.user,'consulta')){
