@@ -3,7 +3,12 @@ function instalar(){
   return lock_(function(){
     resetData_();
 
-    const email=identity_();
+    const email=String(
+      Session.getActiveUser().getEmail()||
+      ''
+    )
+      .trim()
+      .toLowerCase();
     if(email!==props_().getProperty('OWNER_EMAIL')){
       fail_('Configure OWNER_EMAIL com o e-mail da conta responsável, nas propriedades do script.');
     }
