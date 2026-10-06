@@ -10,7 +10,7 @@
     "import:sheets":"node scripts/import-sheets.mjs"
   },
   "dependencies":{
-    "@fastify/static":"^8.0.0",
+    "@fastify/static":"^10.1.5",
     "@google-cloud/cloud-sql-connector":"^1.6.0",
     "bcryptjs":"^3.0.0",
     "dotenv":"^16.0.0",
