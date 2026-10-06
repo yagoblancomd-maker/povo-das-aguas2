@@ -11,74 +11,136 @@ function generalTaskRows_(name){
 
 function ensureGeneralTaskSchema_(){
   const spreadsheet=ss_();
+  let changed=false;
 
-  ['Tarefas','TarefaMensagens','TarefaAnexos']
-    .forEach(name=>{
-      const headers=
-        COMMON.concat(
-          SCHEMA[name]||[]
+  [
+    'Tarefas',
+    'TarefaMensagens',
+    'TarefaAnexos',
+    'TarefaLeituras'
+  ].forEach(name=>{
+    const expected=
+      headers_(name);
+
+    let sheet=
+      spreadsheet.getSheetByName(name);
+
+    if(!sheet){
+      sheet=spreadsheet.insertSheet(name);
+      changed=true;
+    }
+
+    const lastColumn=
+      sheet.getLastColumn();
+
+    if(lastColumn===0){
+      sheet
+        .getRange(
+          1,
+          1,
+          1,
+          expected.length
+        )
+        .setValues([expected]);
+
+      sheet.setFrozenRows(1);
+
+      sheet
+        .getRange(
+          1,
+          1,
+          1,
+          expected.length
+        )
+        .setBackground('#12364a')
+        .setFontColor('#ffffff');
+
+      sheet
+        .getRange(
+          1,
+          1,
+          sheet.getMaxRows(),
+          expected.length
+        )
+        .setNumberFormat('@');
+
+      changed=true;
+      return;
+    }
+
+    const current=
+      sheet
+        .getRange(
+          1,
+          1,
+          1,
+          lastColumn
+        )
+        .getDisplayValues()[0]
+        .map(value=>
+          String(value||'').trim()
         );
 
-      let sheet=
-        spreadsheet.getSheetByName(name);
+    if(
+      JSON.stringify(current)===
+      JSON.stringify(expected)
+    ){
+      return;
+    }
 
-      if(!sheet){
-        sheet=spreadsheet.insertSheet(name);
-      }
+    const compatible=
+      current.length<expected.length&&
+      current.every(
+        (value,index)=>
+          value===expected[index]
+      );
 
-      const lastColumn=
-        sheet.getLastColumn();
+    if(!compatible){
+      fail_(
+        'Cabeçalhos alterados: '+
+        name+
+        '. A migração automática de tarefas só acrescenta colunas ao final.'
+      );
+    }
 
-      const current=
-        lastColumn
-          ?sheet
-            .getRange(
-              1,
-              1,
-              1,
-              lastColumn
-            )
-            .getValues()[0]
-            .map(value=>String(value||'').trim())
-          :[];
+    const missing=
+      expected.slice(
+        current.length
+      );
 
-      if(
-        !current.length||
-        current.every(value=>!value)
-      ){
-        sheet
-          .getRange(
-            1,
-            1,
-            1,
-            headers.length
-          )
-          .setValues([headers]);
+    sheet
+      .getRange(
+        1,
+        current.length+1,
+        1,
+        missing.length
+      )
+      .setValues([missing]);
 
-        return;
-      }
+    sheet
+      .getRange(
+        1,
+        current.length+1,
+        sheet.getMaxRows(),
+        missing.length
+      )
+      .setNumberFormat('@');
 
-      const missing=
-        headers.filter(
-          header=>
-            !current.includes(header)
-        );
+    changed=true;
+  });
 
-      if(missing.length){
-        sheet
-          .getRange(
-            1,
-            lastColumn+1,
-            1,
-            missing.length
-          )
-          .setValues([missing]);
-      }
-    });
+  if(changed){
+    /*
+     * As gravações transacionais usam a API avançada do Sheets.
+     * O flush garante que abas e colunas recém-criadas já existam
+     * quando o batchUpdate seguinte for executado.
+     */
+    SpreadsheetApp.flush();
+    resetData_();
+  }
 
-  resetData_();
+  return changed;
 }
-
 function generalTaskAssignableUsers_(){
   return all_('Usuarios')
     .filter(user=>
@@ -1246,6 +1308,152 @@ function generalTaskAttachmentAdd_(ctx,q){
     anexo:attachment,
     mensagem:
       'PDF anexado à tarefa.'
+  };
+}
+
+function taskNotifications_(){
+  const email=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const state=
+    generalTaskRows_(
+      'TarefaLeituras'
+    ).find(row=>
+      String(
+        row.usuario||
+        ''
+      ).toLowerCase()===
+      email
+    )||null;
+
+  const lastSeen=
+    String(
+      state&&state.ultimoVistoEm||
+      ''
+    );
+
+  const maps=
+    generalTaskUserMaps_();
+
+  const tasks=
+    all_('Tarefas')
+      .filter(task=>
+        task.tipo===
+          GENERAL_TASK_TYPE&&
+        String(
+          task.responsavel||
+          ''
+        ).toLowerCase()===
+          email
+      )
+      .sort((a,b)=>
+        String(
+          b.atribuidaEm||
+          b.criadoEm||
+          ''
+        ).localeCompare(
+          String(
+            a.atribuidaEm||
+            a.criadoEm||
+            ''
+          )
+        )
+      );
+
+  const isNew=task=>{
+    const when=
+      String(
+        task.atribuidaEm||
+        task.criadoEm||
+        ''
+      );
+
+    return (
+      !!when&&
+      (
+        !lastSeen||
+        when>lastSeen
+      )
+    );
+  };
+
+  return {
+    naoLidas:
+      tasks.filter(isNew).length,
+    ultimoVistoEm:lastSeen,
+    itens:
+      tasks.slice(0,15)
+        .map(task=>{
+          const when=
+            String(
+              task.atribuidaEm||
+              task.criadoEm||
+              ''
+            );
+
+          return {
+            id:task.id,
+            titulo:task.titulo||'Tarefa',
+            criadoPor:task.criadoPor||'',
+            criadoPorNome:
+              generalTaskDisplayUser_(
+                task.criadoPor,
+                maps.byEmail
+              ),
+            prioridade:task.prioridade||'NORMAL',
+            prazo:task.prazo||'',
+            situacao:task.situacao||GENERAL_TASK_ASSIGNED,
+            atribuidaEm:when,
+            nova:isNew(task)
+          };
+        })
+  };
+}
+
+function taskNotificationsMarkSeen_(ctx){
+  ensureGeneralTaskSchema_();
+
+  const email=
+    String(
+      ctx.email||
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const rowId=
+    id_(
+      'TREAD',
+      email
+    );
+
+  const previous=
+    all_('TarefaLeituras')
+      .find(row=>
+        row.id===rowId
+      )||null;
+
+  const seenAt=now_();
+
+  const saved=
+    change_(
+      ctx,
+      'TarefaLeituras',
+      rowId,
+      {
+        usuario:email,
+        ultimoVistoEm:seenAt
+      },
+      previous
+        ?previous.versao
+        :undefined
+    );
+
+  return {
+    ultimoVistoEm:saved.ultimoVistoEm,
+    mensagem:'Notificações de tarefas marcadas como vistas.'
   };
 }
 
