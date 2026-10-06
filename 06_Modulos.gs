@@ -161,6 +161,34 @@ function selfRegistrationLandingPage_(email,reason){
   template.reason=
     String(reason||'');
 
+  const effectiveEmail=String(
+    Session.getEffectiveUser().getEmail()||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  const ownerEmail=String(
+    props_().getProperty(
+      'OWNER_EMAIL'
+    )||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+
+  template.identityDiagnostic=
+    !email&&
+    effectiveEmail&&
+    ownerEmail&&
+    effectiveEmail===ownerEmail
+      ?'EXECUTING_AS_OWNER'
+      :(
+        !email
+          ?'NO_GOOGLE_IDENTITY'
+          :'IDENTIFIED'
+      );
+
   template.gatewayConfigured=
     !!(
       gateway&&
