@@ -108,13 +108,16 @@ function currentGoogleEmail_(){
 }
 
 function identity_(){
-  const email=
-    currentGoogleEmail_();
+  const email=String(
+    PDA_AUTH_CONTEXT_EMAIL_||
+    ''
+  )
+    .trim()
+    .toLowerCase();
 
   if(!email){
     fail_(
-      'Não foi possível identificar a Conta Google desta execução. '+
-      'A implantação principal deve executar como "Usuário que acessa o app" e exigir login Google.'
+      'AUTH: sessão autenticada necessária. Entre novamente com o Google.'
     );
   }
 
