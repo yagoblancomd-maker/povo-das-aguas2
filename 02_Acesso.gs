@@ -299,6 +299,65 @@ function authorizePersonRetification_(p){
   return user.email;
 }
 
+function canWritePersonContent_(user,p){
+  if(
+    hasPermission_(
+      user,
+      'retificacao'
+    )
+  ){
+    return true;
+  }
+
+  const creator=
+    personCreatorEmail_(
+      p
+    );
+
+  const own=
+    !!creator&&
+    creator===
+      String(
+        user.email||
+        ''
+      )
+        .trim()
+        .toLowerCase();
+
+  if(!own){
+    return false;
+  }
+
+  return (
+    hasPermission_(
+      user,
+      'cadastro'
+    )||
+    hasPermission_(
+      user,
+      'retificacao_propria'
+    )
+  );
+}
+
+function authorizePersonContentWrite_(p){
+  const user=
+    activeUser_();
+
+  if(
+    !canWritePersonContent_(
+      user,
+      p
+    )
+  ){
+    fail_(
+      'Você não pode alterar documentos ou gerar peças para um cadastro criado por outro usuário.'
+    );
+  }
+
+  return user.email;
+}
+
 function googleResourceAccessLevel_(user){
   if(!user||!bool_(user.ativo)){
     return 'NONE';
