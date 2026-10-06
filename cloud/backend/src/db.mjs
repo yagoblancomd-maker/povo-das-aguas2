@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
-import {Connector,IpAddressTypes} from '@google-cloud/cloud-sql-connector';
+import {Connector,IpAddressTypes,AuthTypes} from '@google-cloud/cloud-sql-connector';
 
 const {Pool}=pg;
 let poolPromise,connector;
@@ -8,10 +8,11 @@ let poolPromise,connector;
 const env=(k,d='')=>process.env[k]??d;
 
 async function createPool(){
+  const iamAuth=env('DB_IAM_AUTH','false')==='true';
   const base={
     database:env('DB_NAME','povo_das_aguas'),
     user:env('DB_USER','povo_app'),
-    password:env('DB_PASSWORD'),
+    ...(iamAuth?{}:{password:env('DB_PASSWORD')}),
     max:10,
     idleTimeoutMillis:30000,
     connectionTimeoutMillis:10000
@@ -21,7 +22,8 @@ async function createPool(){
     connector=new Connector();
     const options=await connector.getOptions({
       instanceConnectionName:env('INSTANCE_CONNECTION_NAME'),
-      ipType:IpAddressTypes.PUBLIC
+      ipType:IpAddressTypes.PUBLIC,
+      authType:iamAuth?AuthTypes.IAM:AuthTypes.PASSWORD
     });
     return new Pool({...options,...base});
   }
