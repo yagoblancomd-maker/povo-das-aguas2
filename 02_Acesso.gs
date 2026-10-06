@@ -253,32 +253,19 @@ function authorizePersonContentWrite_(p){
 }
 
 function googleResourceAccessLevel_(user){
-  if(!user||!bool_(user.ativo)){
+  if(
+    !user||
+    !bool_(user.ativo)
+  ){
     return 'NONE';
   }
 
-  const permissions=
-    effectivePermissions_(user);
-
-  const needsWrite=
-    [
-      'cadastro',
-      'retificacao',
-      'retificacao_propria',
-      'conferencia',
-      'minuta',
-      'distribuicao',
-      'gestao_distribuicao',
-      'administracao'
-    ].some(permission=>
-      permissions.includes(
-        permission
-      )
-    );
-
-  return needsWrite
-    ?'EDITOR'
-    :'VIEWER';
+  /*
+   * Na arquitetura de implantação única, toda gravação é feita pelo servidor
+   * como proprietário. Usuários precisam apenas de leitura direta no Drive
+   * para abrir PDFs, imagens e pacotes ZIP pela interface.
+   */
+  return 'VIEWER';
 }
 
 function removeGoogleAccess_(resource,email){
@@ -335,8 +322,8 @@ function setGoogleAccess_(resource,email,level){
  * pela sessão do aplicativo. Esta sincronização permanece apenas para permitir
  * a abertura direta de arquivos do Google Drive pela interface:
  *
- * - somente Consulta -> leitor;
- * - qualquer permissão de alteração -> editor;
+ * - usuário ativo -> leitor dos arquivos diretos;
+ * - qualquer gravação -> executada pelo servidor como proprietário;
  * - usuário inativo -> acesso direto removido.
  */
 function syncGoogleResourcesForUser_(user,ctx){
