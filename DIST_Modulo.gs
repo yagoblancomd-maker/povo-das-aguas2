@@ -266,11 +266,22 @@ function distributionQueue_(){
         )
       );
 
+  const general=
+    generalTaskManagementList_();
+
   return {
     tarefas:tasks,
+    tarefasGerais:
+      general.tarefas,
+    usuariosTarefas:
+      general.usuarios,
     usuarios:
       distributionUsers_(),
     indicadores:{
+      geraisAbertas:
+        general.abertas,
+      geraisConcluidas:
+        general.concluidas,
       semResponsavel:
         tasks.filter(t=>
           t.situacao===
