@@ -1013,6 +1013,11 @@ function authPageBootstrap_(e){
       config.clientId,
     redirectUri:
       config.redirectUri,
+    appUrl:
+      String(
+        ScriptApp.getService().getUrl()||
+        ''
+      ),
     loginUrl:'',
     initialSessionToken:'',
     initialRegistrationProof:'',
