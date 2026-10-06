@@ -209,6 +209,13 @@ n.className='status '+(error?'error':'ok');
  }
 
  function bindModulePrefetch_(node,code){
+  if(
+    !node||
+    typeof node.addEventListener!=='function'
+  ){
+    return;
+  }
+
   let timer=null;
 
   const start=()=>{
@@ -1335,22 +1342,14 @@ return d;
         'app-module-stage'
       );
 
-    stage.hidden=true;
     stage.innerHTML=
       module.style+
       module.view;
 
     /*
-     * Em troca entre módulos diferentes, a tela anterior permanece
-     * utilizável visualmente até a nova estar pronta. Ao recarregar o
-     * mesmo módulo, removemos o conteúdo antigo para evitar IDs duplicados.
+     * A nova árvore é preparada fora do DOM. Assim o CSS do próximo
+     * módulo não interfere na tela atual enquanto os dados chegam.
      */
-    if(previousCode===code){
-      root.replaceChildren();
-    }
-
-    root.append(stage);
-
     const section=
       stage.querySelector(
         'section'
@@ -1387,27 +1386,54 @@ return d;
         stage.childNodes
       );
 
-    stage.remove();
     root.replaceChildren(
       ...nodes
     );
 
-    root.classList.remove(
-      'app-module-enter'
-    );
-
-    void root.offsetWidth;
-
-    root.classList.add(
-      'app-module-enter'
-    );
-
-    setTimeout(
-      ()=>root.classList.remove(
+    if(root.classList){
+      root.classList.remove(
         'app-module-enter'
-      ),
-      220
-    );
+      );
+
+      void root.offsetWidth;
+
+      root.classList.add(
+        'app-module-enter'
+      );
+
+      setTimeout(
+        ()=>root.classList.remove(
+          'app-module-enter'
+        ),
+        220
+      );
+    }
+
+    /*
+     * PESS e DEFESO já possuíam foco automático. Como a árvore foi
+     * preparada fora do DOM, restauramos esse detalhe depois da troca.
+     */
+    if(
+      code==='PESS'||
+      code==='DEFESO'
+    ){
+      requestAnimationFrame(()=>{
+        const first=
+          root.querySelector(
+            'input:not([type="hidden"]):not([disabled])'
+          );
+
+        if(first){
+          try{
+            first.focus({
+              preventScroll:true
+            });
+          }catch(e){
+            first.focus();
+          }
+        }
+      });
+    }
 
     renderNavigation_();
     status('');
@@ -1424,10 +1450,6 @@ return d;
     scheduleModuleWarmup_();
 
   }catch(e){
-    if(stage&&stage.isConnected){
-      stage.remove();
-    }
-
     if(moduleProcessingDelay){
       clearTimeout(
         moduleProcessingDelay
