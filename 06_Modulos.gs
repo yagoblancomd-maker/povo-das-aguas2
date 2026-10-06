@@ -317,86 +317,28 @@ function selfRegistrationFailurePage_(message,returnUrl){
 }
 
 function doGet(e){
-  const params=
-    e&&e.parameter
-      ?e.parameter
-      :{};
-
-  if(
-    String(
-      params.mode||
-      ''
-    )==='activate'
-  ){
-    let returnUrl='';
-
-    try{
-      const signed=
-        selfRegistrationTokenRead_(
-          params.token
-        );
-
-      returnUrl=
-        signed.returnUrl;
-
-      const result=
-        selfRegisterUser_(
-          params.token,
-          params.nome,
-          params.funcao
-        );
-
-      return selfRegistrationSuccessPage_(
-        result
-      );
-
-    }catch(error){
-      return selfRegistrationFailurePage_(
-        error.message||String(error),
-        returnUrl
-      );
-    }
-  }
-
-  const email=
-    currentGoogleEmail_();
-
-  if(!email){
-    return selfRegistrationLandingPage_(
-      '',
-      'Não foi possível identificar a Conta Google desta execução. Verifique se a implantação principal está configurada para executar como "Usuário que acessa o app".'
+  const template=
+    HtmlService.createTemplateFromFile(
+      'Index'
     );
-  }
 
-  try{
-    authorize_('consulta');
+  template.authBootstrap=
+    authPageBootstrap_(e);
 
-    return HtmlService
-      .createTemplateFromFile('Index')
-      .evaluate()
-      .setTitle(PDA.name)
-      .addMetaTag(
-        'viewport',
-        'width=device-width, initial-scale=1'
-      );
-
-  }catch(error){
-    /*
-     * Uma conta ainda não cadastrada pode não ter qualquer acesso ao Drive.
-     * Por isso a página de primeiro acesso não depende da planilha principal.
-     */
-    return selfRegistrationLandingPage_(
-      email,
-      error.message||String(error)
+  return template
+    .evaluate()
+    .setTitle(PDA.name)
+    .addMetaTag(
+      'viewport',
+      'width=device-width, initial-scale=1'
     );
-  }
 }
 
 function include_(name){
   return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
 
-function carregarModulo(code){
+function carregarModulo_(code){
   if(!MODULES[code])fail_('Módulo inválido.');
 
   authorize_(
@@ -411,7 +353,14 @@ function carregarModulo(code){
   };
 }
 
-function api(action,q){
+function carregarModulo(code,sessionToken){
+  return withAuthSession_(
+    sessionToken,
+    ()=>carregarModulo_(code)
+  );
+}
+
+function apiAuthenticated_(action,q){
   resetData_();
   q=q||{};
 
@@ -484,7 +433,7 @@ function api(action,q){
       modelo:templateStatus_(),
       portalTransparencia:portalTransparenciaStatus_(),
       deepseek:deepseekStatus_(),
-      autocadastro:selfRegistrationStatus_()
+      googleOAuth:googleOAuthStatus_()
     }),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
     cepConsultar:()=>cepConsultaViaCep_(q),
@@ -510,7 +459,7 @@ function api(action,q){
     usuarioAprovarProfessorResidente:['administracao',userApproveProfessorResident_],
     usuarioExcluir:['administracao',userDelete_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
-    autocadastroGatewaySalvar:['administracao',autoCadastroGatewaySave_],
+    googleOAuthConfigSalvar:['administracao',googleOAuthConfigSave_],
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
@@ -582,4 +531,12 @@ function api(action,q){
       throw e;
     }
   });
+}
+
+
+function api(action,q,sessionToken){
+  return withAuthSession_(
+    sessionToken,
+    ()=>apiAuthenticated_(action,q)
+  );
 }
