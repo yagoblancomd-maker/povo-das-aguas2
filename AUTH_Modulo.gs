@@ -143,17 +143,12 @@ function authSessionRead_(token){
 
 function withAuthSession_(token,fn){
   /*
-   * O lock global protege somente a validação da sessão. Manter o lock
-   * durante toda a leitura serializava todos os usuários do Web App,
-   * inclusive consultas externas demoradas.
-   *
-   * Escritas continuam seguras porque apiAuthenticated_ reacquire lock_()
-   * e revalida authorize_() imediatamente antes de qualquer mutação.
+   * Sessões de leitura são validadas sem ScriptLock global.
+   * all_()/getDisplayValues() são leituras e podem executar em paralelo.
+   * Qualquer mutação revalida novamente a sessão dentro do lock de escrita.
    */
   const session=
-    lock_(
-      ()=>authSessionRead_(token)
-    );
+    authSessionRead_(token);
 
   const before=
     PDA_AUTH_CONTEXT_EMAIL_;
