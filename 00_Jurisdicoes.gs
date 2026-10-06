@@ -54,3 +54,29 @@ function atualizarJurisdicoes_(){
   }
   if(ctx.changes.length)commit_(ctx,{mensagem:'Municípios e jurisdições atualizados.'});
 }
+
+
+/**
+ * A migração global só precisa rodar quando as regras de jurisdição mudarem.
+ * O hash é derivado do próprio mapa JURISDICOES, portanto uma alteração futura
+ * nas regras invalida automaticamente o marcador e força nova sincronização.
+ */
+function atualizarJurisdicoesSeNecessario_(){
+  const key='JURISDICOES_SYNC_HASH';
+  const current=hash_(JURISDICOES);
+
+  if(
+    props_().getProperty(key)===
+    current
+  ){
+    return false;
+  }
+
+  atualizarJurisdicoes_();
+  props_().setProperty(
+    key,
+    current
+  );
+
+  return true;
+}
