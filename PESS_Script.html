@@ -1356,16 +1356,48 @@ window.PDA_MODULES.PESS = (()=>{
         'pess-import-head'
       );
 
-    head.append(
+    const headCopy=
+      el(
+        'div',
+        undefined,
+        'pess-import-head-copy'
+      );
+
+    headCopy.append(
+      el(
+        'span',
+        'LEITURA AUTOMÁTICA',
+        'pess-import-kicker'
+      ),
       el(
         'h3',
-        'Preencher automaticamente pelos documentos'
+        'Começar pelos documentos'
       ),
       el(
         'p',
-        'Envie a identidade/CPF, o comprovante de residência ou ambos. A leitura automática funciona parcialmente com apenas um documento e pré-preenche somente os dados que puder identificar.',
+        'Envie a identidade, o comprovante de residência ou ambos. O sistema identifica o que conseguir e prepara os campos para conferência.',
         'hint'
       )
+    );
+
+    const headIcon=
+      el(
+        'span',
+        undefined,
+        'pess-import-head-icon'
+      );
+
+    headIcon.setAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    headIcon.innerHTML=
+      '<svg viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20H6z"></path><path d="M14 3.5V8h4"></path><path d="M9 12h6"></path><path d="M9 15h6"></path><path d="m8 8 1.3 1.3L12 6.6"></path></svg>';
+
+    head.append(
+      headCopy,
+      headIcon
     );
 
     panel.append(
@@ -1383,13 +1415,40 @@ window.PDA_MODULES.PESS = (()=>{
       el(
         'label',
         undefined,
-        'field'
+        'pess-import-upload-card'
       );
 
-    idLabel.append(
+    const idIcon=
       el(
         'span',
-        'Documento de identidade / CPF (opcional)'
+        undefined,
+        'pess-import-upload-icon'
+      );
+
+    idIcon.setAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    idIcon.innerHTML=
+      '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"></rect><circle cx="9" cy="11" r="2"></circle><path d="M7 16c.7-1.8 1.7-2.7 3-2.7s2.3.9 3 2.7"></path><path d="M15 10h3"></path><path d="M15 13h3"></path></svg>';
+
+    const idCopy=
+      el(
+        'span',
+        undefined,
+        'pess-import-upload-copy'
+      );
+
+    idCopy.append(
+      el(
+        'strong',
+        'Documento de identidade / CPF'
+      ),
+      el(
+        'small',
+        '1 PDF ou até 2 imagens · PDF, JPG ou PNG · até 5 MB',
+        'hint'
       )
     );
 
@@ -1400,27 +1459,90 @@ window.PDA_MODULES.PESS = (()=>{
     identityInput.multiple=true;
     identityInput.accept=
       '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+    identityInput.setAttribute(
+      'aria-label',
+      'Selecionar documento de identidade ou CPF'
+    );
+
+    const idFileState=
+      el(
+        'span',
+        'Nenhum arquivo selecionado',
+        'pess-import-file-state'
+      );
 
     idLabel.append(
+      idIcon,
+      idCopy,
       identityInput,
-      el(
-        'small',
-        '1 PDF ou até 2 imagens. Para a leitura automática, basta este documento ou o comprovante.',
-        'hint'
-      )
+      idFileState
+    );
+
+    const syncIdentityState=()=>{
+      const files=
+        Array.from(
+          identityInput.files||
+          []
+        );
+
+      idLabel.classList.toggle(
+        'has-file',
+        files.length>0
+      );
+
+      idFileState.textContent=
+        files.length
+          ?(
+              files.length===1
+                ?files[0].name
+                :files.length+' arquivos selecionados'
+            )
+          :'Nenhum arquivo selecionado';
+    };
+
+    identityInput.addEventListener(
+      'change',
+      syncIdentityState
     );
 
     const residenceLabel=
       el(
         'label',
         undefined,
-        'field'
+        'pess-import-upload-card'
       );
 
-    residenceLabel.append(
+    const residenceIcon=
       el(
         'span',
-        'Comprovante de residência (opcional)'
+        undefined,
+        'pess-import-upload-icon'
+      );
+
+    residenceIcon.setAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    residenceIcon.innerHTML=
+      '<svg viewBox="0 0 24 24"><path d="m4 11 8-6 8 6"></path><path d="M6 10v9h12v-9"></path><path d="M9 19v-5h6v5"></path></svg>';
+
+    const residenceCopy=
+      el(
+        'span',
+        undefined,
+        'pess-import-upload-copy'
+      );
+
+    residenceCopy.append(
+      el(
+        'strong',
+        'Comprovante de residência'
+      ),
+      el(
+        'small',
+        '1 arquivo · PDF, JPG ou PNG · até 5 MB',
+        'hint'
       )
     );
 
@@ -1431,14 +1553,46 @@ window.PDA_MODULES.PESS = (()=>{
     residenceInput.multiple=false;
     residenceInput.accept=
       '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
+    residenceInput.setAttribute(
+      'aria-label',
+      'Selecionar comprovante de residência'
+    );
+
+    const residenceFileState=
+      el(
+        'span',
+        'Nenhum arquivo selecionado',
+        'pess-import-file-state'
+      );
 
     residenceLabel.append(
+      residenceIcon,
+      residenceCopy,
       residenceInput,
-      el(
-        'small',
-        'PDF, JPEG ou PNG, até 5 MB. Para a leitura automática, basta este documento ou a identidade.',
-        'hint'
-      )
+      residenceFileState
+    );
+
+    const syncResidenceState=()=>{
+      const file=
+        residenceInput.files&&
+        residenceInput.files[0]
+          ?residenceInput.files[0]
+          :null;
+
+      residenceLabel.classList.toggle(
+        'has-file',
+        !!file
+      );
+
+      residenceFileState.textContent=
+        file
+          ?file.name
+          :'Nenhum arquivo selecionado';
+    };
+
+    residenceInput.addEventListener(
+      'change',
+      syncResidenceState
     );
 
     grid.append(
@@ -1450,34 +1604,55 @@ window.PDA_MODULES.PESS = (()=>{
       grid
     );
 
-    const privacy=
-      el(
-        'p',
-        'Para executar a leitura, os arquivos são enviados à API DeepSeek. PDFs são convertidos temporariamente pelo OCR do Google Drive e o arquivo temporário é descartado após a leitura.',
-        'pess-import-notice'
-      );
-
-    panel.append(
-      privacy
-    );
-
     const deepseekReady=
       !!(
         App.state.boot.deepseek&&
         App.state.boot.deepseek.configurada
       );
 
-    panel.append(
+    const meta=
       el(
-        'p',
+        'div',
+        undefined,
+        'pess-import-meta'
+      );
+
+    const engine=
+      el(
+        'span',
         deepseekReady
-          ?'Leitura automática disponível · '+App.state.boot.deepseek.modelo
-          :'Leitura automática indisponível: configure DEEPSEEK_API_KEY em Administração.',
+          ?'Leitura automática ativa · '+App.state.boot.deepseek.modelo
+          :'Leitura automática indisponível',
         deepseekReady
-          ?'badge'
-          :'warn'
-      )
+          ?'pess-import-engine ready'
+          :'pess-import-engine unavailable'
+      );
+
+    const privacy=
+      el(
+        'span',
+        'Os arquivos são usados apenas para a leitura. PDFs podem passar por OCR temporário antes da análise.',
+        'pess-import-privacy'
+      );
+
+    meta.append(
+      engine,
+      privacy
     );
+
+    panel.append(
+      meta
+    );
+
+    if(!deepseekReady){
+      panel.append(
+        el(
+          'p',
+          'Configure DEEPSEEK_API_KEY em Administração para habilitar a leitura automática.',
+          'warn'
+        )
+      );
+    }
 
     const resultBox=
       el(
@@ -1502,7 +1677,7 @@ window.PDA_MODULES.PESS = (()=>{
     const analyze=
       el(
         'button',
-        'Ler documentos e preencher cadastro'
+        'Ler documentos e iniciar cadastro'
       );
 
     analyze.type='button';
