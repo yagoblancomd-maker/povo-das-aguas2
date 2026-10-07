@@ -1,871 +1,124 @@
 <script>
-window.PDA_MODULES.PAINEL = (()=>{
-  const {
-    el,button,call,go,alive
-  }=App;
+window.PDA_MODULES.PAINEL=(()=>{
+  const {el,button,call,go,alive}=App;
 
   const ICONS={
-    cadastro:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.7 18.5c.7-3.3 2.6-5 5.3-5s4.6 1.7 5.3 5"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>',
-    consulta:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="M15 15l5 5"></path></svg>',
-    defeso:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20H6z"></path><path d="M15 3.5V7h3"></path><path d="M8.8 11h6.4"></path><path d="M8.8 14h6.4"></path><path d="M8.8 17h4.2"></path></svg>',
-    distribuicao:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="19" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="M7 11l10-4"></path><path d="M7 13l10 4"></path></svg>',
-    tarefas:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h3"></path><path d="M4 7H3v10h1"></path></svg>',
-    processo:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M15 4v5h4"></path><path d="M8 12h8"></path><path d="M8 15h8"></path><path d="M8 18h5"></path></svg>',
-    minuta:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M15 4v5h4"></path><path d="M8 13l2 2 5-5"></path></svg>',
-    admin:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2"></path><path d="M12 19v2"></path><path d="M3 12h2"></path><path d="M19 12h2"></path><path d="M5.6 5.6L7 7"></path><path d="M17 17l1.4 1.4"></path><path d="M18.4 5.6L17 7"></path><path d="M7 17l-1.4 1.4"></path></svg>',
-    fish:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-4 7-6 11-4l4-3v5l3 2-3 2v5l-4-3c-4 2-8 0-11-4z"></path><circle cx="14.2" cy="10.2" r=".8" fill="currentColor" stroke="none"></circle></svg>',
-    money:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"></path><circle cx="12" cy="12" r="3"></circle><path d="M7 9H5"></path><path d="M19 15h-2"></path></svg>',
-    cases:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"></path><path d="M8 7V4h8v3"></path><path d="M4 12h16"></path></svg>',
-    people:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.4 5.5-5.4s4.8 1.8 5.5 5.4"></path><circle cx="17.5" cy="9" r="2.2"></circle><path d="M15.5 14.2c2.8-.5 4.6 1 5 4"></path></svg>',
-    pending:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6"></path><path d="M12 16.5h.01"></path></svg>'
+    cadastro:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.7 18.5c.7-3.3 2.6-5 5.3-5s4.6 1.7 5.3 5"></path><path d="M18 8v6M15 11h6"></path></svg>',
+    consulta:'<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="M15 15l5 5"></path></svg>',
+    defeso:'<svg viewBox="0 0 24 24"><path d="M6 3.5h9l3 3V20H6zM15 3.5V7h3M8.8 11h6.4M8.8 14h6.4"></path></svg>',
+    tarefas:'<svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3"></path></svg>',
+    distribuicao:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"></circle><circle cx="19" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="M7 11l10-4M7 13l10 4"></path></svg>',
+    processo:'<svg viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5zM15 4v5h4M8 12h8M8 15h8"></path></svg>',
+    historico:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2M5 4v4h4"></path></svg>',
+    people:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.6 2.6-5.4 5.5-5.4s4.8 1.8 5.5 5.4"></path></svg>',
+    money:'<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+    pending:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v6M12 16.5h.01"></path></svg>',
+    cases:'<svg viewBox="0 0 24 24"><path d="M4 7h16v13H4zM8 7V4h8v3M4 12h16"></path></svg>'
   };
 
-  function money_(value){
-    return Number(value||0).toLocaleString(
-      'pt-BR',
-      {
-        style:'currency',
-        currency:'BRL'
-      }
-    );
+  const number_=value=>Number(value||0).toLocaleString('pt-BR');
+  const money_=value=>Number(value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+  function icon_(name){
+    const node=el('span',undefined,'home-action-icon');
+    node.innerHTML=ICONS[name]||ICONS.consulta;
+    return node;
   }
 
-  function number_(value){
-    return Number(value||0).toLocaleString(
-      'pt-BR'
-    );
-  }
-
-  function dateTime_(value){
-    const d=new Date(value);
-
-    if(Number.isNaN(d.getTime())){
-      return '—';
+  function metric_(value,label,detail,iconName,action){
+    const box=el('article',undefined,'home-metric');
+    const icon=el('span',undefined,'home-metric-icon');
+    icon.innerHTML=ICONS[iconName]||ICONS.people;
+    const copy=el('div',undefined,'home-metric-copy');
+    copy.append(el('strong',value),el('span',label),el('small',detail));
+    box.append(icon,copy);
+    if(action){
+      const link=button(action.label,action.fn,true);
+      link.classList.add('home-metric-link');
+      box.append(link);
     }
-
-    return d.toLocaleString(
-      'pt-BR',
-      {
-        day:'2-digit',
-        month:'2-digit',
-        year:'numeric',
-        hour:'2-digit',
-        minute:'2-digit'
-      }
-    );
-  }
-
-  function cpf_(value){
-    const d=String(value||'')
-      .replace(/\D/g,'');
-
-    return d.length===11
-      ?d.replace(
-          /(\d{3})(\d{3})(\d{3})(\d{2})/,
-          '$1.$2.$3-$4'
-        )
-      :String(value||'');
-  }
-
-  function firstName_(name){
-    return (
-      String(name||'')
-        .trim()
-        .split(/\s+/)[0]||
-      'usuário'
-    );
-  }
-
-  const ACTION_PHOTOS=Object.freeze({
-    PESS:'community',
-    ACOMP:'channel',
-    DEFESO:'boat',
-    TAREFAS:'net',
-    DIST:'boat',
-    PROC:'port',
-    MIN:'channel',
-    ADM:'port'
-  });
-
-  function actionCard_(item){
-    const b=
-      el(
-        'button',
-        undefined,
-        'home-action-card '+(item.primary?'primary ':'')+
-        'home-action-'+String(item.code||'').toLowerCase()+
-        ' home-action-photo-'+(
-          ACTION_PHOTOS[item.code]||
-          'channel'
-        )
-      );
-
-    b.type='button';
-    b.onclick=()=>go(item.code);
-
-    const icon=
-      el(
-        'span',
-        undefined,
-        'home-action-icon'
-      );
-
-    icon.innerHTML=
-      ICONS[item.icon]||
-      ICONS.consulta;
-
-    const copy=
-      el(
-        'span',
-        undefined,
-        'home-action-copy'
-      );
-
-    copy.append(
-      el(
-        'strong',
-        item.title
-      ),
-      el(
-        'small',
-        item.description
-      )
-    );
-
-    const arrow=
-      el(
-        'span',
-        '→',
-        'home-action-arrow'
-      );
-
-    b.append(
-      icon,
-      copy,
-      arrow
-    );
-
-    return b;
-  }
-
-  function metricCard_(value,label,description,icon,kind=''){
-    const box=
-      el(
-        'article',
-        undefined,
-        'home-metric '+kind
-      );
-
-    const iconBox=
-      el(
-        'span',
-        undefined,
-        'home-metric-icon'
-      );
-
-    iconBox.innerHTML=
-      ICONS[icon]||
-      ICONS.fish;
-
-    const copy=
-      el(
-        'div',
-        undefined,
-        'home-metric-copy'
-      );
-
-    copy.append(
-      el(
-        'strong',
-        value
-      ),
-      el(
-        'span',
-        label
-      ),
-      el(
-        'small',
-        description
-      )
-    );
-
-    box.append(
-      iconBox,
-      copy
-    );
-
     return box;
   }
 
+  function action_(item){
+    const card=el('button',undefined,'home-action-card home-action-'+String(item.code||'').toLowerCase()+' home-action-photo-'+item.photo);
+    card.type='button';
+    card.onclick=()=>go(item.code);
+    const copy=el('span',undefined,'home-action-copy');
+    copy.append(el('strong',item.title),el('small',item.description));
+    card.append(icon_(item.icon),copy,el('span','→','home-action-arrow'));
+    return card;
+  }
 
   return async function(ctx){
     const root=ctx.root;
-    const boot=
-      App.state.boot||
-      {};
-
-    const user=
-      boot.usuario||
-      {};
-
-    const d=
-      await call(
-        'painel'
-      );
-
+    const boot=App.state.boot||{};
+    const user=boot.usuario||{};
+    const d=await call('painel');
     if(!alive(ctx))return;
 
-    const hero=
-      el(
-        'section',
-        undefined,
-        'home-hero'
-      );
-
-    const heroContent=
-      el(
-        'div',
-        undefined,
-        'home-hero-content'
-      );
-
-    const eyebrow=
-      el(
-        'span',
-        'PROJETO POVO DAS ÁGUAS',
-        'home-eyebrow'
-      );
-
-    const title=
-      el(
-        'h2',
-        'Bem-vindo ao Povo das Águas'
-      );
-
-    const subtitle=
-      el(
-        'p',
-        'Sistema de atendimento jurídico, documentação e gestão para comunidades pesqueiras.'
-      );
-
-    const meta=
-      el(
-        'div',
-        undefined,
-        'home-hero-meta'
-      );
-
-    const today=
-      new Intl.DateTimeFormat(
-        'pt-BR',
-        {
-          weekday:'long',
-          day:'2-digit',
-          month:'long',
-          year:'numeric'
-        }
-      ).format(
-        new Date()
-      );
-
-    meta.append(
-      el(
-        'span',
-        user.funcao||'Usuário do sistema'
-      ),
-      el(
-        'span',
-        boot.perfil||''
-      ),
-      el(
-        'span',
-        today.charAt(0).toUpperCase()+today.slice(1)
-      )
-    );
-
+    const hero=el('section',undefined,'home-hero');
+    const heroContent=el('div',undefined,'home-hero-content');
     heroContent.append(
-      eyebrow,
-      title,
-      subtitle,
-      meta
+      el('span','PROJETO POVO DAS ÁGUAS','home-eyebrow'),
+      el('h2','Bem-vindo, '+(user.nomeUsuario||user.nome||'usuário').split(/\s+/)[0]),
+      el('p','Atendimento, documentação e gestão jurídica das comunidades pesqueiras.')
     );
-
-    hero.append(
-      heroContent
-    );
-
+    hero.append(heroContent);
     root.append(hero);
 
-    const headline=
-      el(
-        'section',
-        undefined,
-        'home-headline-metrics'
-      );
-
-    headline.append(
-      metricCard_(
-        number_(d.acoesTramitacao),
-        'Ações em tramitação',
-        'Processos registrados no sistema.',
-        'cases',
-        'featured'
-      ),
-      metricCard_(
-        money_(d.valorCausas),
-        'Valor total das causas',
-        'Soma das causas cadastradas com base nas parcelas do Seguro-Defeso 2025.',
-        'money',
-        'featured'
-      ),
-      metricCard_(
-        number_(d.pessoas),
-        'Pessoas cadastradas',
-        'Cadastros atualmente existentes.',
-        'people'
-      ),
-      metricCard_(
-        number_(d.aConferir),
-        'Documentos a conferir',
-        'Documentos vigentes ainda sem conferência.',
-        'pending'
-      )
+    const metrics=el('section',undefined,'home-headline-metrics');
+    metrics.append(
+      metric_(number_(d.pessoas),'Pessoas cadastradas','Cadastros ativos.','people',{
+        label:'Histórico',
+        fn:()=>go('HIST')
+      }),
+      metric_(number_(d.acoesTramitacao),'Processos','Ações registradas.','cases',{
+        label:'Consultar',
+        fn:()=>go('PROC')
+      }),
+      metric_(number_(d.minhasTarefas),'Minhas tarefas','Demandas abertas para você.','pending',{
+        label:'Abrir',
+        fn:()=>go('TAREFAS')
+      }),
+      metric_(money_(d.valorCausas),'Valor das causas','Base das parcelas cadastradas.','money')
     );
+    root.append(metrics);
 
-    root.append(headline);
-
-    const secondary=
-      el(
-        'div',
-        undefined,
-        'home-secondary-metrics'
-      );
-
-    const secondaryItems=[
-      [
-        number_(d.iniciais),
-        'Petições iniciais geradas'
-      ],
-      [
-        number_(d.relatorios),
-        'Relatórios Defeso 2025'
-      ],
-      [
-        number_(d.documentos),
-        'Documentos vigentes'
-      ]
-    ];
-
-    if(
-      boot.modulos&&
-      boot.modulos.TAREFAS
-    ){
-      secondaryItems.unshift(
-        [
-          number_(d.minhasTarefas),
-          'Minhas tarefas pendentes'
-        ]
-      );
-    }
-
-    secondaryItems.forEach(([value,label])=>{
-      const item=
-        el(
-          'div',
-          undefined,
-          'home-secondary-metric'
-        );
-
-      item.append(
-        el(
-          'strong',
-          value
-        ),
-        el(
-          'span',
-          label
-        )
-      );
-
-      secondary.append(item);
-    });
-
-    root.append(secondary);
-
-    const sectionTitle=
-      el(
-        'div',
-        undefined,
-        'home-section-title'
-      );
-
-    sectionTitle.append(
-      el(
-        'div',
-        undefined,
-        'home-section-title-copy'
-      )
+    const heading=el('div',undefined,'home-section-title');
+    const headingCopy=el('div');
+    headingCopy.append(
+      el('h3','Ações rápidas'),
+      el('p','Acesse diretamente o fluxo que precisa executar.','hint')
     );
+    const history=button('Consultar histórico',()=>go('HIST'),true);
+    heading.append(headingCopy,history);
+    root.append(heading);
 
-    sectionTitle.firstChild.append(
-      el(
-        'h3',
-        'Acesse os principais módulos'
-      ),
-      el(
-        'p',
-        'Ferramentas do sistema organizadas para o seu fluxo de trabalho.',
-        'hint'
-      )
-    );
-
-    root.append(sectionTitle);
-
-    const actions=
-      el(
-        'section',
-        undefined,
-        'home-action-grid'
-      );
-
-    const available=
-      boot.modulos||
-      {};
+    const actions=el('section',undefined,'home-action-grid');
+    const available=boot.modulos||{};
 
     [
-      {
-        code:'PESS',
-        title:'Novo Cadastro',
-        description:'Cadastrar uma nova pessoa e organizar a documentação inicial.',
-        icon:'cadastro',
-        primary:true
-      },
-      {
-        code:'ACOMP',
-        title:'Consultar Cadastros',
-        description:'Localizar pessoas, abrir fichas, documentos e conferências.',
-        icon:'consulta',
-        primary:true
-      },
-      {
-        code:'DEFESO',
-        title:'Consultar Defeso 2025',
-        description:'Consultar rapidamente um CPF na base oficial.',
-        icon:'defeso',
-        primary:true
-      },
-      {
-        code:'TAREFAS',
-        title:'Minhas tarefas',
-        description:'Ver as distribuições processuais atribuídas diretamente a você.',
-        icon:'tarefas',
-        primary:true
-      },
-      {
-        code:'DIST',
-        title:'Atribuir tarefas',
-        description:'Distribuir a fila de trabalho entre os usuários responsáveis.',
-        icon:'distribuicao'
-      },
-      {
-        code:'PROC',
-        title:'Processos',
-        description:'Consultar os processos judiciais registrados.',
-        icon:'processo'
-      },
-      {
-        code:'MIN',
-        title:'Minutas',
-        description:'Gerar e consultar petições vinculadas aos cadastros.',
-        icon:'minuta'
-      },
-      {
-        code:'ADM',
-        title:'Administração',
-        description:'Usuários, permissões, APIs e configurações do sistema.',
-        icon:'admin'
-      }
+      {code:'PESS',title:'Novo Cadastro',description:'Cadastrar pessoa e documentos.',icon:'cadastro',photo:'community'},
+      {code:'ACOMP',title:'Consultar Cadastros',description:'Localizar pessoas e abrir ficha rápida.',icon:'consulta',photo:'channel'},
+      {code:'DEFESO',title:'Seguro-Defeso 2025',description:'Consultar CPF/NIS na base oficial.',icon:'defeso',photo:'boat'},
+      {code:'TAREFAS',title:'Minhas tarefas',description:'Prazos, mensagens e anexos.',icon:'tarefas',photo:'net'},
+      {code:'DIST',title:'Distribuição',description:'Atribuir e acompanhar tarefas.',icon:'distribuicao',photo:'port'},
+      {code:'PROC',title:'Processos',description:'Consultar processos registrados.',icon:'processo',photo:'boat'}
     ]
-      .filter(item=>
-        !!available[item.code]
-      )
-      .forEach(item=>
-        actions.append(
-          actionCard_(item)
-        )
-      );
+      .filter(item=>!!available[item.code])
+      .forEach(item=>actions.append(action_(item)));
 
     root.append(actions);
 
-    const lower=
-      el(
-        'section',
-        undefined,
-        'home-lower-grid'
-      );
-
-    const recent=
-      el(
-        'article',
-        undefined,
-        'home-panel'
-      );
-
-    const recentHead=
-      el(
-        'div',
-        undefined,
-        'home-panel-head'
-      );
-
-    recentHead.append(
-      el(
-        'div'
-      ),
-      button(
-        'Ver cadastros',
-        ()=>go('ACOMP'),
-        true
-      )
+    const compact=el('div',undefined,'home-compact-footer');
+    compact.append(
+      el('span',number_(d.documentos)+' documentos vigentes'),
+      el('span',number_(d.aConferir)+' aguardando conferência'),
+      el('span',number_(d.iniciais)+' petições iniciais'),
+      el('span',number_(d.relatorios)+' relatórios Defeso')
     );
-
-    recentHead.firstChild.append(
-      el(
-        'h3',
-        'Cadastros recentes'
-      ),
-      el(
-        'p',
-        'Últimas pessoas incluídas no sistema.',
-        'hint'
-      )
-    );
-
-    recent.append(recentHead);
-
-    const recentList=
-      el(
-        'div',
-        undefined,
-        'home-recent-list'
-      );
-
-    if(
-      !d.ultimosCadastros||
-      !d.ultimosCadastros.length
-    ){
-      recentList.append(
-        el(
-          'p',
-          'Nenhum cadastro disponível.',
-          'hint'
-        )
-      );
-    }else{
-      d.ultimosCadastros.forEach(p=>{
-        const item=
-          el(
-            'button',
-            undefined,
-            'home-recent-person'
-          );
-
-        item.type='button';
-        item.onclick=()=>{
-          App.state.selection=p.id;
-          return go(
-            'ACOMP',
-            p.id
-          );
-        };
-
-        const initials=
-          String(p.nome||'?')
-            .trim()
-            .split(/\s+/)
-            .slice(0,2)
-            .map(v=>v.charAt(0))
-            .join('')
-            .toUpperCase();
-
-        const avatar=
-          el(
-            'span',
-            initials,
-            'home-avatar'
-          );
-
-        const copy=
-          el(
-            'span',
-            undefined,
-            'home-recent-copy'
-          );
-
-        copy.append(
-          el(
-            'strong',
-            p.nome
-          ),
-          el(
-            'small',
-            cpf_(p.cpf)+
-            (
-              p.cidade
-                ?' · '+p.cidade
-                :''
-            )
-          )
-        );
-
-        item.append(
-          avatar,
-          copy,
-          el(
-            'span',
-            '→',
-            'home-recent-arrow'
-          )
-        );
-
-        recentList.append(item);
-      });
-    }
-
-    recent.append(recentList);
-
-    const activity=
-      el(
-        'article',
-        undefined,
-        'home-panel'
-      );
-
-    const activityHead=
-      el(
-        'div',
-        undefined,
-        'home-panel-head'
-      );
-
-    activityHead.append(
-      el(
-        'div'
-      )
-    );
-
-    activityHead.firstChild.append(
-      el(
-        'h3',
-        'Atividade recente'
-      ),
-      el(
-        'p',
-        'Últimas alterações registradas no sistema.',
-        'hint'
-      )
-    );
-
-    activity.append(activityHead);
-
-    const timeline=
-      el(
-        'div',
-        undefined,
-        'home-timeline'
-      );
-
-    if(
-      !d.atividades||
-      !d.atividades.length
-    ){
-      timeline.append(
-        el(
-          'p',
-          'Nenhuma atividade registrada.',
-          'hint'
-        )
-      );
-    }else{
-      d.atividades.forEach(item=>{
-        const row=
-          el(
-            'div',
-            undefined,
-            'home-timeline-item'
-          );
-
-        row.append(
-          el(
-            'span',
-            undefined,
-            'home-timeline-dot'
-          )
-        );
-
-        const copy=
-          el(
-            'div'
-          );
-
-        copy.append(
-          el(
-            'strong',
-            item.descricao
-          ),
-          el(
-            'small',
-            dateTime_(item.data)+
-            (
-              item.usuario
-                ?' · '+item.usuario
-                :''
-            )
-          )
-        );
-
-        row.append(copy);
-        timeline.append(row);
-      });
-    }
-
-    activity.append(timeline);
-
-    lower.append(
-      recent,
-      activity
-    );
-
-    root.append(lower);
-
-    const jurisdictionEntries=
-      Object.entries(
-        d.jurisdicoes||{}
-      )
-        .sort((a,b)=>
-          b[1]-a[1]
-        );
-
-    if(jurisdictionEntries.length){
-      const territory=
-        el(
-          'section',
-          undefined,
-          'home-territory'
-        );
-
-      const territoryHead=
-        el(
-          'div',
-          undefined,
-          'home-panel-head'
-        );
-
-      territoryHead.append(
-        el(
-          'div'
-        ),
-        el(
-          'span',
-          'Atualizado em '+dateTime_(d.atualizadoEm),
-          'home-updated'
-        )
-      );
-
-      territoryHead.firstChild.append(
-        el(
-          'h3',
-          'Abrangência dos cadastros'
-        ),
-        el(
-          'p',
-          'Distribuição das pessoas por jurisdição.',
-          'hint'
-        )
-      );
-
-      territory.append(
-        territoryHead
-      );
-
-      const bars=
-        el(
-          'div',
-          undefined,
-          'home-territory-bars'
-        );
-
-      const max=
-        Math.max(
-          ...jurisdictionEntries.map(
-            item=>Number(item[1]||0)
-          ),
-          1
-        );
-
-      jurisdictionEntries.forEach(([name,value])=>{
-        const row=
-          el(
-            'div',
-            undefined,
-            'home-territory-row'
-          );
-
-        const label=
-          el(
-            'div',
-            undefined,
-            'home-territory-label'
-          );
-
-        label.append(
-          el(
-            'span',
-            name
-          ),
-          el(
-            'strong',
-            number_(value)
-          )
-        );
-
-        const track=
-          el(
-            'div',
-            undefined,
-            'home-territory-track'
-          );
-
-        const fill=
-          el(
-            'span',
-            undefined,
-            'home-territory-fill'
-          );
-
-        fill.style.width=
-          Math.max(
-            5,
-            Math.round(
-              Number(value||0)/
-              max*
-              100
-            )
-          )+'%';
-
-        track.append(fill);
-
-        row.append(
-          label,
-          track
-        );
-
-        bars.append(row);
-      });
-
-      territory.append(bars);
-      root.append(territory);
-    }
+    root.append(compact);
   };
 })();
 </script>
