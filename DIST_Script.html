@@ -152,7 +152,72 @@ window.PDA_MODULES.DIST = (()=>{
     );
   }
 
-  function assignmentCard_(task,users,refresh){
+
+  function makeDistRowInteractive_(card,task,onOpen){
+    if(typeof onOpen!=='function'){
+      return;
+    }
+
+    card.tabIndex=0;
+    card.setAttribute(
+      'role',
+      'button'
+    );
+
+    card.setAttribute(
+      'aria-label',
+      'Abrir: '+
+      (
+        task.titulo||
+        task.pessoa||
+        'tarefa'
+      )
+    );
+
+    card.addEventListener(
+      'click',
+      event=>{
+        const target=event.target;
+
+        if(
+          target&&
+          target.closest&&
+          target.closest(
+            'button,a,input,select,textarea,label,summary'
+          )
+        ){
+          return;
+        }
+
+        onOpen(task);
+      }
+    );
+
+    card.addEventListener(
+      'keydown',
+      event=>{
+        if(
+          event.key==='Enter'||
+          event.key===' '
+        ){
+          event.preventDefault();
+          onOpen(task);
+        }
+      }
+    );
+  }
+
+  function distMovementBadge_(task){
+    return task.novaManifestacao
+      ?el(
+          'span',
+          'NOVA MANIFESTAÇÃO',
+          'dist-new-movement'
+        )
+      :null;
+  }
+
+  function assignmentCard_(task,users,refresh,onOpen){
     const card=el(
       'article',
       undefined,
@@ -163,7 +228,8 @@ window.PDA_MODULES.DIST = (()=>{
       )+
       (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
       (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
-      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')+
+      (task.novaManifestacao?' has-new-movement':'')
     );
 
     if(task.tags&&task.tags[0]&&task.tags[0].cor){
@@ -181,8 +247,21 @@ window.PDA_MODULES.DIST = (()=>{
       )
     );
 
-    top.append(
-      copy,
+    const stateGroup=
+      el(
+        'span',
+        undefined,
+        'dist-state-group'
+      );
+
+    const movement=
+      distMovementBadge_(task);
+
+    if(movement){
+      stateGroup.append(movement);
+    }
+
+    stateGroup.append(
       el(
         'span',
         task.situacao==='PENDENTE_ATRIBUICAO'
@@ -190,6 +269,11 @@ window.PDA_MODULES.DIST = (()=>{
           :'ATRIBUÍDA',
         'dist-task-status'
       )
+    );
+
+    top.append(
+      copy,
+      stateGroup
     );
 
     const info=el('div',undefined,'dist-task-info');
@@ -308,6 +392,11 @@ window.PDA_MODULES.DIST = (()=>{
     }
 
     card.append(top,info,tags,assign,quickActions);
+    makeDistRowInteractive_(
+      card,
+      task,
+      onOpen
+    );
     return card;
   }
 
@@ -316,7 +405,9 @@ window.PDA_MODULES.DIST = (()=>{
     const card=el(
       'article',
       undefined,
-      'dist-general-card'+(done?' done':'')
+      'dist-general-card'+
+      (done?' done':'')+
+      (task.novaManifestacao?' has-new-movement':'')
     );
 
     if(task.tags&&task.tags[0]&&task.tags[0].cor){
@@ -334,13 +425,31 @@ window.PDA_MODULES.DIST = (()=>{
       )
     );
 
-    top.append(
-      copy,
+    const stateGroup=
+      el(
+        'span',
+        undefined,
+        'dist-state-group'
+      );
+
+    const movement=
+      distMovementBadge_(task);
+
+    if(movement){
+      stateGroup.append(movement);
+    }
+
+    stateGroup.append(
       el(
         'span',
         done?'CONCLUÍDA':priority_(task.prioridade).toUpperCase(),
         'dist-general-status '+String(task.prioridade||'NORMAL').toLowerCase()
       )
+    );
+
+    top.append(
+      copy,
+      stateGroup
     );
 
     const description=el(
@@ -352,10 +461,20 @@ window.PDA_MODULES.DIST = (()=>{
     const meta=el('div',undefined,'dist-general-meta');
 
     [
+      [
+        'Cadastro',
+        task.pessoa||
+        'Sem vínculo'
+      ],
       ['Responsável',task.responsavelNome||task.responsavel||'—'],
       ['Prazo',date_(task.prazo)],
-      ['Mensagens',String(task.mensagens||0)],
-      ['PDFs',String(task.anexos||0)]
+      [
+        'Movimentações',
+        String(task.mensagens||0)+
+        ' msg · '+
+        String(task.anexos||0)+
+        ' anexo(s)'
+      ]
     ].forEach(([label,value])=>{
       const item=el('div');
       item.append(el('span',label),el('strong',value));
@@ -597,7 +716,9 @@ window.PDA_MODULES.DIST = (()=>{
     try{
       detail=await call(
         'tarefaGeralDetalhe',
-        {id:task.id}
+        {id:task.id},
+        false,
+        {noLoader:true}
       );
     }catch(error){
       if(instant&&instant.open){
@@ -636,6 +757,48 @@ window.PDA_MODULES.DIST = (()=>{
     );
 
     const body=el('div',undefined,'dist-general-dialog-body');
+
+    if(detail.tarefa.pessoaId){
+      const personBar=
+        el(
+          'button',
+          undefined,
+          'dist-linked-person'
+        );
+
+      personBar.type='button';
+
+      personBar.append(
+        el(
+          'span',
+          'CADASTRO VINCULADO'
+        ),
+        el(
+          'strong',
+          detail.tarefa.pessoa||
+          'Pessoa vinculada'
+        ),
+        el(
+          'small',
+          [
+            cpf_(
+              detail.tarefa.pessoaCpf
+            ),
+            detail.tarefa.pessoaCidade,
+            detail.tarefa.pessoaJurisdicao
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+
+      personBar.onclick=
+        ()=>App.openPersonDrawer(
+          detail.tarefa.pessoaId
+        );
+
+      body.append(personBar);
+    }
 
     const overview=el('div',undefined,'dist-general-overview');
 
@@ -763,7 +926,9 @@ window.PDA_MODULES.DIST = (()=>{
 
       detail=await call(
         'tarefaGeralDetalhe',
-        {id:detail.tarefa.id}
+        {id:detail.tarefa.id},
+        false,
+        {noLoader:true}
       );
 
       renderAttachments_(fileGrid,detail);
@@ -1251,17 +1416,77 @@ window.PDA_MODULES.DIST = (()=>{
       }
     };
 
-    const openGeneral_=task=>
-      openGeneralDialog_(root,task,applyOpenTaskChange_);
+    const markViewed_=task=>{
+      if(!task||!task.id)return;
+
+      if(task.novaManifestacao){
+        task.novaManifestacao=false;
+
+        applyOpenTaskChange_({
+          kind:'update',
+          id:task.id,
+          patch:{
+            novaManifestacao:false,
+            ultimoVistoEm:
+              new Date().toISOString()
+          }
+        });
+      }
+
+      call(
+        'tarefaMarcarVista',
+        {id:task.id},
+        true,
+        {silent:true}
+      )
+        .then(()=>
+          App.refreshTaskNotifications()
+        )
+        .catch(()=>{});
+    };
+
+    const openGeneral_=task=>{
+      markViewed_(task);
+
+      return openGeneralDialog_(
+        root,
+        task,
+        applyOpenTaskChange_
+      );
+    };
 
     const openDistribution_=async task=>{
-      const detail=await call(
-        'tarefaDistribuicaoDetalhe',
-        {id:task.id}
-      );
-      if(!alive(ctx))return;
-      // Reaproveita o fluxo detalhado do módulo Minhas tarefas quando disponível:
-      // aqui a gestão atua principalmente pela atribuição exibida no card.
+      markViewed_(task);
+
+      const instant=
+        openInstantGeneralDialog_(
+          root,
+          task
+        );
+
+      let detail;
+
+      try{
+        detail=await call(
+          'tarefaDistribuicaoDetalhe',
+          {id:task.id},
+          false,
+          {noLoader:true}
+        );
+      }catch(error){
+        if(instant&&instant.open){
+          instant.close();
+        }
+        throw error;
+      }
+
+      if(!alive(ctx)){
+        if(instant)instant.remove();
+        return;
+      }
+
+      if(instant)instant.remove();
+
       const dialog=el('dialog',undefined,'dist-task-detail-dialog');
       const shell=el('div',undefined,'dist-general-dialog-shell');
       const head=el('div',undefined,'dist-general-dialog-head');
@@ -1503,7 +1728,8 @@ window.PDA_MODULES.DIST = (()=>{
               ()=>{
                 openData=data;
                 paintOpen_(data);
-              }
+              },
+              openDistribution_
             )
           )
         );
