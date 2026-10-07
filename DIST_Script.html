@@ -288,8 +288,30 @@ window.PDA_MODULES.DIST = (()=>{
           true
         );
 
-        status('Tarefa atribuída a '+result.responsavel+'.');
-        await refresh();
+        const selectedUser=users.find(user=>
+          String(user.email||'').toLowerCase()===
+          String(result.responsavel||'').toLowerCase()
+        );
+
+        task.versao=result.versao||task.versao;
+        task.responsavel=result.responsavel||select.value;
+        task.responsavelNome=
+          selectedUser
+            ?selectedUser.nome||selectedUser.email
+            :task.responsavel;
+        task.situacao=result.situacao||'ATRIBUIDA';
+        task.dataDistribuicao=result.atribuidaEm||new Date().toISOString();
+        task.modoDistribuicao=result.modoDistribuicao||'MANUAL';
+
+        status('Tarefa atribuída a '+task.responsavelNome+'.');
+
+        /*
+         * Atualiza somente o estado já carregado no navegador. Não há nova
+         * consulta de toda a fila ao servidor.
+         */
+        if(typeof refresh==='function'){
+          await Promise.resolve(refresh(task));
+        }
       }
     );
 
@@ -306,7 +328,19 @@ window.PDA_MODULES.DIST = (()=>{
       tags.append(chip);
     });
 
-    card.append(top,info,tags,assign);
+    const quickActions=el('div',undefined,'actions dist-card-quick-actions');
+
+    if(task.pessoaId){
+      quickActions.append(
+        button(
+          'Ver cadastro',
+          ()=>App.openPersonDrawer(task.pessoaId),
+          true
+        )
+      );
+    }
+
+    card.append(top,info,tags,assign,quickActions);
     return card;
   }
 
@@ -369,6 +403,16 @@ window.PDA_MODULES.DIST = (()=>{
     });
 
     const actions=el('div',undefined,'actions');
+    if(task.pessoaId){
+      actions.append(
+        button(
+          'Ver cadastro',
+          ()=>App.openPersonDrawer(task.pessoaId),
+          true
+        )
+      );
+    }
+
     actions.append(
       button(
         done?'Abrir histórico':'Abrir / conversar',
@@ -811,8 +855,12 @@ window.PDA_MODULES.DIST = (()=>{
         if(term.length<2)return;
 
         try{
-          const rows=await call('pessoas',{busca:term});
-          rows.slice(0,40).forEach(item=>{
+          const result=await call('pessoasLeve',{
+            busca:term,
+            limit:30,
+            offset:0
+          });
+          (result.pessoas||[]).forEach(item=>{
             person.append(
               new Option(
                 [item.nome,item.cpf,item.cidade].filter(Boolean).join(' · '),
@@ -1181,12 +1229,16 @@ window.PDA_MODULES.DIST = (()=>{
       const toggle=button(
         data.distribuicaoAutomatica?'Desativar automática':'Ativar automática',
         async()=>{
-          await call(
+          const result=await call(
             'distribuicaoAutomaticaSalvar',
             {ativo:!data.distribuicaoAutomatica},
             true
           );
-          await renderOpen_();
+
+          data.distribuicaoAutomatica=!!result.ativo;
+          openData=data;
+          paintOpen_(data);
+          status(result.mensagem||'Configuração atualizada.');
         },
         true
       );
@@ -1195,8 +1247,20 @@ window.PDA_MODULES.DIST = (()=>{
         'Distribuir pendentes agora',
         async()=>{
           const result=await call('distribuicaoAutomaticaExecutar',{},true);
+
+          const changed=new Map(
+            (result.alteradas||[]).map(item=>[item.id,item])
+          );
+
+          (data.tarefas||[]).forEach(task=>{
+            const update=changed.get(task.id);
+            if(!update)return;
+            Object.assign(task,update);
+          });
+
+          openData=data;
+          paintOpen_(data);
           status(result.mensagem||'Distribuição automática concluída.');
-          await renderOpen_();
         }
       );
 
@@ -1254,7 +1318,18 @@ window.PDA_MODULES.DIST = (()=>{
       if(!distribution.length){
         grid.append(el('div','Nenhuma distribuição processual aberta com esses filtros.','dist-empty'));
       }else{
-        distribution.forEach(task=>grid.append(assignmentCard_(task,data.usuariosDistribuicao||[],renderOpen_)));
+        distribution.forEach(task=>
+          grid.append(
+            assignmentCard_(
+              task,
+              data.usuariosDistribuicao||[],
+              ()=>{
+                openData=data;
+                paintOpen_(data);
+              }
+            )
+          )
+        );
       }
       distributionSection.append(distributionHead,grid);
       content.append(distributionSection);
