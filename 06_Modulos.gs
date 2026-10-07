@@ -336,7 +336,9 @@ const SERVER_CACHEABLE_READS=new Set([
   'tarefasMinhas',
   'distribuicaoFila',
   'processos',
-  'admin'
+  'admin',
+  'tarefasAbertasGestao',
+  'tarefasMinhasAbertas'
 ]);
 
 function serverCachedRead_(action,q,producer){
@@ -441,6 +443,14 @@ function apiAuthenticated_(action,q,sessionToken){
     painel:()=>dashboard_(),
     distribuicaoFila:()=>distributionQueue_(),
     tarefasMinhas:()=>myTasks_(),
+    tarefasAbertasGestao:()=>tasksManagementOpenV2_(q),
+    tarefasHistorico:()=>tasksHistoryV2_(q),
+    tarefasMinhasAbertas:()=>myTasksOpenV2_(q),
+    tarefasMinhasHistorico:()=>myTasksHistoryV2_(q),
+    tarefasPessoa:()=>personTasksV2_(q),
+    tarefasTags:()=>({tags:taskTagCatalog_()}),
+    distribuicaoRanking:()=>distributionRanking_(q),
+    pessoaExcluirPreview:()=>personDeletePreview_(q),
     tarefaDistribuicaoDetalhe:()=>distributionTaskDetail_(q),
     tarefaGeralDetalhe:()=>generalTaskDetail_(q),
     tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
@@ -513,7 +523,12 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralReabrir:['consulta',generalTaskReopen_],
     tarefaGeralMensagemEnviar:['consulta',generalTaskMessageSend_],
     tarefaGeralAnexoAdicionar:['consulta',generalTaskAttachmentAdd_],
-    notificacoesTarefasMarcarLidas:['consulta',taskNotificationsMarkSeen_]
+    notificacoesTarefasMarcarLidas:['consulta',taskNotificationsMarkSeen_],
+    distribuicaoAutomaticaSalvar:['gestao_distribuicao',distributionAutoSave_],
+    distribuicaoAutomaticaExecutar:['gestao_distribuicao',distributionAutoRun_],
+    tarefaTagSalvar:['administracao',taskTagSave_],
+    tarefaTagExcluir:['administracao',taskTagDelete_],
+    pessoaExcluirDefinitivo:['administracao',personDeleteCascade_]
   };
 
   if(reads[action]){
@@ -522,6 +537,14 @@ function apiAuthenticated_(action,q,sessionToken){
       documentosImportar:'cadastro',
       distribuicaoFila:'gestao_distribuicao',
       tarefasMinhas:'consulta',
+      tarefasAbertasGestao:'gestao_distribuicao',
+      tarefasHistorico:'gestao_distribuicao',
+      tarefasMinhasAbertas:'consulta',
+      tarefasMinhasHistorico:'consulta',
+      tarefasPessoa:'consulta',
+      tarefasTags:'consulta',
+      distribuicaoRanking:'gestao_distribuicao',
+      pessoaExcluirPreview:'administracao',
       tarefaDistribuicaoDetalhe:'distribuicao',
       tarefaGeralDetalhe:'consulta',
       tarefaGeralAnexoConteudo:'consulta',
