@@ -10,26 +10,70 @@ function taskDatePlusDays_(value,days){
   return Utilities.formatDate(base,PDA.tz,'yyyy-MM-dd');
 }
 
-function taskTagCatalog_(){
+function taskTagAdminList_(){
   ensureGeneralTaskSchema_();
-  const rows=generalTaskRows_('TarefaTags')
-    .filter(row=>bool_(row.ativo));
 
-  if(rows.length){
-    return rows
-      .map(row=>({
-        id:row.id,
-        nome:row.nome,
-        cor:row.cor||'#176e7d'
-      }))
-      .sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR',{sensitivity:'base'}));
-  }
+  const rows=generalTaskRows_('TarefaTags');
+  const byName=new Map(
+    rows.map(row=>[
+      String(row.nome||'').toUpperCase(),
+      row
+    ])
+  );
 
-  return DEFAULT_TASK_TAGS.map((tag,index)=>({
-    id:'DEFAULT_'+index,
-    nome:tag.nome,
-    cor:tag.cor
-  }));
+  const result=[];
+
+  DEFAULT_TASK_TAGS.forEach((tag,index)=>{
+    const key=String(tag.nome||'').toUpperCase();
+    const stored=byName.get(key);
+
+    if(stored){
+      result.push({
+        id:stored.id,
+        nome:stored.nome,
+        cor:stored.cor||tag.cor,
+        ativo:bool_(stored.ativo),
+        padrao:true
+      });
+      byName.delete(key);
+    }else{
+      result.push({
+        id:'DEFAULT_'+index,
+        nome:tag.nome,
+        cor:tag.cor,
+        ativo:true,
+        padrao:true
+      });
+    }
+  });
+
+  byName.forEach(row=>{
+    result.push({
+      id:row.id,
+      nome:row.nome,
+      cor:row.cor||'#176e7d',
+      ativo:bool_(row.ativo),
+      padrao:false
+    });
+  });
+
+  return result.sort((a,b)=>
+    String(a.nome||'').localeCompare(
+      String(b.nome||''),
+      'pt-BR',
+      {sensitivity:'base'}
+    )
+  );
+}
+
+function taskTagCatalog_(){
+  return taskTagAdminList_()
+    .filter(tag=>tag.ativo)
+    .map(tag=>({
+      id:tag.id,
+      nome:tag.nome,
+      cor:tag.cor
+    }));
 }
 
 function taskTagColorMap_(){
