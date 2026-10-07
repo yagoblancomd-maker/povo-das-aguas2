@@ -1,77 +1,145 @@
 <style>
 #defeso-root{
-  width:min(980px,100%);
+  width:100%;
   margin:0 auto
 }
 .defeso-page-head{
-  margin-bottom:10px
-}
-.defeso-page-head h2{
-  margin-bottom:2px
+  display:none
 }
 .defeso-search-card{
-  display:grid;
-  grid-template-columns:76px minmax(0,1fr);
-  gap:14px;
-  align-items:center;
-  padding:16px 18px
+  display:grid!important;
+  grid-template-columns:58px minmax(0,1fr)!important;
+  gap:14px!important;
+  align-items:center!important;
+  margin:0 0 12px!important;
+  padding:18px!important;
+  border:1px solid #ddd9d0!important;
+  border-radius:14px!important;
+  background:rgba(255,253,249,.97)!important;
+  box-shadow:0 7px 20px rgba(17,49,60,.05)!important
 }
 .defeso-search-icon{
   display:grid;
   place-items:center;
-  width:66px;
-  height:66px;
-  border-radius:50%;
+  width:54px;
+  height:54px;
+  border-radius:15px;
   color:#fff;
-  background:linear-gradient(145deg,#0d6d79,#088594);
-  box-shadow:0 7px 18px rgba(8,121,135,.18)
+  background:linear-gradient(145deg,#176e7d,#168e96);
+  box-shadow:0 8px 20px rgba(16,106,119,.15)
 }
 .defeso-search-icon svg{
-  width:34px;
-  height:34px;
+  width:26px;
+  height:26px;
   fill:none;
   stroke:currentColor;
   stroke-width:1.8;
   stroke-linecap:round;
   stroke-linejoin:round
 }
+.defeso-search-card h3{
+  margin:0!important;
+  color:var(--pda-ink)!important;
+  font-family:var(--pda-display)!important;
+  font-size:20px!important;
+  font-weight:650!important
+}
+.defeso-search-card p{
+  margin:3px 0 0!important;
+  font-size:9px!important
+}
 .defeso-query-row{
   display:grid;
-  grid-template-columns:minmax(220px,340px) auto;
-  gap:8px;
+  grid-template-columns:minmax(220px,420px) auto;
+  gap:9px;
   align-items:end;
-  margin-top:7px
+  margin-top:12px
+}
+.defeso-query-row input{
+  min-height:42px!important
 }
 .defeso-query-row button{
-  min-height:32px
+  min-height:42px!important;
+  padding-inline:17px!important
 }
 .defeso-api-state{
   display:block;
-  margin-top:5px
+  margin-top:7px;
+  font-size:8px!important
 }
 .defeso-result{
-  margin-top:10px
+  display:grid;
+  gap:8px;
+  margin-top:0
 }
 .defeso-result .stats{
-  margin-bottom:8px
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin:0 0 4px!important
+}
+.defeso-result .stat{
+  min-height:86px!important;
+  padding:14px!important;
+  border:1px solid #ddd9d0!important;
+  border-radius:12px!important;
+  background:rgba(255,253,249,.97)!important;
+  box-shadow:0 5px 16px rgba(17,49,60,.04)!important
+}
+.defeso-result .stat strong{
+  color:var(--pda-sea)!important;
+  font-family:var(--pda-display)!important;
+  font-size:22px!important;
+  font-weight:650!important
+}
+.defeso-result .stat span{
+  display:block;
+  margin-top:3px;
+  color:#697a75!important;
+  font-size:8.5px!important
 }
 .defeso-result details{
-  margin:5px 0
+  margin:0!important;
+  overflow:hidden;
+  border:1px solid #dedad1!important;
+  border-radius:11px!important;
+  background:rgba(255,253,249,.97)!important;
+  box-shadow:none!important
+}
+.defeso-result details>summary{
+  padding:11px 13px!important;
+  color:#304f5a!important;
+  background:#f7f4ed!important;
+  font-size:9px!important;
+  font-weight:750!important
+}
+.defeso-result details[open]>summary{
+  color:#fff!important;
+  background:var(--pda-sea)!important
 }
 .defeso-result pre{
-  font-size:10.8px;
-  line-height:1.38
+  margin:0!important;
+  padding:13px!important;
+  color:#405d66!important;
+  background:#fffdfa!important;
+  font-family:var(--pda-ui)!important;
+  font-size:9px!important;
+  line-height:1.55!important;
+  white-space:pre-wrap!important
 }
-@media(max-width:680px){
+.defeso-result .warn{
+  padding:14px;
+  border-radius:10px;
+  color:#74453b;
+  background:#fff0ec
+}
+@media(max-width:760px){
   .defeso-search-card{
-    grid-template-columns:1fr
+    grid-template-columns:1fr!important
   }
-  .defeso-search-icon{
-    width:54px;
-    height:54px
-  }
-  .defeso-query-row{
-    grid-template-columns:1fr
+  .defeso-query-row,
+  .defeso-result .stats{
+    grid-template-columns:1fr!important
   }
 }
 </style>
