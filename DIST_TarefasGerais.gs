@@ -1735,17 +1735,30 @@ function taskNotifications_(){
 
   const tasks=
     all_('Tarefas')
-      .filter(task=>
-        String(
-          task.responsavel||
-          ''
-        ).toLowerCase()===
-          email&&
-        task.situacao!==
-          GENERAL_TASK_DONE&&
-        task.situacao!==
-          DISTRIBUTION_TASK_DONE
-      )
+      .filter(task=>{
+        const responsible=
+          String(
+            task.responsavel||
+            ''
+          ).toLowerCase();
+
+        const creator=
+          String(
+            task.criadoPor||
+            ''
+          ).toLowerCase();
+
+        return (
+          (
+            responsible===email||
+            creator===email
+          )&&
+          task.situacao!==
+            GENERAL_TASK_DONE&&
+          task.situacao!==
+            DISTRIBUTION_TASK_DONE
+        );
+      })
       .map(task=>
         taskSummaryV2_(
           task,
