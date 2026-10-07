@@ -682,7 +682,16 @@ function apiAuthenticated_(action,q,sessionToken){
       return JSON.parse(previous.resultado);
     }
 
-    const ctx={email,op,hash:digest,changes:[],effects:[]};
+    const ctx={
+      email,
+      op,
+      hash:digest,
+      changes:[],
+      effects:[],
+      ephemeral:
+        action==='tarefaMarcarVista'||
+        action==='notificacoesTarefasMarcarLidas'
+    };
 
     try{
       const result=mutations[action][1](ctx,q);
