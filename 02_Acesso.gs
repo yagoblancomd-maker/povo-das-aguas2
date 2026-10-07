@@ -327,6 +327,39 @@ function authorizeProcessScope_(process){
   return user;
 }
 
+function enforcePersonEntityPayload_(user,payload){
+  const data=
+    Object.assign(
+      {},
+      payload||
+      {}
+    );
+
+  if(
+    !isColonyUser_(
+      user
+    )
+  ){
+    return data;
+  }
+
+  const entity=
+    colonyUserEntity_(
+      user
+    );
+
+  if(!entity){
+    fail_(
+      'Seu perfil de Colônia não possui entidade vinculada. Solicite ajuste à Administração.'
+    );
+  }
+
+  data.entidade=entity;
+  data.outraEntidade='';
+
+  return data;
+}
+
 function personCreatorEmail_(p){
   const explicit=String(p&&p.criadoPor||'').trim().toLowerCase();
   if(explicit)return explicit;
