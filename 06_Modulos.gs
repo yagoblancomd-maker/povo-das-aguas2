@@ -257,7 +257,7 @@ function aquecerDadosModulos(codes,sessionToken){
             modelo:templateStatus_(),
             portalTransparencia:portalTransparenciaStatus_(),
             deepseek:deepseekStatus_(),
-            tagsTarefas:taskTagCatalog_()
+            tagsTarefas:taskTagAdminList_()
           })
         ]
       };
@@ -489,7 +489,7 @@ function apiAuthenticated_(action,q,sessionToken){
       modelo:templateStatus_(),
       portalTransparencia:portalTransparenciaStatus_(),
       deepseek:deepseekStatus_(),
-      tagsTarefas:taskTagCatalog_()
+      tagsTarefas:taskTagAdminList_()
     }),
     seguroDefesoConsultar:()=>seguroDefesoConsultar_(q),
     cepConsultar:()=>cepConsultaViaCep_(q),
