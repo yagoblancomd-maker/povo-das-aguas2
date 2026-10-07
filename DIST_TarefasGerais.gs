@@ -2023,9 +2023,32 @@ function taskNotifications_(){
       ''
     );
 
+  const currentUser=
+    activeUser_();
+
   const tasks=
     all_('Tarefas')
       .filter(task=>{
+        if(
+          isColonyUser_(currentUser)&&
+          task.pessoaId
+        ){
+          const person=
+            maps.peopleById.get(
+              task.pessoaId
+            );
+
+          if(
+            !person||
+            !personInUserScope_(
+              currentUser,
+              person
+            )
+          ){
+            return false;
+          }
+        }
+
         const responsible=
           String(
             task.responsavel||
