@@ -451,4 +451,106 @@
   box-shadow:inset 4px 0 0 #c65349,var(--pda-shadow-soft)!important;
   background:#fff9f7!important
 }
+
+
+/* Ranking operacional e cores funcionais das tags */
+.dist-ranking-panels{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin:10px 0 14px
+}
+.dist-rank-board{
+  min-width:0;
+  overflow:hidden;
+  border:1px solid #d9ddd8;
+  border-radius:12px;
+  background:#fffdfa;
+  box-shadow:var(--pda-shadow-soft)
+}
+.dist-rank-board h3{
+  margin:0!important;
+  padding:10px 11px!important;
+  border-bottom:1px solid #e3e0d8;
+  color:#244b57!important;
+  background:#f3f7f5;
+  font-size:9px!important
+}
+.dist-rank-line{
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  min-height:44px;
+  padding:7px 9px;
+  border-bottom:1px solid #eee9df
+}
+.dist-rank-line:last-child{border-bottom:0}
+.dist-rank-line>div{
+  display:grid;
+  min-width:0
+}
+.dist-rank-line b{
+  overflow:hidden;
+  color:#2c4d58;
+  font-size:8.5px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.dist-rank-line small{
+  overflow:hidden;
+  color:#7a8783;
+  font-size:7px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.dist-rank-line>span:last-child{
+  color:var(--pda-sea);
+  font-family:var(--pda-display);
+  font-size:14px;
+  font-weight:650
+}
+.dist-rank-position{
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  color:#fff;
+  background:#6f8790;
+  font-size:8px
+}
+.dist-rank-line:nth-of-type(2) .dist-rank-position{background:#d49a42}
+.dist-rank-line:nth-of-type(3) .dist-rank-position{background:#82979d}
+.dist-rank-line:nth-of-type(4) .dist-rank-position{background:#b98265}
+
+.dist-task-card,
+.dist-general-card{
+  --task-accent:var(--pda-sea)
+}
+.dist-task-card{
+  box-shadow:
+    inset 3px 0 0 var(--task-accent),
+    var(--pda-shadow-soft)!important
+}
+.dist-task-card .dist-assign-row button:not(.secondary),
+.dist-general-card .actions button:not(.secondary){
+  background:
+    linear-gradient(
+      135deg,
+      var(--task-accent),
+      color-mix(in srgb,var(--task-accent) 76%,#07364b)
+    )!important
+}
+
+@media(max-width:1180px){
+  .dist-ranking-panels{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+@media(max-width:620px){
+  .dist-ranking-panels{
+    grid-template-columns:1fr
+  }
+}
 </style>
