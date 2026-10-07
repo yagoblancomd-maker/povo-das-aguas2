@@ -56,3 +56,57 @@ A aplicação é ferramenta de trabalho. Formulários, tabelas, tarefas, documen
 ## Evolução
 
 Novos módulos devem reutilizar as variáveis `--pda-*` definidas em `App_Style.html`. Evitar criar paletas, gradientes, sombras ou raios próprios sem necessidade funcional.
+
+
+## Direção fotográfica aprovada — V2
+
+A identidade visual aprovada combina gestão profissional, território, fotografia documental e pertencimento. A aplicação deve parecer um produto próprio e maduro, sem voltar ao padrão SaaS genérico e sem cair em minimalismo burocrático.
+
+Regras adicionais:
+
+1. Fotografia real é parte estrutural da interface. Usar água, porto, embarcações, redes, margens e pessoas ligadas às comunidades pesqueiras.
+2. Preservar o logo oficial sem redesenhar ou descaracterizar o símbolo.
+3. Não criar testemunhos, reportagens, entrevistas, matérias, citações, resultados ou histórias que não existam no projeto.
+4. Indicadores, atividades, pessoas, processos e tarefas devem vir do backend real.
+5. Clean significa nada desnecessário: pode haver fotografia, textura, profundidade e cor, desde que a leitura seja imediata.
+6. Sombras e sobreposições são permitidas para dar materialidade, mas sem glow/neon ou efeitos futuristas gratuitos.
+7. Sidebar, topbar, hero fotográfico, superfícies, botões e estados devem manter o mesmo padrão em todos os módulos.
+8. Fotografia deve apoiar o contexto e não competir com formulários, tabelas e tarefas.
+
+### Paleta V2
+
+- Mar profundo: #07364B
+- Azul petróleo: #0F6673
+- Água: #238D8F
+- Papel quente: #F4F0E8
+- Branco quente: #FFFDFA
+- Tinta: #173F51
+- Coral/argila: #C65A43
+- Areia: #D7B77A
+- Sucesso: #2F8B65
+- Atenção: #D49A42
+- Erro: #C65349
+
+### Ativos fotográficos
+
+Os ativos oficiais da camada visual atual estão em PHOTO_Assets.html:
+
+- --pda-photo-net
+- --pda-photo-community
+- --pda-photo-boat
+- --pda-photo-port
+- --pda-photo-channel
+
+Eles devem ser reutilizados em heroes, atalhos visuais e contexto territorial, evitando repetir a mesma imagem em todos os elementos de uma tela.
+
+### Proibições de conteúdo
+
+Não inserir apenas para enriquecer o visual:
+
+- depoimentos fictícios;
+- pescadores inventados apresentados como casos reais;
+- matérias ou notícias inexistentes;
+- citações atribuídas a pessoas;
+- números de impacto sem origem no backend;
+- logos de órgãos como se houvesse parceria não registrada;
+- documentos oficiais falsos apresentados como reais.
