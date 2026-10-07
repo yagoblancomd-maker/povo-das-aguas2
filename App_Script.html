@@ -2835,6 +2835,7 @@ f.insertBefore(file,f.firstChild);
   let person=options.summary||{id};
   const tabCache=new Map();
   let generateMenu=null;
+  let deleteButton=null;
 
   const renderSummary=()=>{
     headCopy.querySelector('h2').textContent=person.nome||'Cadastro';
@@ -2847,6 +2848,10 @@ f.insertBefore(file,f.firstChild);
       generateMenu.hidden=
         !can('cadastro')||
         person.podeGerenciarConteudo!==true;
+    }
+
+    if(deleteButton){
+      deleteButton.disabled=!person.versao;
     }
   };
 
@@ -2873,13 +2878,14 @@ f.insertBefore(file,f.firstChild);
   );
   createTask.hidden=!can('gestao_distribuicao');
 
-  const deleteButton=button(
+  deleteButton=button(
     'Excluir',
     ()=>deletePersonFromUi_(person,options.onDeleted),
     true
   );
   deleteButton.classList.add('danger');
   deleteButton.hidden=!can('administracao');
+  deleteButton.disabled=!person.versao;
 
   generateMenu=el('details',undefined,'pda-drawer-generate');
   const generateSummary=el('summary','Gerar documentos');
