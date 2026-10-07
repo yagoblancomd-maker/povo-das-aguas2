@@ -36,6 +36,35 @@ window.PDA_MODULES.PESS = (()=>{
     return s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4);
   }
 
+  function isResidenceDateRecent_(value){
+    const text=String(value||'').trim();
+    const match=text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if(!match||!App.isValidDateBR(text)){
+      return false;
+    }
+
+    const date=new Date(
+      Number(match[3]),
+      Number(match[2])-1,
+      Number(match[1]),
+      12,0,0,0
+    );
+
+    const now=new Date();
+    const today=new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      12,0,0,0
+    );
+
+    const min=new Date(today);
+    min.setDate(min.getDate()-60);
+
+    return date>=min&&date<=today;
+  }
+
   function maskCpfInput_(input){
     const sync=()=>{
       const d=String(input.value||'')
@@ -2246,7 +2275,13 @@ window.PDA_MODULES.PESS = (()=>{
 
         if(!App.isValidDateBR(residenceDateValue)){
           throw new Error(
-            'Informe uma data de vencimento válida no formato DD/MM/AAAA.'
+            'Informe uma data válida no formato DD/MM/AAAA para o comprovante de residência.'
+          );
+        }
+
+        if(!isResidenceDateRecent_(residenceDateValue)){
+          throw new Error(
+            'O comprovante de residência deve ter data dos últimos 60 dias e não pode ter data futura.'
           );
         }
 
@@ -3251,7 +3286,7 @@ window.PDA_MODULES.PESS = (()=>{
           item.setExtraReady(
             ()=>{
               const dateOk=
-                App.isValidDateBR(
+                isResidenceDateRecent_(
                   String(
                     residenceDate.value||
                     ''
@@ -3283,10 +3318,13 @@ window.PDA_MODULES.PESS = (()=>{
                 );
 
               residenceDate.setCustomValidity(
-                !value||
-                App.isValidDateBR(value)
+                !value
                   ?''
-                  :'Informe uma data válida no formato DD/MM/AAAA.'
+                  :!App.isValidDateBR(value)
+                    ?'Informe uma data válida no formato DD/MM/AAAA.'
+                    :!isResidenceDateRecent_(value)
+                      ?'O comprovante deve ter data dos últimos 60 dias e não pode ser futuro.'
+                      :''
               );
 
               item.sync();
@@ -3309,7 +3347,7 @@ window.PDA_MODULES.PESS = (()=>{
     documents.append(
       el(
         'p',
-        'O botão Salvar somente prossegue quando todos os documentos obrigatórios e uma data válida de vencimento do comprovante de residência estiverem informados. Se o comprovante estiver em nome de terceiro, também são obrigatórias a identidade do titular da residência e a confirmação de que há declaração de residência no documento. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
+        'O botão Salvar somente prossegue quando todos os documentos obrigatórios e uma data do comprovante de residência dentro dos últimos 60 dias estiver informada. Se o comprovante estiver em nome de terceiro, também são obrigatórias a identidade do titular da residência e a confirmação de que há declaração de residência no documento. Depois de salvar o cadastro e os documentos, o sistema gera automaticamente a minuta da petição inicial.',
         'hint'
       )
     );
