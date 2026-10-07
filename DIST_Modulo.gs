@@ -108,7 +108,8 @@ function ensureDistributionTask_(ctx,p){
       prazo:taskDatePlusDays_(now_(),4),
       prioridade:'ALTA',
       tags:JSON.stringify(['PROCESSO']),
-      modoDistribuicao:autoUser?'AUTOMATICA':'MANUAL'
+      modoDistribuicao:autoUser?'AUTOMATICA':'MANUAL',
+      origem:'CADASTRO'
     }
   );
 }
