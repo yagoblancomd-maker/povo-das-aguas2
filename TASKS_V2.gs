@@ -253,6 +253,16 @@ function taskTagDelete_(ctx,q){
 }
 
 function taskMapsV2_(tasksOverride){
+  batchAll_([
+    'Usuarios',
+    'Pessoas',
+    'Tarefas',
+    'TarefaMensagens',
+    'TarefaAnexos',
+    'TarefaLeituras',
+    'TarefaTags'
+  ]);
+
   const users=all_('Usuarios');
   const people=all_('Pessoas');
   const tasks=
@@ -639,6 +649,17 @@ function tasksCollectionV2_(q,mode){
 }
 
 function tasksManagementOpenV2_(q){
+  batchAll_([
+    'Configuracoes',
+    'Usuarios',
+    'Pessoas',
+    'Tarefas',
+    'TarefaMensagens',
+    'TarefaAnexos',
+    'TarefaLeituras',
+    'TarefaTags'
+  ]);
+
   const result=tasksCollectionV2_(q,'open');
   const tasks=result.tarefas;
 
@@ -716,6 +737,14 @@ function distributionRankingAllowed_(){
 
 function distributionRanking_(q){
   distributionRankingAllowed_();
+
+  batchAll_([
+    'Usuarios',
+    'Sessoes',
+    'Pessoas',
+    'Tarefas',
+    'Processos'
+  ]);
   q=q||{};
 
   const from=String(q.de||q.inicio||'');
