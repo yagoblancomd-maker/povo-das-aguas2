@@ -199,6 +199,10 @@ window.PDA_MODULES.DIST = (()=>{
       (task.vencimentoEstado==='ATE_96H'?' due-96':'')
     );
 
+    if(task.tags&&task.tags[0]&&task.tags[0].cor){
+      card.style.setProperty('--task-accent',task.tags[0].cor);
+    }
+
     const top=el('div',undefined,'dist-task-top');
     const copy=el('div');
 
@@ -294,7 +298,15 @@ window.PDA_MODULES.DIST = (()=>{
       save
     );
 
-    card.append(top,info,assign);
+    const tags=el('div',undefined,'dist-task-tags');
+
+    (task.tags||[]).forEach(tag=>{
+      const chip=el('span',tag.nome||tag,'dist-task-tag');
+      if(tag.cor)chip.style.setProperty('--task-tag-color',tag.cor);
+      tags.append(chip);
+    });
+
+    card.append(top,info,tags,assign);
     return card;
   }
 
