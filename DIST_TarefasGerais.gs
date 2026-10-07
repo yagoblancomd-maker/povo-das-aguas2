@@ -241,12 +241,29 @@ function generalTaskDisplayUser_(email,usersByEmail){
     :String(email||'');
 }
 
-function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts){
-  const person=
-    task.pessoaId
-      ?all_('Pessoas').find(p=>p.id===task.pessoaId)||null
-      :null;
-  const due=taskDueState_(task);
+function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts,peopleById){
+  let person=null;
+
+  if(task.pessoaId){
+    if(
+      peopleById&&
+      typeof peopleById.get==='function'
+    ){
+      person=
+        peopleById.get(task.pessoaId)||
+        null;
+    }else{
+      person=
+        all_('Pessoas')
+          .find(p=>
+            p.id===task.pessoaId
+          )||
+        null;
+    }
+  }
+
+  const due=
+    taskDueState_(task);
 
   return {
     id:task.id,
@@ -256,6 +273,10 @@ function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts){
     descricao:task.descricao||'',
     pessoaId:task.pessoaId||'',
     pessoa:person?person.nome:'',
+    pessoaCpf:person?person.cpf:'',
+    pessoaCidade:person?person.cidade:'',
+    pessoaJurisdicao:person?person.jurisdicao:'',
+    pessoaEntidade:person?person.entidade:'',
     processoId:task.processoId||'',
     tags:taskTagsParse_(task.tags),
     modoDistribuicao:task.modoDistribuicao||'MANUAL',
@@ -279,6 +300,7 @@ function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts){
     criadoEm:task.criadoEm||'',
     atribuidaEm:task.atribuidaEm||'',
     concluidaEm:task.concluidaEm||'',
+    alteradoEm:task.alteradoEm||'',
     mensagens:Number(
       messageCounts.get(task.id)||
       0
