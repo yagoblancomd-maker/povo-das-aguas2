@@ -1,3 +1,68 @@
+const PERSON_REGISTRATION_STATE_PREFIX='PDA_CADASTRO_ESTADO_';
+
+function personRegistrationStateKey_(pessoaId){
+  return (
+    PERSON_REGISTRATION_STATE_PREFIX+
+    String(pessoaId||'')
+  );
+}
+
+function personRegistrationStateSet_(pessoaId,etapa,ctx,extra){
+  if(!pessoaId)return;
+
+  const state=Object.assign(
+    {
+      pessoaId:String(pessoaId),
+      etapa:String(etapa||'EM_ANDAMENTO'),
+      usuario:
+        ctx&&ctx.email
+          ?ctx.email
+          :'',
+      atualizadoEm:now_()
+    },
+    extra||{}
+  );
+
+  props_().setProperty(
+    personRegistrationStateKey_(
+      pessoaId
+    ),
+    JSON.stringify(state)
+  );
+
+  return state;
+}
+
+function personRegistrationStateGet_(pessoaId){
+  if(!pessoaId)return null;
+
+  try{
+    const raw=
+      props_().getProperty(
+        personRegistrationStateKey_(
+          pessoaId
+        )
+      );
+
+    return raw
+      ?JSON.parse(raw)
+      :null;
+
+  }catch(e){
+    return null;
+  }
+}
+
+function personRegistrationStateClear_(pessoaId){
+  if(!pessoaId)return;
+
+  props_().deleteProperty(
+    personRegistrationStateKey_(
+      pessoaId
+    )
+  );
+}
+
 function personRetify_(ctx,q){
   required_(
     q.id,
@@ -45,6 +110,15 @@ function personSave_(ctx,q){
 
   const saved=change_(ctx,'Pessoas',q.id||id_('PES',ctx.op),p,q.versao);
   const folder=personFolder_(saved);
+
+  personRegistrationStateSet_(
+    saved.id,
+    'PESSOA_SALVA',
+    ctx,
+    {
+      folderId:folder.getId()
+    }
+  );
 
   ctx.effects.push('Pasta da pessoa preservada no Drive: '+folder.getUrl());
 
@@ -230,12 +304,26 @@ function personFinalize_(ctx,q){
       p,
       q.folderId
     );
+
+  personRegistrationStateSet_(
+    p.id,
+    'GERANDO_MINUTA',
+    ctx,
+    {
+      folderId:folder.getId()
+    }
+  );
+
   const minuta=generatePersonDraft_(ctx,p,folder);
   const tarefaDistribuicao=
     ensureDistributionTask_(
       ctx,
       p
     );
+
+  personRegistrationStateClear_(
+    p.id
+  );
 
   return {
     pessoaId:p.id,
