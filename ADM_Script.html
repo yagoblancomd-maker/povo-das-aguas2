@@ -770,9 +770,7 @@ window.PDA_MODULES.ADM = (()=>{
                 App.state.boot=
                   await call('bootstrap',{light:true});
 
-                await go(
-                  'ADM'
-                );
+                await App.refreshCurrent({code:'ADM'});
 
                 status(
                   'Poderes funcionais de Professor/Residente aprovados.'
