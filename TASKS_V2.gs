@@ -299,6 +299,11 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
   const due=taskDueState_(task);
   base.vencimentoEstado=due.estado;
   base.horasRestantes=due.horas;
+  base.origem=task.origem||(
+    task.tipo===DISTRIBUTION_TASK_TYPE
+      ?'CADASTRO'
+      :'INTERNA'
+  );
   base.dataDistribuicao=task.atribuidaEm||task.criadoEm||'';
 
   return base;
