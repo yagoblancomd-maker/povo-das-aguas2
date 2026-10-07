@@ -32,11 +32,11 @@ window.PDA_MODULES.PERF=async ctx=>{
   rankingIntro.append(
     el(
       'strong',
-      'Seu trabalho no projeto'
+      'Seu desempenho neste mês'
     ),
     el(
       'span',
-      'Posições calculadas a partir dos registros reais do sistema.',
+      'Posição atual e evolução em relação ao mês anterior.',
       'hint'
     )
   );
@@ -70,7 +70,7 @@ window.PDA_MODULES.PERF=async ctx=>{
     return '#'+String(position||'—');
   };
 
-  const rankingItem_=(label,position,value,total)=>{
+  const rankingItem_=(label,position,value,total,rankDelta,valueDelta)=>{
     const item=
       el(
         'article',
@@ -152,10 +152,52 @@ window.PDA_MODULES.PERF=async ctx=>{
 
     progress.append(bar);
 
+    const trend=
+      el(
+        'span',
+        undefined,
+        'perf-rank-trend'
+      );
+
+    const rankChange=
+      Number(rankDelta||0);
+
+    const valueChange=
+      Number(valueDelta||0);
+
+    if(rankChange>0){
+      trend.classList.add('up');
+      trend.textContent=
+        'Subiu '+
+        rankChange+
+        ' posição'+
+        (rankChange===1?'':'ões');
+    }else if(rankChange<0){
+      trend.classList.add('down');
+      trend.textContent=
+        'Desceu '+
+        Math.abs(rankChange)+
+        ' posição'+
+        (Math.abs(rankChange)===1?'':'ões');
+    }else{
+      trend.classList.add('same');
+      trend.textContent=
+        'Posição estável';
+    }
+
+    if(valueChange!==0){
+      trend.textContent+=
+        ' · '+
+        (valueChange>0?'+':'')+
+        valueChange+
+        ' no período';
+    }
+
     item.append(
       head,
       count,
       meta,
+      trend,
       progress
     );
 
@@ -189,33 +231,58 @@ window.PDA_MODULES.PERF=async ctx=>{
         0
       );
 
+    const evolution=
+      data&&
+      data.comparativo&&
+      data.comparativo.evolucao||
+      {};
+
     rankingGrid.append(
       rankingItem_(
         'Novos cadastros',
         row.rankCadastros,
         row.cadastros,
-        total
+        total,
+        evolution.rankCadastros,
+        evolution.cadastros
       ),
       rankingItem_(
         'Tarefas concluídas',
         row.rankTarefas,
         row.tarefasConcluidas,
-        total
+        total,
+        evolution.rankTarefas,
+        evolution.tarefasConcluidas
       ),
       rankingItem_(
         'Processos distribuídos',
         row.rankProcessos,
         row.processosDistribuidos,
-        total
+        total,
+        evolution.rankProcessos,
+        evolution.processosDistribuidos
       )
     );
 
+    const period=
+      data.de&&data.ate
+        ?String(data.de)
+            .split('-')
+            .reverse()
+            .join('/')+
+          ' a '+
+          String(data.ate)
+            .split('-')
+            .reverse()
+            .join('/')
+        :'mês atual';
+
     rankingFoot.textContent=
-      'Comparação entre '+
+      'Período: '+
+      period+
+      ' · comparação entre '+
       total+
-      ' usuário(s) ativo(s) · '+
-      row.logins+
-      ' login(s) registrado(s).';
+      ' usuário(s) ativo(s).';
   };
 
   call(
