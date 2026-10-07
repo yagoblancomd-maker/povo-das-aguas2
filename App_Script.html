@@ -4157,12 +4157,27 @@ f.insertBefore(file,f.firstChild);
         );
 
       }else{
-        const bundle=
-          initialBundle||
-          await loadBundle_();
+        let bundle=null;
 
         if(
-          !bundle||
+          key==='dados'||
+          key==='documentos'||
+          key==='atendimentos'||
+          key==='processos'
+        ){
+          bundle=
+            initialBundle||
+            await loadBundle_();
+
+          if(
+            !bundle||
+            activePersonDrawer!==overlay
+          ){
+            return;
+          }
+        }
+
+        if(
           activePersonDrawer!==overlay
         ){
           return;
