@@ -3000,68 +3000,164 @@ f.insertBefore(file,f.firstChild);
   };
  }
 
- async function deletePersonFromUi_(person,onDeleted){
+ async function deletePersonFromUi_(person,handlers={}){
   if(!can('administracao')){
-    throw new Error('Somente a Administração pode excluir cadastros.');
+    throw new Error(
+      'Somente a Administração pode excluir cadastros.'
+    );
   }
 
-  const preview=await call(
-    'pessoaExcluirPreview',
-    {id:person.id}
-  );
+  if(typeof handlers==='function'){
+    handlers={
+      onDeleted:handlers
+    };
+  }
+
+  handlers=
+    handlers||
+    {};
+
+  const preview=
+    await call(
+      'pessoaExcluirPreview',
+      {
+        id:person.id
+      }
+    );
 
   const summary=[
-    preview.tarefas+' tarefa(s)',
-    preview.processos+' processo(s)',
-    preview.atendimentos+' atendimento(s)',
-    preview.documentos+' documento(s)'
+    preview.tarefas+
+      ' tarefa(s)',
+    preview.processos+
+      ' processo(s)',
+    preview.atendimentos+
+      ' atendimento(s)',
+    preview.documentos+
+      ' documento(s)'
   ].join(' · ');
 
-  if(!window.confirm(
-    'Excluir definitivamente o cadastro de '+person.nome+'?\n\n'+
-    summary+
-    '\n\nA pasta da pessoa e todos os vínculos relacionados também serão apagados.'
-  ))return;
-
-  let confirmarVinculos=false;
-
-  if(preview.exigeConfirmacaoReforcada){
-    confirmarVinculos=window.confirm(
-      'Este cadastro possui processos ou tarefas vinculadas.\n\n'+
-      'Confirmar também a exclusão desses vínculos?'
-    );
-    if(!confirmarVinculos)return;
-  }
-
-  const typed=window.prompt(
-    'Para concluir, digite o CPF do cadastro:\n'+
-    (person.cpfFormatado||person.cpf||'')
-  );
-
   if(
-    String(typed||'').replace(/\D/g,'')!==
-    String(person.cpf||'').replace(/\D/g,'')
+    !window.confirm(
+      'Excluir definitivamente o cadastro de '+
+      person.nome+
+      '?\n\n'+
+      summary+
+      '\n\nA pasta da pessoa e todos os vínculos relacionados também serão apagados.'
+    )
   ){
-    status('Exclusão cancelada: o CPF não confere.',true);
     return;
   }
 
-  const result=await call(
-    'pessoaExcluirDefinitivo',
-    {
-      id:person.id,
-      versao:person.versao,
-      confirmar:true,
-      confirmarVinculos
-    },
-    true
-  );
+  let confirmarVinculos=false;
 
-  status(result.mensagem||'Cadastro excluído definitivamente.');
+  if(
+    preview.exigeConfirmacaoReforcada
+  ){
+    confirmarVinculos=
+      window.confirm(
+        'Este cadastro possui processos ou tarefas vinculadas.\n\n'+
+        'Confirmar também a exclusão desses vínculos?'
+      );
+
+    if(!confirmarVinculos){
+      return;
+    }
+  }
+
+  const typed=
+    window.prompt(
+      'Para concluir, digite o CPF do cadastro:\n'+
+      (
+        person.cpfFormatado||
+        person.cpf||
+        ''
+      )
+    );
+
+  if(
+    String(typed||'')
+      .replace(/\D/g,'')!==
+    String(person.cpf||'')
+      .replace(/\D/g,'')
+  ){
+    status(
+      'Exclusão cancelada: o CPF não confere.',
+      true
+    );
+    return;
+  }
+
+  /*
+   * A interface é atualizada antes da operação pesada no servidor.
+   * A exclusão continua protegida por confirmação e lock no backend.
+   */
   closePersonDrawer_();
 
-  if(typeof onDeleted==='function'){
-    await onDeleted(result);
+  if(
+    typeof handlers.onOptimistic===
+    'function'
+  ){
+    await handlers.onOptimistic(
+      person
+    );
+  }
+
+  status(
+    'Excluindo '+
+    person.nome+
+    ' em segundo plano…'
+  );
+
+  try{
+    const result=
+      await call(
+        'pessoaExcluirDefinitivo',
+        {
+          id:person.id,
+          versao:person.versao,
+          confirmar:true,
+          confirmarVinculos
+        },
+        true,
+        {
+          silent:true
+        }
+      );
+
+    status(
+      result.mensagem||
+      'Cadastro excluído definitivamente.'
+    );
+
+    if(
+      typeof handlers.onDeleted===
+      'function'
+    ){
+      await handlers.onDeleted(
+        result,
+        person
+      );
+    }
+
+    return result;
+
+  }catch(error){
+    if(
+      typeof handlers.onRollback===
+      'function'
+    ){
+      await handlers.onRollback(
+        person,
+        error
+      );
+    }
+
+    status(
+      'A exclusão não foi concluída. O cadastro foi restaurado na lista.',
+      true
+    );
+
+    throw error;
   }
  }
 
