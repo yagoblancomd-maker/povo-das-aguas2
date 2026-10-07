@@ -34,6 +34,7 @@ const App=(()=>{
   'pessoaProcessos',
   'pessoaAtendimentos',
   'pessoaHistorico',
+  'historicoGeral',
   'tarefaCriarOpcoes'
  ]);
  const MODULE_INITIAL_READ=Object.freeze({
@@ -1450,6 +1451,12 @@ return d;
     subtitle:'Consulte cadastros, confira documentos e acompanhe o histórico de atendimento.',
     photo:'community'
   },
+  HIST:{
+    kicker:'HISTÓRICO',
+    title:'Histórico do sistema',
+    subtitle:'Consulte cadastros, atividades, documentos e processos somente quando precisar.',
+    photo:'channel'
+  },
   DEFESO:{
     kicker:'SEGURO-DEFESO 2025',
     title:'Consultar Seguro-Defeso',
@@ -2071,6 +2078,7 @@ f.insertBefore(file,f.firstChild);
   TAREFAS:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16H7z"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h3"></path><path d="M4 7v10"></path></svg>',
   ACOMP:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="m15 15 5 5"></path><path d="M8.5 10.5h4"></path><path d="M10.5 8.5v4"></path></svg>',
   DEFESO:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20H6z"></path><path d="M15 3.5V7h3"></path><path d="M8.7 11h6.5"></path><path d="M8.7 14h6.5"></path><path d="M8.7 17h4.2"></path></svg>',
+  HIST:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path><path d="M5 4v4h4"></path></svg>',
   DIST:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="19" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="m7 11 10-4"></path><path d="m7 13 10 4"></path></svg>',
   PROC:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20H6z"></path><path d="M15 3.5V7h3"></path><path d="M9 11h6"></path><path d="M9 14h6"></path><path d="M9 17h4"></path></svg>',
   MIN:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M15 4v5h4"></path><path d="m8.5 14 2 2 5-5"></path></svg>',
@@ -2106,6 +2114,7 @@ f.insertBefore(file,f.firstChild);
   TAREFAS:'Acompanhe as tarefas atribuídas a você, anexos e conversas.',
   ACOMP:'Localize pessoas, abra fichas e confira documentos.',
   DEFESO:'Consulte pagamentos do Seguro-Defeso 2025 pela base oficial.',
+  HIST:'Consulte cadastros, atividades, documentos e processos anteriores.',
   DIST:'Crie, atribua e acompanhe tarefas da equipe.',
   PROC:'Consulte os processos judiciais registrados no sistema.',
   MIN:'Gere e consulte minutas e petições vinculadas aos cadastros.',
@@ -3356,6 +3365,10 @@ f.insertBefore(file,f.firstChild);
       {
         code:'DEFESO',
         label:'Consultar Defeso 2025'
+      },
+      {
+        code:'HIST',
+        label:'Histórico'
       }
     ],
     'CONSULTAS'
