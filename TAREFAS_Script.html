@@ -309,6 +309,129 @@ window.PDA_MODULES.TAREFAS = (()=>{
     return card;
   }
 
+
+  function openInstantTaskDialog_(root,task,label){
+    const existing=
+      root.querySelector(
+        '.task-instant-dialog'
+      );
+
+    if(existing){
+      existing.remove();
+    }
+
+    const dialog=
+      el(
+        'dialog',
+        undefined,
+        'task-instant-dialog'
+      );
+
+    const shell=
+      el(
+        'div',
+        undefined,
+        'task-general-dialog-shell'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'task-general-dialog-head'
+      );
+
+    const copy=el('div');
+
+    copy.append(
+      el(
+        'h3',
+        task.titulo||
+        task.pessoa||
+        'Tarefa'
+      ),
+      el(
+        'p',
+        [
+          task.pessoa
+            ?'Cadastro: '+task.pessoa
+            :'',
+          task.criadoPorNome
+            ?'Criada por '+task.criadoPorNome
+            :'',
+          label||''
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      )
+    );
+
+    head.append(
+      copy,
+      button(
+        'Fechar',
+        ()=>dialog.close(),
+        true
+      )
+    );
+
+    const body=
+      el(
+        'div',
+        undefined,
+        'task-general-dialog-body'
+      );
+
+    const overview=
+      el(
+        'div',
+        undefined,
+        'task-general-overview'
+      );
+
+    [
+      [
+        'Responsável',
+        task.responsavelNome||
+        task.responsavel||
+        '—'
+      ],
+      [
+        'Prazo',
+        date_(task.prazo)
+      ],
+      [
+        'Mensagens',
+        String(task.mensagens||0)
+      ],
+      [
+        'Anexos',
+        String(task.anexos||0)
+      ]
+    ].forEach(([name,value])=>{
+      const item=el('div');
+      item.append(
+        el('span',name),
+        el('strong',value||'—')
+      );
+      overview.append(item);
+    });
+
+    body.append(overview);
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
+    dialog.showModal();
+    return dialog;
+  }
+
   function detailItem_(label,value){
     const item=el('div',undefined,'task-detail-item');
     item.append(el('span',label),el('strong',value||'—'));
@@ -655,10 +778,30 @@ window.PDA_MODULES.TAREFAS = (()=>{
   }
 
   async function openGeneralDialog_(root,task,refresh){
-    let detail=await call(
-      'tarefaGeralDetalhe',
-      {id:task.id}
-    );
+    const instant=
+      openInstantTaskDialog_(
+        root,
+        task,
+        'Tarefa interna'
+      );
+
+    let detail;
+
+    try{
+      detail=await call(
+        'tarefaGeralDetalhe',
+        {id:task.id}
+      );
+    }catch(error){
+      if(instant&&instant.open){
+        instant.close();
+      }
+      throw error;
+    }
+
+    if(instant){
+      instant.remove();
+    }
 
     const existing=root.querySelector('.task-general-dialog');
     if(existing)existing.remove();
@@ -952,16 +1095,47 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
     const openTask_=async task=>{
       if(task.tipo==='DISTRIBUICAO_PROCESSO'){
-        const detail=await call(
-          'tarefaDistribuicaoDetalhe',
-          {id:task.id}
-        );
-        if(!alive(ctx))return;
-        openDistributionDialog_(root,detail,applyTaskChange_);
+        const instant=
+          openInstantTaskDialog_(
+            root,
+            task,
+            'Distribuição processual'
+          );
+
+        try{
+          const detail=await call(
+            'tarefaDistribuicaoDetalhe',
+            {id:task.id}
+          );
+
+          if(!alive(ctx)){
+            if(instant)instant.remove();
+            return;
+          }
+
+          if(instant)instant.remove();
+
+          openDistributionDialog_(
+            root,
+            detail,
+            applyTaskChange_
+          );
+
+        }catch(error){
+          if(instant&&instant.open){
+            instant.close();
+          }
+          throw error;
+        }
+
         return;
       }
 
-      openGeneralDialog_(root,task,applyTaskChange_);
+      openGeneralDialog_(
+        root,
+        task,
+        applyTaskChange_
+      );
     };
 
     const filterBar_=data=>{
