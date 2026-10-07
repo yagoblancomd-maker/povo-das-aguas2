@@ -45,9 +45,10 @@ function authUpdateProfile(token,q){
   return withAuthMutationSession_(token,s=>{
     const user=s.user;version_(user,q.versao);
     const nome=String(q.nome||'').trim().replace(/\s+/g,' ');
-    const nomeUsuario=String(q.nomeUsuario||'').trim().replace(/\s+/g,' ');
+    const nomeUsuario=authUsername_(q.nomeUsuario);
     const email=authEmail_(q.email),emailChanged=email!==user.email;
-    if(!nome||nome.length>140||!nomeUsuario||nomeUsuario.length>80)fail_('Informe o nome e o nome de usuário (até 140 e 80 caracteres).');
+    if(!nome||nome.length>140)fail_('Informe o nome completo com até 140 caracteres.');
+    authCheckAvailableUsername_(nomeUsuario,user.id);
     if(emailChanged){
       authLimit_('profile-password',user.id,8,15);
       if(!authPasswordMatches_(user,authPassword_(q.senhaAtual)))fail_('Senha atual incorreta.');
