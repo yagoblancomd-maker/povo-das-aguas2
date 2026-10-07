@@ -111,6 +111,20 @@ function personSave_(ctx,q){
       )
       :ctx.email;
 
+  p.origemCadastro=
+    before
+      ?(
+        before.origemCadastro||
+        ''
+      )
+      :(
+        isColonyUser_(
+          activeUser_()
+        )
+          ?'COLONIA'
+          :'INTERNO'
+      );
+
   const other=
     all_('Pessoas')
       .find(r=>
