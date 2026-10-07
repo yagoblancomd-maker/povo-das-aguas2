@@ -45,11 +45,12 @@ const SCHEMA = Object.freeze({
   Tarefas:[
     'tipo','pessoaId','responsavel','situacao','jurisdicao','valorCausa',
     'atribuidaEm','concluidaEm','processoId','observacoes',
-    'titulo','descricao','criadoPor','prazo','prioridade'
+    'titulo','descricao','criadoPor','prazo','prioridade','tags','modoDistribuicao'
   ],
   TarefaMensagens:['tarefaId','autor','mensagem'],
-  TarefaAnexos:['tarefaId','fileId','url','nome','mime','hash','bytes','enviadoPor'],
+  TarefaAnexos:['tarefaId','fileId','url','nome','mime','hash','bytes','enviadoPor','pessoaId','documentoId'],
   TarefaLeituras:['usuario','ultimoVistoEm'],
+  TarefaTags:['nome','cor','ativo'],
   Processos:['pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes'],
   Operacoes:['hash','resultado']
 });
@@ -87,6 +88,7 @@ const DEFAULTS={
   anexoOrientacao:'',
   templateId:'',
   templateAprovado:false,
+  distribuicaoAutomatica:false,
   entidades:Array.from(ENTIDADES_PADRAO),
   municipios:Object.values(JURISDICOES).flat().sort((a,b)=>a.localeCompare(b,'pt-BR')),
   demandas:['Seguro-Defeso 2025'],
