@@ -519,6 +519,7 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
     notificacoesTarefas:()=>taskNotifications_(),
     processos:()=>processList_(q),
+    processoFiltros:()=>processFilterOptions_(),
     processoDetalhe:()=>processDetail_(q),
     adminUsuarios:()=>adminUsersData_(),
     adminTags:()=>adminTagsData_(),
