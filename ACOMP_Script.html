@@ -813,6 +813,54 @@ window.PDA_MODULES.ACOMP = (()=>{
       let debounce=null;
       let current=null;
 
+      const optimisticDelete_=async person=>{
+        if(
+          !current||
+          !Array.isArray(
+            current.pessoas
+          )
+        ){
+          return;
+        }
+
+        current=Object.assign(
+          {},
+          current,
+          {
+            pessoas:
+              current.pessoas
+                .filter(row=>
+                  row.id!==person.id
+                ),
+            total:
+              Math.max(
+                0,
+                Number(
+                  current.total||
+                  0
+                )-1
+              )
+          }
+        );
+
+        render_(current);
+      };
+
+      const rollbackDelete_=async()=>{
+        await loadPage_(
+          state.offset
+        );
+      };
+
+      const deleteHandlers_=()=>({
+        onOptimistic:
+          optimisticDelete_,
+        onDeleted:
+          ()=>{},
+        onRollback:
+          rollbackDelete_
+      });
+
       const actionButtons_=person=>{
         const actions=[];
 
@@ -822,9 +870,12 @@ window.PDA_MODULES.ACOMP = (()=>{
             person.id,
             {
               summary:person,
-              onDeleted:async()=>{
-                await loadPage_(Math.max(0,state.offset-state.limit));
-              }
+              onOptimisticDelete:
+                optimisticDelete_,
+              onDeleted:
+                ()=>{},
+              onDeleteRollback:
+                rollbackDelete_
             }
           )
         );
@@ -867,9 +918,7 @@ window.PDA_MODULES.ACOMP = (()=>{
             'Excluir',
             ()=>App.deletePerson(
               person,
-              async()=>{
-                await loadPage_(Math.max(0,state.offset-state.limit));
-              }
+              deleteHandlers_()
             ),
             true
           );
