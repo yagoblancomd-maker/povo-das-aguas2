@@ -721,6 +721,254 @@ n.className='status '+(error?'error':'ok');
   }
  }
 
+ function visualDataUrl_(image){
+  if(
+    !image||
+    !image.base64||
+    !image.mime
+  ){
+    return '';
+  }
+
+  return (
+    'data:'+
+    image.mime+
+    ';base64,'+
+    image.base64
+  );
+ }
+
+ async function fetchVisual_(uso,excluirIds=[]){
+  return raw(
+    'api',
+    'imagemSistemaAleatoria',
+    {
+      uso:String(uso||'TERRITORIO'),
+      excluirIds:
+        Array.isArray(excluirIds)
+          ?excluirIds
+          :[]
+    },
+    authSessionToken
+  );
+ }
+
+ async function hydrateSidebarVisual_(){
+  const sidebar=
+    document.querySelector(
+      '.pda-sidebar'
+    );
+
+  if(!sidebar||!authSessionToken){
+    return;
+  }
+
+  const key=
+    'PDA_VISUAL_SIDEBAR_V2';
+
+  let cached=null;
+
+  try{
+    cached=
+      JSON.parse(
+        sessionStorage.getItem(key)||
+        'null'
+      );
+  }catch(e){}
+
+  if(!cached){
+    const image=
+      await fetchVisual_(
+        'TERRITORIO'
+      );
+
+    const dataUrl=
+      visualDataUrl_(
+        image
+      );
+
+    if(!dataUrl)return;
+
+    cached={
+      id:image.id,
+      dataUrl
+    };
+
+    try{
+      sessionStorage.setItem(
+        key,
+        JSON.stringify(cached)
+      );
+    }catch(e){}
+  }
+
+  if(
+    cached&&
+    cached.dataUrl
+  ){
+    sidebar.style.backgroundImage=
+      'linear-gradient(180deg,rgba(3,35,53,.96),rgba(4,50,69,.97)),url("'+
+      cached.dataUrl+
+      '")';
+
+    const territory=
+      sidebar.querySelector(
+        '.pda-sidebar-territory-photo'
+      );
+
+    if(territory){
+      territory.style.backgroundImage=
+        'linear-gradient(180deg,rgba(5,46,66,.12),rgba(4,39,57,.96)),url("'+
+        cached.dataUrl+
+        '")';
+    }
+  }
+ }
+
+ async function hydrateModuleVisual_(code,root){
+  if(!root||!authSessionToken)return;
+
+  const hero=
+    root.querySelector(
+      '.pda-module-hero'
+    );
+
+  if(!hero)return;
+
+  const key=
+    'PDA_VISUAL_MODULE_V2_'+
+    String(code||'');
+
+  let cached=null;
+
+  try{
+    cached=
+      JSON.parse(
+        sessionStorage.getItem(key)||
+        'null'
+      );
+  }catch(e){}
+
+  if(!cached){
+    const institutional=
+      ['PROC','HIST','ADM','PERF']
+        .includes(
+          String(code||'')
+        );
+
+    const image=
+      await fetchVisual_(
+        institutional
+          ?'INSTITUCIONAL'
+          :'TERRITORIO'
+      );
+
+    const dataUrl=
+      visualDataUrl_(
+        image
+      );
+
+    if(!dataUrl)return;
+
+    cached={
+      id:image.id,
+      dataUrl
+    };
+
+    try{
+      sessionStorage.setItem(
+        key,
+        JSON.stringify(cached)
+      );
+    }catch(e){}
+  }
+
+  if(
+    cached&&
+    cached.dataUrl&&
+    hero.isConnected
+  ){
+    hero.style.setProperty(
+      'background-image',
+      'url("'+
+      cached.dataUrl+
+      '")',
+      'important'
+    );
+  }
+ }
+
+ async function hydrateWorkflowVisual_(overlay){
+  if(
+    !overlay||
+    !authSessionToken
+  ){
+    return;
+  }
+
+  const scene=
+    overlay.querySelector(
+      '.processing-scene'
+    );
+
+  if(!scene)return;
+
+  const key=
+    'PDA_VISUAL_WORKFLOW_V2';
+
+  let cached=null;
+
+  try{
+    cached=
+      JSON.parse(
+        sessionStorage.getItem(key)||
+        'null'
+      );
+  }catch(e){}
+
+  if(!cached){
+    const image=
+      await fetchVisual_(
+        'TERRITORIO'
+      );
+
+    const dataUrl=
+      visualDataUrl_(
+        image
+      );
+
+    if(!dataUrl)return;
+
+    cached={
+      id:image.id,
+      dataUrl
+    };
+
+    try{
+      sessionStorage.setItem(
+        key,
+        JSON.stringify(cached)
+      );
+    }catch(e){}
+  }
+
+  if(
+    cached&&
+    cached.dataUrl
+  ){
+    scene.style.backgroundImage=
+      'linear-gradient(rgba(3,35,48,.18),rgba(3,35,48,.45)),url("'+
+      cached.dataUrl+
+      '")';
+
+    scene.style.backgroundSize=
+      'cover';
+
+    scene.style.backgroundPosition=
+      'center';
+  }
+ }
+
  function ensureProcessingOverlay_(){
   let overlay=document.getElementById('pda-processing-overlay');
   if(overlay)return overlay;
@@ -1095,7 +1343,14 @@ n.className='status '+(error?'error':'ok');
 
   const overlay=ensureProcessingOverlay_();
   overlay.hidden=false;
+  overlay.classList.add(
+    'workflow-processing'
+  );
   document.body.classList.add('processing-active');
+
+  hydrateWorkflowVisual_(
+    overlay
+  ).catch(()=>{});
 
   startProcessingPhrases_();
   renderProcessing_();
@@ -1196,6 +1451,9 @@ n.className='status '+(error?'error':'ok');
 
         if(overlay){
           overlay.hidden=true;
+          overlay.classList.remove(
+            'workflow-processing'
+          );
         }
 
         document.body.classList.remove(
@@ -2037,6 +2295,11 @@ return d;
       );
     }
 
+    hydrateModuleVisual_(
+      code,
+      liveSection
+    ).catch(()=>{});
+
     const contentStarted=
       performance.now();
 
@@ -2044,6 +2307,11 @@ return d;
       root:liveSection,
       token
     });
+
+    hydrateModuleVisual_(
+      code,
+      liveSection
+    ).catch(()=>{});
 
     perfContent=
       performance.now()-
@@ -5357,6 +5625,9 @@ f.insertBefore(file,f.firstChild);
 
     renderNavigation_();
     bindTaskNotifications_();
+
+    hydrateSidebarVisual_()
+      .catch(()=>{});
 
     /*
      * Assim que a sessão está pronta, todos os bundles permitidos começam
