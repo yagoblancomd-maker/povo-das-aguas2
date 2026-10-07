@@ -1347,6 +1347,14 @@ n.className='status '+(error?'error':'ok');
  }
 
  function beginProcessing_(action,write){
+  /*
+   * Um único overlay por vez. Leituras/mutações paralelas não podem
+   * substituir o estado do loader que já está visível.
+   */
+  if(processingState){
+    return null;
+  }
+
   const profile=
     processingProfile_(
       action,
@@ -1408,6 +1416,13 @@ n.className='status '+(error?'error':'ok');
  }
 
  function beginWorkflowProcessing_(title,seconds=45){
+  /*
+   * Workflow manual é dono exclusivo do overlay.
+   */
+  if(processingState){
+    forceHideProcessing_();
+  }
+
   if(processingHideTimer){
     clearTimeout(processingHideTimer);
     processingHideTimer=null;
