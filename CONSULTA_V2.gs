@@ -48,10 +48,10 @@ function personListIndexes_(){
   return {
     people,
     usersByEmail,
-    docsByPerson:new Map(),
+    docsByPerson:null,
     processesByPerson,
     openTasksByPerson,
-    doneTasksByPerson:new Map()
+    doneTasksByPerson:null
   };
 }
 
@@ -143,10 +143,14 @@ function personLiteRow_(person,indexes){
     criadoPor:creatorEmail,
     criadoPorNome:creator?creator.nome||creator.email:creatorEmail,
     criadoEm:person.criadoEm||'',
-    documentos:Number(indexes.docsByPerson.get(person.id)||0),
+    documentos:indexes.docsByPerson
+      ?Number(indexes.docsByPerson.get(person.id)||0)
+      :null,
     processos:Number(indexes.processesByPerson.get(person.id)||0),
     tarefasAbertas:Number(indexes.openTasksByPerson.get(person.id)||0),
-    tarefasConcluidas:Number(indexes.doneTasksByPerson.get(person.id)||0)
+    tarefasConcluidas:indexes.doneTasksByPerson
+      ?Number(indexes.doneTasksByPerson.get(person.id)||0)
+      :null
   };
 }
 
