@@ -52,6 +52,190 @@ window.PDA_AUTH=(()=>{
     }
   }
 
+  function authVisualDataUrl_(image){
+    if(
+      !image||
+      !image.base64||
+      !image.mime
+    ){
+      return '';
+    }
+
+    return (
+      'data:'+
+      image.mime+
+      ';base64,'+
+      image.base64
+    );
+  }
+
+  function applyAuthVisualSet_(set){
+    if(!set)return;
+
+    const main=
+      document.querySelector(
+        '.pda-auth-photo-main'
+      );
+
+    if(
+      main&&
+      set.main&&
+      set.main.dataUrl
+    ){
+      main.style.backgroundImage=
+        'linear-gradient(90deg,rgba(3,31,44,.76) 0%,rgba(3,31,44,.30) 48%,rgba(3,31,44,.05) 100%),url("'+
+        set.main.dataUrl+
+        '")';
+    }
+
+    const tiles=
+      Array.from(
+        document.querySelectorAll(
+          '.pda-auth-photo-grid .pda-auth-photo'
+        )
+      );
+
+    (set.tiles||[])
+      .forEach(
+        (item,index)=>{
+          if(
+            tiles[index]&&
+            item&&
+            item.dataUrl
+          ){
+            tiles[index].style.setProperty(
+              'background-image',
+              'linear-gradient(rgba(3,32,45,.06),rgba(3,32,45,.22)),url("'+
+              item.dataUrl+
+              '")',
+              'important'
+            );
+          }
+        }
+      );
+
+    const overlay=
+      node(
+        'pda-auth-overlay'
+      );
+
+    if(
+      overlay&&
+      set.background&&
+      set.background.dataUrl
+    ){
+      overlay.style.backgroundImage=
+        'linear-gradient(rgba(3,28,40,.78),rgba(3,28,40,.86)),url("'+
+        set.background.dataUrl+
+        '")';
+
+      overlay.style.backgroundSize=
+        'cover';
+
+      overlay.style.backgroundPosition=
+        'center';
+    }
+  }
+
+  async function loadPortalVisualSet_(){
+    let cached=null;
+
+    try{
+      cached=
+        JSON.parse(
+          sessionStorage.getItem(
+            'PDA_VISUAL_LOGIN_SET_V2'
+          )||
+          'null'
+        );
+    }catch(e){}
+
+    if(
+      cached&&
+      cached.main
+    ){
+      applyAuthVisualSet_(
+        cached
+      );
+      return;
+    }
+
+    const set={
+      main:null,
+      tiles:[],
+      background:null
+    };
+
+    const used=[];
+
+    const next_=async()=>{
+      const image=
+        await raw(
+          'visualPortalPhoto',
+          {excluirIds:used}
+        );
+
+      if(!image){
+        return null;
+      }
+
+      used.push(
+        image.id
+      );
+
+      return {
+        id:image.id,
+        dataUrl:
+          authVisualDataUrl_(
+            image
+          )
+      };
+    };
+
+    try{
+      set.main=
+        await next_();
+
+      applyAuthVisualSet_(
+        set
+      );
+
+      for(let index=0;index<3;index++){
+        const item=
+          await next_();
+
+        if(!item)break;
+
+        set.tiles.push(
+          item
+        );
+
+        applyAuthVisualSet_(
+          set
+        );
+      }
+
+      set.background=
+        await next_();
+
+      applyAuthVisualSet_(
+        set
+      );
+
+      try{
+        sessionStorage.setItem(
+          'PDA_VISUAL_LOGIN_SET_V2',
+          JSON.stringify(set)
+        );
+      }catch(e){}
+
+    }catch(e){
+      applyAuthVisualSet_(
+        set
+      );
+    }
+  }
+
   function loadPortalVisuals_(){
     if(portalVisualsLoaded)return;
     portalVisualsLoaded=true;
@@ -61,79 +245,10 @@ window.PDA_AUTH=(()=>{
       .then(renderPortalFaces_)
       .catch(()=>{});
 
-    const cached=
-      sessionStorage.getItem(
-        'PDA_VISUAL_LOGIN_V1'
-      );
-
-    if(cached){
-      try{
-        const parsed=
-          JSON.parse(
-            cached
-          );
-
-        if(
-          parsed&&
-          parsed.dataUrl
-        ){
-          const stage=
-            document.querySelector(
-              '.pda-auth-photo-main'
-            );
-
-          if(stage){
-            stage.style.backgroundImage=
-              'linear-gradient(90deg,rgba(3,31,44,.76) 0%,rgba(3,31,44,.30) 48%,rgba(3,31,44,.05) 100%),url("'+
-              parsed.dataUrl+
-              '")';
-          }
-
-          return;
-        }
-      }catch(e){}
-    }
-
-    raw('visualPortalPhoto')
-      .then(image=>{
-        if(
-          !image||
-          !image.base64||
-          !image.mime
-        ){
-          return;
-        }
-
-        const dataUrl=
-          'data:'+
-          image.mime+
-          ';base64,'+
-          image.base64;
-
-        const stage=
-          document.querySelector(
-            '.pda-auth-photo-main'
-          );
-
-        if(stage){
-          stage.style.backgroundImage=
-            'linear-gradient(90deg,rgba(3,31,44,.76) 0%,rgba(3,31,44,.30) 48%,rgba(3,31,44,.05) 100%),url("'+
-            dataUrl+
-            '")';
-        }
-
-        try{
-          sessionStorage.setItem(
-            'PDA_VISUAL_LOGIN_V1',
-            JSON.stringify({
-              id:image.id,
-              dataUrl
-            })
-          );
-        }catch(e){}
-      })
+    loadPortalVisualSet_()
       .catch(()=>{});
   }
+
   function setMessage(text,error=false){
     const n=node('pda-auth-message');n.hidden=!text;n.textContent=text||'';
     n.className='pda-auth-message'+(error?' error':'');
