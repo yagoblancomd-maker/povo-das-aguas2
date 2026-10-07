@@ -4070,4 +4070,198 @@ tbody tr:hover{
     animation:none!important
   }
 }
+
+
+/* =========================================================
+   CORREÇÕES DE CAMADA, LEITURA E IDENTIDADE — 07/10/2026
+   ========================================================= */
+:root{
+  --pda-ui:"Aptos","Trebuchet MS","Segoe UI",Arial,sans-serif!important;
+  --pda-display:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif!important
+}
+body,
+button,
+input,
+select,
+textarea{
+  font-family:var(--pda-ui)!important
+}
+
+/* Dropdowns e subguias devem existir acima da área de trabalho */
+.pda-app-shell{
+  overflow:visible!important;
+  isolation:isolate
+}
+.pda-sidebar{
+  z-index:1200!important;
+  overflow:visible!important
+}
+.pda-sidebar nav#nav{
+  z-index:1250!important;
+  overflow:visible!important
+}
+.pda-sidebar .nav-group{
+  z-index:1!important
+}
+.pda-sidebar .nav-group[open]{
+  z-index:1350!important
+}
+.pda-sidebar .nav-submenu{
+  z-index:1400!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important
+}
+.pda-workspace{
+  position:relative!important;
+  z-index:1!important;
+  overflow:visible!important
+}
+.app-header{
+  z-index:950!important;
+  overflow:visible!important
+}
+.app-header-inner,
+.app-header-user,
+.app-header-user-actions,
+.app-task-notifications{
+  overflow:visible!important
+}
+.app-notification-panel{
+  z-index:1700!important
+}
+
+/* Ajuda contextual dos módulos */
+.pda-nav-context-help{
+  position:relative;
+  z-index:1260;
+  margin:5px 14px 8px;
+  padding:10px 11px;
+  border:1px solid rgba(183,222,226,.16);
+  border-radius:10px;
+  color:#dcebed;
+  background:rgba(255,255,255,.07);
+  box-shadow:inset 3px 0 0 rgba(198,90,67,.92);
+  font-size:9px;
+  line-height:1.42
+}
+.pda-nav-context-help[hidden]{
+  display:none!important
+}
+
+/* Notificações: manter feedback visível inclusive em falha de rede */
+.app-notification-error{
+  color:#7b4338!important
+}
+.app-notification-retry{
+  display:block!important;
+  width:calc(100% - 24px)!important;
+  min-height:32px!important;
+  margin:0 12px 12px!important;
+  padding:6px 10px!important;
+  border-radius:8px!important;
+  font-size:9px!important
+}
+
+/* Fotografia deve permanecer fotográfica, não virar uma massa azul */
+.home-hero{
+  background-image:
+    linear-gradient(90deg,rgba(2,30,43,.74) 0%,rgba(3,44,58,.50) 43%,rgba(3,40,53,.10) 78%,rgba(3,40,53,.04) 100%),
+    var(--pda-photo-net)!important;
+  background-position:center 46%!important
+}
+#app .home-hero h2{
+  color:#fff!important;
+  font-family:var(--pda-display)!important;
+  text-shadow:0 3px 22px rgba(0,0,0,.50)!important
+}
+#app .home-hero .home-hero-content>p{
+  color:#f7fbfb!important;
+  text-shadow:0 2px 12px rgba(0,0,0,.42)!important
+}
+#app .home-hero .home-eyebrow,
+#app .home-hero .home-hero-meta{
+  color:#e8f4f4!important;
+  text-shadow:0 1px 9px rgba(0,0,0,.42)!important
+}
+.pda-module-hero-shade{
+  background:
+    linear-gradient(90deg,rgba(3,32,48,.76) 0%,rgba(4,43,58,.46) 48%,rgba(4,37,52,.08) 82%,rgba(4,37,52,.04) 100%)!important
+}
+#app .pda-module-hero h2{
+  color:#fff!important;
+  font-family:var(--pda-display)!important;
+  text-shadow:0 3px 20px rgba(0,0,0,.52)!important
+}
+#app .pda-module-hero p,
+#app .pda-module-hero-kicker,
+#app .pda-module-hero-note{
+  color:#f4fbfb!important;
+  text-shadow:0 2px 12px rgba(0,0,0,.48)!important
+}
+.pda-sidebar{
+  background:
+    linear-gradient(180deg,rgba(3,35,53,.90),rgba(4,50,69,.86)),
+    var(--pda-photo-port)!important
+}
+.pda-sidebar-territory-photo{
+  background:
+    linear-gradient(180deg,rgba(5,46,66,.04),rgba(4,39,57,.60)),
+    var(--pda-photo-port)!important;
+  filter:saturate(1.16) contrast(1.06) brightness(1.07)!important
+}
+.home-action-card::before{
+  background:
+    linear-gradient(180deg,rgba(4,26,37,.02) 10%,rgba(4,31,44,.18) 44%,rgba(2,26,38,.82) 100%)!important
+}
+
+/* Tipografia mais humana e menos “template SaaS” */
+.pda-sidebar-brand-copy>strong,
+#app h2,
+#app .home-section-title h3,
+#app .home-panel-head h3,
+#app .home-metric-copy strong,
+.processing-title{
+  font-family:var(--pda-display)!important
+}
+.pda-sidebar-brand-copy>strong{
+  letter-spacing:-.015em!important
+}
+#app h3,
+nav#nav,
+.app-header,
+.app-notification-panel{
+  font-family:var(--pda-ui)!important
+}
+
+/* Foco acessível e microinteração curta */
+.pda-sidebar nav#nav button,
+.pda-sidebar nav#nav .nav-group-summary{
+  transition:
+    background .11s ease,
+    border-color .11s ease,
+    color .11s ease,
+    transform .11s ease!important
+}
+.pda-sidebar nav#nav button:hover,
+.pda-sidebar nav#nav .nav-group:hover>.nav-group-summary{
+  transform:translateX(2px)!important
+}
+
+@media(max-width:900px){
+  .pda-sidebar{
+    overflow:hidden!important
+  }
+  .pda-sidebar .nav-submenu{
+    position:relative!important;
+    top:auto!important;
+    left:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    margin-top:4px!important
+  }
+  .pda-nav-context-help{
+    display:none!important
+  }
+}
 </style>
