@@ -265,6 +265,10 @@ window.PDA_MODULES.TAREFAS = (()=>{
       (task.vencimentoEstado==='ATE_96H'?' due-96':'')
     );
 
+    if(task.tags&&task.tags[0]&&task.tags[0].cor){
+      card.style.setProperty('--task-accent',task.tags[0].cor);
+    }
+
     const top=el('div',undefined,'task-card-top');
 
     top.append(
