@@ -16,6 +16,20 @@ const App=(()=>{
  let processingHideTimer=null;
  let processingPhraseTimer=null;
  let processingPhraseIndex=0;
+ const LOADING_PHRASES=Object.freeze([
+  'A pesca artesanal conecta famílias, território e memória.',
+  'Cada cadastro organizado reduz retrabalho na preparação das ações.',
+  'Os documentos estão sendo processados pelo sistema.',
+  'A conferência cuidadosa dos dados ajuda a evitar pendências.',
+  'O Povo das Águas aproxima comunidades pesqueiras do acesso à Justiça.',
+  'As informações permanecem vinculadas à ficha da pessoa atendida.',
+  'Estamos organizando os dados para a próxima etapa.',
+  'O processamento pode levar alguns segundos quando serviços externos são consultados.',
+  'A rede também se constrói com informação organizada.',
+  'Os dados recebidos pela API ainda devem ser conferidos antes do salvamento.',
+  'Cada etapa concluída deixa a ficha mais pronta para distribuição.',
+  'O sistema está trabalhando; não é necessário clicar novamente.'
+ ]);
  const MODULE_CACHE=new Map();
  const MODULE_REQUESTS=new Map();
  const READ_CACHE=new Map();
@@ -1220,29 +1234,55 @@ n.className='status '+(error?'error':'ok');
           )
         );
 
-  overlay.querySelector('#pda-processing-title').textContent=
-    processingState.complete
-      ?'Concluído'
-      :profile.title;
-
-  overlay.querySelector('#pda-processing-message').textContent=
-    message;
-
-  overlay.querySelector('#pda-processing-percent').textContent=
-    progress+'%';
-
-  overlay.querySelector('#pda-processing-bar').style.width=
-    progress+'%';
-
+  const titleNode=
+    overlay.querySelector(
+      '#pda-processing-title'
+    );
+  const messageNode=
+    overlay.querySelector(
+      '#pda-processing-message'
+    );
+  const percentNode=
+    overlay.querySelector(
+      '#pda-processing-percent'
+    );
+  const barNode=
+    overlay.querySelector(
+      '#pda-processing-bar'
+    );
   const progressNode=
     overlay.querySelector(
       '.processing-progress'
     );
 
-  progressNode.setAttribute(
-    'aria-valuenow',
-    String(progress)
-  );
+  if(titleNode){
+    titleNode.textContent=
+      processingState.complete
+        ?'Concluído'
+        :profile.title;
+  }
+
+  if(messageNode){
+    messageNode.textContent=
+      message;
+  }
+
+  if(percentNode){
+    percentNode.textContent=
+      progress+'%';
+  }
+
+  if(barNode){
+    barNode.style.width=
+      progress+'%';
+  }
+
+  if(progressNode){
+    progressNode.setAttribute(
+      'aria-valuenow',
+      String(progress)
+    );
+  }
 
   let remainingText='';
 
@@ -1263,8 +1303,47 @@ n.className='status '+(error?'error':'ok');
       'Tempo estimado: menos de alguns segundos';
   }
 
-  overlay.querySelector('#pda-processing-remaining').textContent=
-    remainingText;
+  const remainingNode=
+    overlay.querySelector(
+      '#pda-processing-remaining'
+    );
+
+  if(remainingNode){
+    remainingNode.textContent=
+      remainingText;
+  }
+ }
+
+ function forceHideProcessing_(){
+  if(processingTimer){
+    clearInterval(processingTimer);
+    processingTimer=null;
+  }
+
+  if(processingHideTimer){
+    clearTimeout(processingHideTimer);
+    processingHideTimer=null;
+  }
+
+  stopProcessingPhrases_();
+
+  const overlay=
+    document.getElementById(
+      'pda-processing-overlay'
+    );
+
+  if(overlay){
+    overlay.hidden=true;
+    overlay.classList.remove(
+      'workflow-processing'
+    );
+  }
+
+  document.body.classList.remove(
+    'processing-active'
+  );
+
+  processingState=null;
  }
 
  function beginProcessing_(action,write){
@@ -1300,8 +1379,20 @@ n.className='status '+(error?'error':'ok');
     'processing-active'
   );
 
-  startProcessingPhrases_();
+  /*
+   * Renderiza o estado essencial antes dos elementos decorativos.
+   * Assim uma falha em frases/imagens nunca deixa o overlay preso em 0%.
+   */
   renderProcessing_();
+
+  try{
+    startProcessingPhrases_();
+  }catch(e){
+    console.warn(
+      'Frases do loader indisponíveis:',
+      e
+    );
+  }
 
   if(processingTimer){
     clearInterval(processingTimer);
@@ -1352,8 +1443,16 @@ n.className='status '+(error?'error':'ok');
     overlay
   ).catch(()=>{});
 
-  startProcessingPhrases_();
   renderProcessing_();
+
+  try{
+    startProcessingPhrases_();
+  }catch(e){
+    console.warn(
+      'Frases do loader indisponíveis:',
+      e
+    );
+  }
 
   if(processingTimer){
     clearInterval(processingTimer);
@@ -1407,13 +1506,35 @@ n.className='status '+(error?'error':'ok');
       'Falha ao iniciar indicador de processamento:',
       e
     );
+
+    /*
+     * Nunca deixar um overlay parcialmente criado bloquear a aplicação.
+     */
+    forceHideProcessing_();
     return null;
   }
  }
 
  function endProcessing_(id,success=true){
+  if(!id){
+    /*
+     * Se o início do loader falhou, não pode restar overlay bloqueando a UI.
+     */
+    if(
+      !processingState&&
+      document.getElementById(
+        'pda-processing-overlay'
+      )&&
+      !document.getElementById(
+        'pda-processing-overlay'
+      ).hidden
+    ){
+      forceHideProcessing_();
+    }
+    return;
+  }
+
   if(
-    !id||
     !processingState||
     processingState.id!==id
   ){
