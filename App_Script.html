@@ -2538,6 +2538,77 @@ f.insertBefore(file,f.firstChild);
  }
 
 
+
+ let pdfJsPromise_=null;
+
+ function ensurePdfJs_(){
+  if(
+    window.pdfjsLib&&
+    window.pdfjsLib.getDocument
+  ){
+    return Promise.resolve(
+      window.pdfjsLib
+    );
+  }
+
+  if(pdfJsPromise_){
+    return pdfJsPromise_;
+  }
+
+  pdfJsPromise_=
+    new Promise(
+      (resolve,reject)=>{
+        const script=
+          document.createElement(
+            'script'
+          );
+
+        script.src=
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+
+        script.async=true;
+
+        script.onload=()=>{
+          if(
+            !window.pdfjsLib||
+            !window.pdfjsLib.getDocument
+          ){
+            reject(
+              new Error(
+                'O componente de leitura de PDF não foi carregado.'
+              )
+            );
+            return;
+          }
+
+          window.pdfjsLib
+            .GlobalWorkerOptions
+            .workerSrc=
+              'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+          resolve(
+            window.pdfjsLib
+          );
+        };
+
+        script.onerror=()=>{
+          pdfJsPromise_=null;
+          reject(
+            new Error(
+              'Não foi possível carregar o leitor de PDF da plataforma.'
+            )
+          );
+        };
+
+        document.head.append(
+          script
+        );
+      }
+    );
+
+  return pdfJsPromise_;
+ }
+
  function base64Bytes_(base64){
   const raw=
     atob(
@@ -2786,17 +2857,11 @@ f.insertBefore(file,f.firstChild);
       mime==='application/pdf'||
       mime.includes('pdf')
     ){
-      if(
-        !window.pdfjsLib||
-        !window.pdfjsLib.getDocument
-      ){
-        throw new Error(
-          'O visualizador de PDF não foi carregado. Atualize a página e tente novamente.'
-        );
-      }
+      const pdfjs=
+        await ensurePdfJs_();
 
       pdfDocument=
-        await window.pdfjsLib
+        await pdfjs
           .getDocument({
             data:bytes
           })
