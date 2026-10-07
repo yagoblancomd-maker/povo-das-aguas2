@@ -1071,7 +1071,7 @@ function generalTaskCreate_(ctx,q){
   };
 }
 
-function generalTaskDetail_(q){
+function generalTaskBaseDetail_(q){
   required_(
     q.id,
     'tarefa'
@@ -1087,6 +1087,80 @@ function generalTaskDetail_(q){
     requireGeneralTaskAccess_(
       task
     );
+
+  const maps=
+    generalTaskUserMaps_();
+
+  const email=
+    String(
+      user.email||
+      ''
+    ).toLowerCase();
+
+  const isCreator=
+    email===
+    String(
+      task.criadoPor||
+      ''
+    ).toLowerCase();
+
+  const isResponsible=
+    email===
+    String(
+      task.responsavel||
+      ''
+    ).toLowerCase();
+
+  const canManage=
+    isCreator||
+    hasPermission_(
+      user,
+      'gestao_distribuicao'
+    );
+
+  return {
+    tarefa:
+      generalTaskSummary_(
+        task,
+        maps.byEmail,
+        new Map(),
+        new Map()
+      ),
+    mensagens:[],
+    anexos:[],
+    usuarios:
+      canManage
+        ?generalTaskAssignableUsers_()
+        :[],
+    permissoes:{
+      gerenciar:canManage,
+      concluir:
+        isResponsible||
+        hasPermission_(
+          user,
+          'gestao_distribuicao'
+        ),
+      conversar:true,
+      anexar:true
+    }
+  };
+}
+
+function generalTaskMovements_(q){
+  required_(
+    q.id,
+    'tarefa'
+  );
+
+  const task=
+    get_(
+      'Tarefas',
+      q.id
+    );
+
+  requireGeneralTaskAccess_(
+    task
+  );
 
   const maps=
     generalTaskUserMaps_();
@@ -1158,69 +1232,39 @@ function generalTaskDetail_(q){
           attachment.criadoEm
       }));
 
-  const email=
-    String(
-      user.email||
-      ''
-    ).toLowerCase();
-
-  const isCreator=
-    email===
-    String(
-      task.criadoPor||
-      ''
-    ).toLowerCase();
-
-  const isResponsible=
-    email===
-    String(
-      task.responsavel||
-      ''
-    ).toLowerCase();
-
-  const canManage=
-    isCreator||
-    hasPermission_(
-      user,
-      'gestao_distribuicao'
-    );
-
   return {
-    tarefa:
-      generalTaskSummary_(
-        task,
-        maps.byEmail,
-        new Map([
-          [
-            task.id,
-            messages.length
-          ]
-        ]),
-        new Map([
-          [
-            task.id,
-            attachments.length
-          ]
-        ])
-      ),
     mensagens:messages,
-    anexos:attachments,
-    usuarios:
-      canManage
-        ?generalTaskAssignableUsers_()
-        :[],
-    permissoes:{
-      gerenciar:canManage,
-      concluir:
-        isResponsible||
-        hasPermission_(
-          user,
-          'gestao_distribuicao'
-        ),
-      conversar:true,
-      anexar:true
-    }
+    anexos:attachments
   };
+}
+
+function generalTaskDetail_(q){
+  const base=
+    generalTaskBaseDetail_(q);
+
+  if(
+    q&&
+    bool_(q.light)
+  ){
+    return base;
+  }
+
+  const movements=
+    generalTaskMovements_(q);
+
+  base.mensagens=
+    movements.mensagens;
+
+  base.anexos=
+    movements.anexos;
+
+  base.tarefa.mensagens=
+    movements.mensagens.length;
+
+  base.tarefa.anexos=
+    movements.anexos.length;
+
+  return base;
 }
 
 function generalTaskAssign_(ctx,q){
