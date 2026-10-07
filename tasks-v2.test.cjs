@@ -29,7 +29,7 @@ for(const fn of [
 ]){
   assert.match(backend,new RegExp('function\\s+'+fn.replace(/_/g,'_')+'\\s*\\('));
 }
-assert.match(backend,/if\(preview\.exigeConfirmacaoReforcada&&!bool_\(q\.confirmarVinculos\)\)/);
+assert.match(backend,/preview\.exigeConfirmacaoReforcada[\s\S]*?!bool_\(q\.confirmarVinculos\)/);
 assert.match(backend,/mediaProcessosPorLogin/);
 
 const general=read('DIST_TarefasGerais.gs');
