@@ -484,7 +484,7 @@ function apiAuthenticated_(action,q,sessionToken){
     },
     pessoas:()=>personSearch_(q),
     pessoasLeve:()=>personListLite_(q),
-    pessoa:()=>get_('Pessoas',q.id),
+    pessoa:()=>getScopedPerson_(q.id),
     pessoaResumo:()=>personQuickSummary_(q),
     pessoaCadastroEstado:()=>{
       const p=get_('Pessoas',q.id);
@@ -593,7 +593,7 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
     tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_],
-    tarefaGeralCriar:['gestao_distribuicao',generalTaskCreate_],
+    tarefaGeralCriar:['consulta',generalTaskCreate_],
     tarefaGeralReatribuir:['consulta',generalTaskAssign_],
     tarefaGeralConcluir:['consulta',generalTaskComplete_],
     tarefaGeralReabrir:['consulta',generalTaskReopen_],
@@ -634,7 +634,7 @@ function apiAuthenticated_(action,q,sessionToken){
       tarefasTags:'consulta',
       distribuicaoRanking:'gestao_distribuicao',
       perfilRanking:'consulta',
-      tarefaCriarOpcoes:'gestao_distribuicao',
+      tarefaCriarOpcoes:'consulta',
       pessoaExcluirPreview:'administracao',
       tarefaDistribuicaoDetalhe:'distribuicao',
       tarefaGeralDetalhe:'consulta',
