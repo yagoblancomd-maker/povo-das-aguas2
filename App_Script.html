@@ -2834,6 +2834,7 @@ f.insertBefore(file,f.firstChild);
 
   let person=options.summary||{id};
   const tabCache=new Map();
+  let generateMenu=null;
 
   const renderSummary=()=>{
     headCopy.querySelector('h2').textContent=person.nome||'Cadastro';
@@ -2841,6 +2842,12 @@ f.insertBefore(file,f.firstChild);
       drawerCounters_(person),
       drawerInfoGrid_(person)
     );
+
+    if(generateMenu){
+      generateMenu.hidden=
+        !can('cadastro')||
+        person.podeGerenciarConteudo!==true;
+    }
   };
 
   renderSummary();
@@ -2874,6 +2881,75 @@ f.insertBefore(file,f.firstChild);
   deleteButton.classList.add('danger');
   deleteButton.hidden=!can('administracao');
 
+  generateMenu=el('details',undefined,'pda-drawer-generate');
+  const generateSummary=el('summary','Gerar documentos');
+  const generatePanel=el('div',undefined,'pda-drawer-generate-panel');
+
+  const refreshDocuments_=async()=>{
+    tabCache.delete('documentos');
+    try{
+      person=Object.assign(
+        {},
+        person,
+        await call('pessoaResumo',{id})
+      );
+      renderSummary();
+    }catch(e){}
+  };
+
+  const report=button(
+    'Relatório Seguro-Defeso 2025',
+    async()=>{
+      report.disabled=true;
+      report.textContent='Gerando…';
+      try{
+        const result=await call(
+          'seguroDefesoRelatorioGerar',
+          {pessoaId:id},
+          true
+        );
+        await refreshDocuments_();
+        status(
+          'Relatório gerado e vinculado ao cadastro. '+
+          (result.quantidade!==undefined
+            ?'Registros: '+result.quantidade+'.'
+            :'')
+        );
+        generateMenu.open=false;
+      }finally{
+        report.disabled=false;
+        report.textContent='Relatório Seguro-Defeso 2025';
+      }
+    },
+    true
+  );
+
+  const initial=button(
+    'Petição inicial — Seguro-Defeso 2025',
+    async()=>{
+      initial.disabled=true;
+      initial.textContent='Gerando…';
+      try{
+        await call(
+          'pessoaInicialGerar',
+          {pessoaId:id},
+          true
+        );
+        await refreshDocuments_();
+        status('Petição inicial gerada e vinculada ao cadastro.');
+        generateMenu.open=false;
+      }finally{
+        initial.disabled=false;
+        initial.textContent='Petição inicial — Seguro-Defeso 2025';
+      }
+    },
+    true
+  );
+
+  generatePanel.append(report,initial);
+  generateMenu.append(generateSummary,generatePanel);
+  generateMenu.hidden=true;
+
   const loadFull=button(
     'Carregar ficha completa',
     async()=>{
@@ -2892,7 +2968,7 @@ f.insertBefore(file,f.firstChild);
     }
   );
 
-  actions.append(createTask,loadFull,openFull,deleteButton);
+  actions.append(createTask,generateMenu,loadFull,openFull,deleteButton);
 
   const renderTabs=()=>{
     fullArea.replaceChildren();
