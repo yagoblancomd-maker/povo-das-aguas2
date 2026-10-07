@@ -145,7 +145,7 @@ function personRequiredDocumentErrors_(p){
     if(categoria==='RESIDENCIA'){
       const residenceWithDate=validFiles.some(d=>{
         try{
-          date_(d.vencimento);
+          residenceDateWithin60Days_(d.vencimento);
           return true;
         }catch(e){
           return false;
@@ -153,7 +153,7 @@ function personRequiredDocumentErrors_(p){
       });
 
       if(!residenceWithDate){
-        errors.push('Informe uma data válida para o vencimento do comprovante de residência.');
+        errors.push('O comprovante de residência deve ter data válida dos últimos 60 dias.');
       }
 
       const thirdPartyDocs=
