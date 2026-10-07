@@ -50,11 +50,18 @@ window.PDA_MODULES.PERF=async(token)=>{
       versao:user.versao,nome:name.value,nomeUsuario:username.value,email:email.value,senhaAtual:current.value,
       removerFoto:removePhoto,base64:photoPayload?photoPayload.base64:'',mime:photoPayload?photoPayload.mime:''
     });
-    current.value='';auth.acceptSession(response);await App.start('PERF');status('Perfil atualizado.');
+    current.value='';
+    auth.acceptSession(response);
+    App.state.boot=await App.call('bootstrap',{light:true});
+    await App.refreshCurrent({code:'PERF'});
+    status('Perfil atualizado.');
   });};
   passForm.onsubmit=e=>{e.preventDefault();saveAction(async()=>{
     const response=await auth.request('authChangePassword',auth.getSessionToken(),oldPass.value,newPass.value);
-    oldPass.value='';newPass.value='';auth.acceptSession(response);await App.start('PERF');status('Senha alterada. As outras sessões foram encerradas.');
+    oldPass.value='';
+    newPass.value='';
+    auth.acceptSession(response);
+    status('Senha alterada. As outras sessões foram encerradas.');
   });};
 };
 </script>
