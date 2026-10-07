@@ -327,6 +327,44 @@ function authorizeProcessScope_(process){
   return user;
 }
 
+function taskAssigneeCanAccessPerson_(user,personId){
+  if(
+    !isColonyUser_(
+      user
+    )||
+    !personId
+  ){
+    return true;
+  }
+
+  const person=
+    findById_(
+      'Pessoas',
+      personId
+    );
+
+  return !!person&&
+    personInUserScope_(
+      user,
+      person
+    );
+}
+
+function requireTaskAssigneePersonScope_(user,personId){
+  if(
+    !taskAssigneeCanAccessPerson_(
+      user,
+      personId
+    )
+  ){
+    fail_(
+      'O responsável da Colônia não pode receber tarefa vinculada a membro de outra entidade.'
+    );
+  }
+
+  return true;
+}
+
 function enforcePersonEntityPayload_(user,payload){
   const data=
     Object.assign(
