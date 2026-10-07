@@ -485,6 +485,11 @@ function apiAuthenticated_(action,q,sessionToken){
     pessoasLeve:()=>personListLite_(q),
     pessoa:()=>get_('Pessoas',q.id),
     pessoaResumo:()=>personQuickSummary_(q),
+    pessoaCadastroEstado:()=>{
+      const p=get_('Pessoas',q.id);
+      authorizePersonContentWrite_(p);
+      return personRegistrationStateGet_(p.id);
+    },
     pessoaFichaMeta:()=>personFichaMeta_(q),
     pessoaFichaCargaInicial:()=>personDrawerInitial_(q),
     pessoaDocumentos:()=>personDocumentsPage_(q),
