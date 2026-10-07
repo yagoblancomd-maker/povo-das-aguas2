@@ -112,9 +112,6 @@ window.PDA_MODULES.PROC = (()=>{
   return async function(ctx){
     const root=ctx.root;
 
-    /*
-     * Estrutura do módulo aparece antes da leitura dos processos.
-     */
     const toolbar=el('div',undefined,'proc-toolbar');
     const search=el('input');
     search.type='search';
@@ -134,45 +131,71 @@ window.PDA_MODULES.PROC = (()=>{
     const list=el('section',undefined,'proc-list');
     const detail=el('section',undefined,'proc-detail');
 
+    const more=
+      button(
+        'Carregar mais processos',
+        ()=>load_(rows.length,true),
+        true
+      );
+
+    more.classList.add('proc-more');
+
     layout.append(list,detail);
-    root.append(layout);
+    root.append(layout,more);
 
-    const rows=await call('processos');
-    if(!alive(ctx))return;
-
-    let selected=(rows||[])[0]||null;
+    let rows=[];
+    let total=0;
+    let hasMore=false;
+    let selected=null;
+    let requestSeq=0;
+    let searchTimer=null;
 
     const render=()=>{
-      const q=String(search.value||'').trim().toLowerCase();
-      const filtered=(rows||[]).filter(row=>{
-        if(!q)return true;
-        return [
-          row.numero,row.pessoa,row.cpf,row.jurisdicao,row.responsavel
-        ].some(v=>String(v||'').toLowerCase().includes(q));
-      });
-
       count.textContent=
-        filtered.length+' processo'+(filtered.length===1?'':'s');
+        rows.length+
+        ' de '+
+        total+
+        ' processo'+
+        (total===1?'':'s');
 
       list.replaceChildren();
 
-      if(!filtered.length){
-        list.append(el('p','Nenhum processo encontrado.','proc-empty'));
-        detail.replaceChildren(
-          el('p','Ajuste os filtros para localizar um processo.','hint')
+      if(!rows.length){
+        list.append(
+          el(
+            'p',
+            'Nenhum processo encontrado.',
+            'proc-empty'
+          )
         );
+
+        detail.replaceChildren(
+          el(
+            'p',
+            'Ajuste a busca para localizar um processo.',
+            'hint'
+          )
+        );
+
+        more.hidden=true;
         return;
       }
 
-      if(!selected||!filtered.some(r=>r.id===selected.id)){
-        selected=filtered[0];
+      if(
+        !selected||
+        !rows.some(row=>
+          row.id===selected.id
+        )
+      ){
+        selected=rows[0];
       }
 
-      filtered.forEach(row=>{
+      rows.forEach(row=>{
         list.append(
           processItem_(
             row,
-            selected&&row.id===selected.id,
+            selected&&
+            row.id===selected.id,
             chosen=>{
               selected=chosen;
               render();
@@ -182,10 +205,80 @@ window.PDA_MODULES.PROC = (()=>{
       });
 
       detail_(detail,selected);
+      more.hidden=!hasMore;
+      more.disabled=false;
+      more.textContent='Carregar mais processos';
     };
 
-    search.addEventListener('input',render);
-    render();
+    const load_=async(offset,append=false)=>{
+      const request=++requestSeq;
+
+      if(!append){
+        rows=[];
+        selected=null;
+        list.replaceChildren(
+          el(
+            'p',
+            'Carregando processos…',
+            'hint'
+          )
+        );
+      }else{
+        more.disabled=true;
+        more.textContent='Carregando…';
+      }
+
+      const data=
+        await call(
+          'processos',
+          {
+            busca:search.value,
+            offset,
+            limit:50
+          },
+          false,
+          {noLoader:true}
+        );
+
+      if(
+        request!==requestSeq||
+        !alive(ctx)
+      ){
+        return;
+      }
+
+      if(append){
+        rows.push(
+          ...(data.processos||[])
+        );
+      }else{
+        rows=[
+          ...(data.processos||[])
+        ];
+      }
+
+      total=Number(data.total||0);
+      hasMore=!!data.hasMore;
+      render();
+    };
+
+    search.addEventListener(
+      'input',
+      ()=>{
+        if(searchTimer){
+          clearTimeout(searchTimer);
+        }
+
+        searchTimer=
+          setTimeout(
+            ()=>load_(0,false)
+              .catch(()=>{}),
+            260
+          );
+      }
+    );
+
+    await load_(0,false);
   };
 })();
 </script>
