@@ -252,9 +252,66 @@ function taskTagDelete_(ctx,q){
   return {ok:true,mensagem:'Tag excluída.'};
 }
 
-function taskMapsV2_(){
+function taskMapsV2_(tasksOverride){
   const users=all_('Usuarios');
   const people=all_('Pessoas');
+  const tasks=
+    Array.isArray(tasksOverride)
+      ?tasksOverride
+      :all_('Tarefas');
+
+  const messages=
+    generalTaskRows_(
+      'TarefaMensagens'
+    );
+
+  const attachments=
+    generalTaskRows_(
+      'TarefaAnexos'
+    );
+
+  const currentEmail=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const movements=
+    taskMovementMaps_(
+      tasks,
+      messages,
+      attachments,
+      currentEmail
+    );
+
+  const globalRead=
+    generalTaskRows_(
+      'TarefaLeituras'
+    )
+      .filter(row=>
+        !String(
+          row.tarefaId||
+          ''
+        ).trim()&&
+        String(
+          row.usuario||
+          ''
+        ).toLowerCase()===
+        currentEmail
+      )
+      .sort((a,b)=>
+        String(
+          b.ultimoVistoEm||
+          ''
+        ).localeCompare(
+          String(
+            a.ultimoVistoEm||
+            ''
+          )
+        )
+      )[0]||
+    null;
+
   const tagColorMap=new Map(
     taskTagCatalog_().map(tag=>[
       String(tag.nome||'').toUpperCase(),
@@ -275,13 +332,26 @@ function taskMapsV2_(){
         person
       ])
     ),
-    messageCounts:generalTaskCountMap_(
-      generalTaskRows_('TarefaMensagens')
-    ),
-    attachmentCounts:generalTaskCountMap_(
-      generalTaskRows_('TarefaAnexos')
-    ),
-    tagColors:tagColorMap
+    messageCounts:
+      generalTaskCountMap_(
+        messages
+      ),
+    attachmentCounts:
+      generalTaskCountMap_(
+        attachments
+      ),
+    tagColors:tagColorMap,
+    lastMovements:
+      movements.lastByTask,
+    readByTask:
+      movements.readByTask,
+    globalSeen:
+      String(
+        globalRead&&
+        globalRead.ultimoVistoEm||
+        ''
+      ),
+    currentEmail
   };
 }
 
@@ -292,11 +362,15 @@ function taskSummaryV2_(task,maps){
     maps.usersByEmail,
     maps.messageCounts,
     maps.attachmentCounts,
-    maps.tagColors
+    maps.tagColors,
+    maps.lastMovements,
+    maps.readByTask,
+    maps.globalSeen,
+    maps.currentEmail
   );
 }
 
-function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap){
+function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap,lastMovements,readByTask,globalSeen,currentEmail){
   let base;
 
   if(task.tipo===DISTRIBUTION_TASK_TYPE){
@@ -314,7 +388,7 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
     base.mensagens=Number(messageCounts.get(task.id)||0);
     base.anexos=Number(attachmentCounts.get(task.id)||0);
   }else{
-    base=generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts);
+    base=generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts,peopleById);
     base.tipoLabel='Tarefa interna';
     base.tags=taskTagsDecorated_(task.tags,tagColorMap);
   }
@@ -329,31 +403,97 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
   );
   base.dataDistribuicao=task.atribuidaEm||task.criadoEm||'';
 
+  const lastMovement=
+    String(
+      lastMovements&&
+      lastMovements.get(task.id)||
+      task.alteradoEm||
+      task.atribuidaEm||
+      task.criadoEm||
+      ''
+    );
+
+  const taskSeen=
+    String(
+      readByTask&&
+      readByTask.get(task.id)||
+      ''
+    );
+
+  const baseline=
+    taskSeen||
+    String(globalSeen||'')||
+    String(
+      task.atribuidaEm||
+      task.criadoEm||
+      ''
+    );
+
+  base.ultimaMovimentacaoEm=
+    lastMovement;
+
+  base.ultimoVistoEm=
+    taskSeen;
+
+  base.novaManifestacao=
+    !!(
+      lastMovement&&
+      baseline&&
+      lastMovement>baseline
+    );
+
+  base.novaParaUsuario=
+    String(
+      currentEmail||
+      ''
+    ).toLowerCase()===
+      String(
+        task.responsavel||
+        ''
+      ).toLowerCase()||
+    String(
+      currentEmail||
+      ''
+    ).toLowerCase()===
+      String(
+        task.criadoPor||
+        ''
+      ).toLowerCase();
+
   return base;
 }
 
 function tasksCollectionV2_(q,mode){
   q=q||{};
 
-  const people=all_('Pessoas');
-  const users=all_('Usuarios');
-  const peopleById=new Map(people.map(p=>[p.id,p]));
-  const usersByEmail=new Map(users.map(u=>[String(u.email||'').toLowerCase(),u]));
-  const messageCounts=generalTaskCountMap_(generalTaskRows_('TarefaMensagens'));
-  const attachmentCounts=generalTaskCountMap_(generalTaskRows_('TarefaAnexos'));
-  const tagCatalog=taskTagCatalog_();
-  const tagColorMap=new Map(
-    tagCatalog.map(tag=>[
-      String(tag.nome||'').toUpperCase(),
-      tag.cor||'#176e7d'
-    ])
-  );
+  const allTasks=
+    all_('Tarefas');
+
+  const maps=
+    taskMapsV2_(
+      allTasks
+    );
+
+  const peopleById=
+    maps.peopleById;
+
+  const usersByEmail=
+    maps.usersByEmail;
+
+  const messageCounts=
+    maps.messageCounts;
+
+  const attachmentCounts=
+    maps.attachmentCounts;
+
+  const tagColorMap=
+    maps.tagColors;
 
   const isDone=task=>
     task.situacao===GENERAL_TASK_DONE||
     task.situacao===DISTRIBUTION_TASK_DONE;
 
-  let rows=all_('Tarefas')
+  let rows=allTasks
     .filter(task=>{
       if(mode==='open'&&isDone(task))return false;
       if(mode==='history'&&!isDone(task))return false;
@@ -369,7 +509,18 @@ function tasksCollectionV2_(q,mode){
       if(q.prazoAte&&due>q.prazoAte)return false;
       return true;
     })
-    .map(task=>taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap));
+    .map(task=>taskV2Summary_(
+      task,
+      peopleById,
+      usersByEmail,
+      messageCounts,
+      attachmentCounts,
+      tagColorMap,
+      maps.lastMovements,
+      maps.readByTask,
+      maps.globalSeen,
+      maps.currentEmail
+    ));
 
   const term=String(q.busca||'').trim().toLowerCase();
   if(term){
@@ -386,11 +537,58 @@ function tasksCollectionV2_(q,mode){
         .localeCompare(String(a.concluidaEm||a.alteradoEm||''));
     }
 
-    const weight={VENCIDA:0,ATE_24H:1,ATE_96H:2,NORMAL:3,SEM_PRAZO:4};
-    const aw=weight[a.vencimentoEstado]??5;
-    const bw=weight[b.vencimentoEstado]??5;
+    if(
+      !!a.novaManifestacao!==
+      !!b.novaManifestacao
+    ){
+      return a.novaManifestacao
+        ?-1
+        :1;
+    }
+
+    const weight={
+      VENCIDA:0,
+      ATE_24H:1,
+      ATE_96H:2,
+      NORMAL:3,
+      SEM_PRAZO:4
+    };
+
+    const aw=
+      weight[a.vencimentoEstado]??5;
+
+    const bw=
+      weight[b.vencimentoEstado]??5;
+
     if(aw!==bw)return aw-bw;
-    return String(a.prazo||'9999-12-31').localeCompare(String(b.prazo||'9999-12-31'));
+
+    if(
+      a.novaManifestacao&&
+      b.novaManifestacao
+    ){
+      const movement=
+        String(
+          b.ultimaMovimentacaoEm||
+          ''
+        ).localeCompare(
+          String(
+            a.ultimaMovimentacaoEm||
+            ''
+          )
+        );
+
+      if(movement)return movement;
+    }
+
+    return String(
+      a.prazo||
+      '9999-12-31'
+    ).localeCompare(
+      String(
+        b.prazo||
+        '9999-12-31'
+      )
+    );
   });
 
   const offset=Math.max(0,Number(q.offset)||0);
