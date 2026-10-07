@@ -1026,6 +1026,11 @@ function distributionTaskAssign_(ctx,q){
     );
   }
 
+  requireTaskAssigneePersonScope_(
+    user,
+    task.pessoaId
+  );
+
   return change_(
     ctx,
     'Tarefas',
@@ -1066,7 +1071,11 @@ function distributionClaimNext_(ctx){
       .filter(item=>
         item.tipo===DISTRIBUTION_TASK_TYPE&&
         item.situacao!==DISTRIBUTION_TASK_DONE&&
-        !String(item.responsavel||'').trim()
+        !String(item.responsavel||'').trim()&&
+        taskAssigneeCanAccessPerson_(
+          user,
+          item.pessoaId
+        )
       )
       .sort((a,b)=>
         String(
@@ -1242,6 +1251,11 @@ function taskBatchAssign_(ctx,q){
         index%
         selectedUsers.length
       ];
+
+    requireTaskAssigneePersonScope_(
+      user,
+      task.pessoaId
+    );
 
     let updated;
 
