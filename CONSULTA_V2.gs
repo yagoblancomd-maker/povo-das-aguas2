@@ -243,6 +243,140 @@ function personFichaMeta_(q){
   return personQuickSummary_(q);
 }
 
+function personDocumentPublic_(row){
+  return {
+    id:row.id,
+    versao:row.versao,
+    categoria:row.categoria||'',
+    nome:row.nome||'',
+    mime:row.mime||'',
+    vigente:row.vigente,
+    conferido:row.conferido,
+    vencimento:row.vencimento||'',
+    observacoes:row.observacoes||'',
+    criadoEm:row.criadoEm||'',
+    alteradoEm:row.alteradoEm||''
+  };
+}
+
+function personDocumentBelongs_(document,personId){
+  if(
+    document.atendimentoId===
+    personOwnerKey_(personId)
+  ){
+    return true;
+  }
+
+  return all_('Atendimentos')
+    .some(row=>
+      row.id===document.atendimentoId&&
+      row.pessoaId===personId
+    );
+}
+
+function personDocumentContent_(q){
+  const personId=String(required_(q.pessoaId,'pessoa')).trim();
+  get_('Pessoas',personId);
+
+  const document=get_(
+    'Documentos',
+    required_(q.id,'documento')
+  );
+
+  if(
+    !personDocumentBelongs_(
+      document,
+      personId
+    )
+  ){
+    fail_('O documento não pertence ao cadastro informado.');
+  }
+
+  if(!bool_(document.vigente)){
+    fail_('Esta versão do documento não está mais vigente.');
+  }
+
+  let file;
+
+  try{
+    file=DriveApp.getFileById(document.fileId);
+  }catch(e){
+    fail_('O arquivo não está disponível no repositório do sistema.');
+  }
+
+  if(file.isTrashed()){
+    fail_('O arquivo não está disponível no repositório do sistema.');
+  }
+
+  const blob=file.getBlob();
+
+  return {
+    id:document.id,
+    nome:document.nome||file.getName(),
+    categoria:document.categoria||'',
+    mime:
+      document.mime||
+      blob.getContentType()||
+      'application/octet-stream',
+    base64:Utilities.base64Encode(
+      blob.getBytes()
+    )
+  };
+}
+
+function personDrawerInitial_(q){
+  const pessoaId=String(
+    required_(
+      q.pessoaId||q.id,
+      'pessoa'
+    )
+  ).trim();
+
+  const pessoa=get_(
+    'Pessoas',
+    pessoaId
+  );
+
+  return {
+    pessoa,
+    resumo:personQuickSummary_({
+      id:pessoaId
+    }),
+    documentos:personDocumentsPage_({
+      pessoaId,
+      limit:20,
+      offset:0
+    }),
+    atendimentos:personAttendancesPage_({
+      pessoaId,
+      limit:20,
+      offset:0
+    }),
+    processos:personProcessesPage_({
+      pessoaId,
+      limit:20,
+      offset:0
+    }),
+    tarefasAbertas:personTasksV2_({
+      pessoaId,
+      historico:false,
+      limit:100,
+      offset:0
+    }),
+    tarefasConcluidas:personTasksV2_({
+      pessoaId,
+      historico:true,
+      limit:100,
+      offset:0
+    }),
+    historico:personHistoryPage_({
+      pessoaId,
+      limit:30,
+      offset:0
+    })
+  };
+}
+
 function personDocumentsPage_(q){
   const person=get_('Pessoas',required_(q.pessoaId,'pessoa'));
   const owner=personOwnerKey_(person.id);
@@ -271,7 +405,9 @@ function personDocumentsPage_(q){
   const limit=Math.min(100,Math.max(10,Number(q.limit)||20));
 
   return {
-    documentos:rows.slice(offset,offset+limit),
+    documentos:rows
+      .slice(offset,offset+limit)
+      .map(personDocumentPublic_),
     total,
     offset,
     limit,
