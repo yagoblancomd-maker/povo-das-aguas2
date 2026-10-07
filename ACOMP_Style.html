@@ -150,4 +150,84 @@
     width:min(300px,88vw)
   }
 }
+
+
+/* Tarefas vinculadas e exclusão administrativa */
+.acomp-delete-person{
+  color:#8d382f!important;
+  border-color:#e1b9b4!important;
+  background:#fff4f2!important;
+  box-shadow:none!important
+}
+.acomp-delete-person:hover{
+  color:#fff!important;
+  background:#b94e43!important
+}
+.acomp-task-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:8px 0
+}
+.acomp-task-summary span{
+  padding:4px 7px;
+  border-radius:999px;
+  color:#46636c;
+  background:#edf4f2;
+  font-size:8px;
+  font-weight:750
+}
+.acomp-task-list{
+  display:grid;
+  gap:6px;
+  margin:8px 0
+}
+.acomp-task-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:9px 10px;
+  border:1px solid #dedbd3;
+  border-radius:9px;
+  background:#fffdfa
+}
+.acomp-task-row.done{
+  opacity:.78;
+  background:#f5f3ee
+}
+.acomp-task-row strong{
+  display:block;
+  color:#244955;
+  font-size:9.5px
+}
+.acomp-task-row small{
+  display:block;
+  margin-top:2px;
+  color:#75837e;
+  font-size:7.8px
+}
+.acomp-task-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  justify-content:flex-end
+}
+.acomp-task-tag{
+  padding:3px 6px;
+  border-radius:999px;
+  color:var(--task-tag-color,#176e7d);
+  background:color-mix(in srgb,var(--task-tag-color,#176e7d) 10%,white);
+  border:1px solid color-mix(in srgb,var(--task-tag-color,#176e7d) 38%,white);
+  font-size:7px;
+  font-weight:800
+}
+@media(max-width:620px){
+  .acomp-task-row{
+    grid-template-columns:1fr
+  }
+  .acomp-task-tags{
+    justify-content:flex-start
+  }
+}
 </style>
