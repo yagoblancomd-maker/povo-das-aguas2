@@ -429,7 +429,12 @@ window.PDA_MODULES.TAREFAS = (()=>{
           status(result.mensagem||'Distribuição concluída.');
           dialog.close();
           if(parentDialog.open)parentDialog.close();
-          await refresh();
+          await Promise.resolve(
+            refresh({
+              kind:'complete',
+              id:detail.tarefa.id
+            })
+          );
         }
       )
     );
@@ -797,7 +802,15 @@ window.PDA_MODULES.TAREFAS = (()=>{
       input.value='';
       status('PDF(s) anexado(s).');
 
-      refresh().catch(()=>{});
+      await Promise.resolve(
+        refresh({
+          kind:'update',
+          id:detail.tarefa.id,
+          patch:{
+            anexos:(detail.anexos||[]).length
+          }
+        })
+      );
     });
 
     filesHead.append(add,input);
@@ -847,7 +860,15 @@ window.PDA_MODULES.TAREFAS = (()=>{
           textarea.value='';
           status('Mensagem enviada.');
 
-          refresh().catch(()=>{});
+          await Promise.resolve(
+            refresh({
+              kind:'update',
+              id:detail.tarefa.id,
+              patch:{
+                mensagens:(detail.mensagens||[]).length
+              }
+            })
+          );
         }
       )
     );
@@ -874,7 +895,12 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
             status('Tarefa concluída.');
             dialog.close();
-            await refresh();
+            await Promise.resolve(
+              refresh({
+                kind:'complete',
+                id:detail.tarefa.id
+              })
+            );
           }
         )
       );
@@ -953,6 +979,31 @@ window.PDA_MODULES.TAREFAS = (()=>{
       return true;
     };
 
+    function applyTaskChange_(change){
+      if(!change)return;
+
+      const data=
+        mode==='history'
+          ?historyData
+          :openData;
+
+      if(!data||!Array.isArray(data.tarefas))return;
+
+      if(change.kind==='complete'){
+        data.tarefas=
+          data.tarefas.filter(task=>task.id!==change.id);
+
+        if(mode==='open'){
+          data.total=Math.max(0,Number(data.total||0)-1);
+        }
+      }else if(change.kind==='update'){
+        const task=data.tarefas.find(item=>item.id===change.id);
+        if(task)Object.assign(task,change.patch||{});
+      }
+
+      paint_(data);
+    }
+
     const openTask_=async task=>{
       if(task.tipo==='DISTRIBUICAO_PROCESSO'){
         const detail=await call(
@@ -960,11 +1011,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
           {id:task.id}
         );
         if(!alive(ctx))return;
-        openDistributionDialog_(root,detail,render);
+        openDistributionDialog_(root,detail,applyTaskChange_);
         return;
       }
 
-      openGeneralDialog_(root,task,render);
+      openGeneralDialog_(root,task,applyTaskChange_);
     };
 
     const filterBar_=data=>{
