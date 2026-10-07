@@ -564,6 +564,7 @@ function apiAuthenticated_(action,q,sessionToken){
     pessoaSalvar:['cadastro',personSave_],
     pessoaRetificar:['consulta',personRetify_],
     pessoaUpload:['cadastro',personUpload_],
+    pessoaUploadLote:['cadastro',personUploadBatch_],
     pessoaDocumentoExcluir:['consulta',personDocumentDelete_],
     pessoaFinalizarCadastro:['cadastro',personFinalize_],
     pessoaInicialGerar:['cadastro',personInitialGenerate_],
