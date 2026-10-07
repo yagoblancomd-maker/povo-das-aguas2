@@ -698,4 +698,109 @@
     justify-content:flex-start!important
   }
 }
+
+
+/* Etapa 3 — linha operacional ainda mais estreita */
+.task-card{
+  grid-template-columns:minmax(210px,1.25fr) minmax(300px,1.55fr) minmax(92px,.45fr) auto!important;
+  min-height:56px!important;
+  padding:6px 8px!important;
+  gap:5px 9px!important;
+  cursor:pointer
+}
+.task-card:hover{
+  border-color:#b9ceca!important;
+  background:#fffefb!important;
+  box-shadow:0 5px 16px rgba(8,68,80,.09)!important
+}
+.task-card:focus-visible{
+  outline:3px solid rgba(15,102,115,.22);
+  outline-offset:1px
+}
+.task-card-top strong{
+  font-size:9px!important
+}
+.task-card-meta{
+  gap:2px 6px!important
+}
+.task-card-meta span{
+  font-size:6.4px!important
+}
+.task-card-meta b{
+  font-size:7.4px!important
+}
+.task-state-group{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:3px
+}
+.task-new-movement{
+  display:inline-flex;
+  align-items:center;
+  min-height:18px;
+  padding:2px 6px;
+  border:1px solid #e9a584;
+  border-radius:999px;
+  color:#8d3f28;
+  background:#fff0e7;
+  font-size:6.3px;
+  font-weight:900;
+  letter-spacing:.04em;
+  white-space:nowrap
+}
+.task-card.has-new-movement{
+  border-color:#e8b18e!important;
+  background:linear-gradient(90deg,#fff7f0 0,#fffdfa 38%)!important;
+  box-shadow:
+    inset 3px 0 0 #dd744d,
+    0 4px 15px rgba(124,65,34,.08)!important
+}
+.task-linked-person{
+  display:grid!important;
+  width:100%!important;
+  gap:1px!important;
+  margin:0 0 9px!important;
+  padding:8px 10px!important;
+  text-align:left!important;
+  color:#214d58!important;
+  border:1px solid #cbded9!important;
+  border-radius:9px!important;
+  background:#f0f7f5!important;
+  box-shadow:none!important
+}
+.task-linked-person:hover{
+  transform:none!important;
+  background:#e8f3f0!important
+}
+.task-linked-person span{
+  font-size:6.3px;
+  font-weight:850;
+  letter-spacing:.08em
+}
+.task-linked-person strong{
+  font-size:9.4px
+}
+.task-linked-person small{
+  color:#6e7f7a;
+  font-size:7px
+}
+.task-instant-dialog{
+  width:min(760px,94vw);
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:14px;
+  background:#fffdfa;
+  box-shadow:0 25px 70px rgba(3,30,42,.28)
+}
+.task-instant-dialog::backdrop{
+  background:rgba(3,24,34,.44);
+  backdrop-filter:blur(3px)
+}
+@media(max-width:850px){
+  .task-card{
+    min-height:0!important
+  }
+}
 </style>
