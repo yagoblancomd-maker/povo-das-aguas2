@@ -314,29 +314,52 @@ function personFinalize_(ctx,q){
     }
   );
 
-  const minuta=generatePersonDraft_(ctx,p,folder);
-  const tarefaDistribuicao=
-    ensureDistributionTask_(
-      ctx,
-      p
+  try{
+    const minuta=
+      generatePersonDraft_(
+        ctx,
+        p,
+        folder
+      );
+
+    const tarefaDistribuicao=
+      ensureDistributionTask_(
+        ctx,
+        p
+      );
+
+    personRegistrationStateClear_(
+      p.id
     );
 
-  personRegistrationStateClear_(
-    p.id
-  );
+    return {
+      pessoaId:p.id,
+      folderId:folder.getId(),
+      folderUrl:folder.getUrl(),
+      minutaBase:minuta,
+      tarefaDistribuicao:
+        tarefaDistribuicao
+          ?tarefaDistribuicao.id
+          :'',
+      mensagem:
+        'Cadastro, documentos e minuta concluídos. Tarefa de distribuição criada automaticamente.'
+    };
 
-  return {
-    pessoaId:p.id,
-    folderId:folder.getId(),
-    folderUrl:folder.getUrl(),
-    minutaBase:minuta,
-    tarefaDistribuicao:
-      tarefaDistribuicao
-        ?tarefaDistribuicao.id
-        :'',
-    mensagem:
-      'Cadastro, documentos e minuta concluídos. Tarefa de distribuição criada automaticamente.'
-  };
+  }catch(e){
+    personRegistrationStateSet_(
+      p.id,
+      'FALHA_FINALIZACAO',
+      ctx,
+      {
+        folderId:folder.getId(),
+        ultimoErro:
+          e.message||
+          String(e)
+      }
+    );
+
+    throw e;
+  }
 }
 
 /**
