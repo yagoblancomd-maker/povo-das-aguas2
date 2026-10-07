@@ -73,10 +73,6 @@ function distributionAutoSave_(ctx,q){
 }
 
 function distributionAutoRun_(ctx){
-  if(!distributionAutoEnabled_()){
-    fail_('Ative a distribuição automática antes de distribuir as tarefas pendentes.');
-  }
-
   const staged=all_('Tarefas').map(task=>Object.assign({},task));
   const pending=staged
     .filter(task=>
