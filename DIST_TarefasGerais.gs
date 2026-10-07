@@ -1687,6 +1687,10 @@ function taskNotifications_(){
     generalTaskRows_(
       'TarefaLeituras'
     ).find(row=>
+      !String(
+        row.tarefaId||
+        ''
+      ).trim()&&
       String(
         row.usuario||
         ''
@@ -1754,7 +1758,10 @@ function taskNotifications_(){
 
   return {
     naoLidas:
-      tasks.filter(isNew).length,
+      tasks.filter(task=>
+        isNew(task)||
+        task.novaManifestacao
+      ).length,
     ultimoVistoEm:lastSeen,
     itens:
       tasks.slice(0,20)
@@ -1775,7 +1782,14 @@ function taskNotifications_(){
           pessoa:task.pessoa||'',
           vencimentoEstado:
             task.vencimentoEstado,
-          nova:isNew(task)
+          novaManifestacao:
+            !!task.novaManifestacao,
+          ultimaMovimentacaoEm:
+            task.ultimaMovimentacaoEm||
+            '',
+          nova:
+            isNew(task)||
+            !!task.novaManifestacao
         }))
   };
 }
@@ -1810,6 +1824,7 @@ function taskNotificationsMarkSeen_(ctx){
       'TarefaLeituras',
       rowId,
       {
+        tarefaId:'',
         usuario:email,
         ultimoVistoEm:seenAt
       },
