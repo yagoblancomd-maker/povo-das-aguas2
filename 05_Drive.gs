@@ -448,6 +448,43 @@ function createOrReuseDocumentFile_(folder,name,payload){
   );
 }
 
+function residenceDateWithin60Days_(value){
+  const text=String(value||'').trim();
+  const match=text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if(!match){
+    fail_('Informe a data do comprovante de residência no formato DD/MM/AAAA.');
+  }
+
+  const day=Number(match[1]);
+  const month=Number(match[2]);
+  const year=Number(match[3]);
+  const parsed=new Date(Date.UTC(year,month-1,day));
+
+  if(
+    parsed.getUTCFullYear()!==year||
+    parsed.getUTCMonth()!==month-1||
+    parsed.getUTCDate()!==day
+  ){
+    fail_('Informe uma data válida para o comprovante de residência.');
+  }
+
+  const todayText=Utilities.formatDate(new Date(),PDA.tz,'yyyy-MM-dd');
+  const parts=todayText.split('-').map(Number);
+  const today=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+  const minimum=new Date(today.getTime()-60*24*60*60*1000);
+
+  if(parsed.getTime()>today.getTime()){
+    fail_('A data do comprovante de residência não pode ser futura.');
+  }
+
+  if(parsed.getTime()<minimum.getTime()){
+    fail_('O comprovante de residência deve ter data dos últimos 60 dias.');
+  }
+
+  return text;
+}
+
 function personUpload_(ctx,q){
   const p=get_('Pessoas',q.pessoaId);
 
@@ -483,7 +520,7 @@ function personUpload_(ctx,q){
   }
 
   if(q.categoria==='RESIDENCIA'){
-    date_(q.vencimento);
+    residenceDateWithin60Days_(q.vencimento);
 
     if(
       bool_(q.terceiro)&&
@@ -640,7 +677,7 @@ function upload_(ctx,q){
   }
 
   if(q.categoria==='RESIDENCIA'){
-    date_(q.vencimento);
+    residenceDateWithin60Days_(q.vencimento);
 
     if(
       bool_(q.terceiro)&&
