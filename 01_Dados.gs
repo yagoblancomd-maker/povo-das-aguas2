@@ -599,7 +599,11 @@ function commit_(ctx,result){
     ss_().getId()
   );
 
-  SpreadsheetApp.flush();
+  /*
+   * batchUpdate é síncrono: quando retorna, as alterações já foram
+   * confirmadas pelo serviço Sheets. Evitamos flush(), que adicionava
+   * uma segunda sincronização remota em toda gravação.
+   */
   resetData_();
 
   /*
