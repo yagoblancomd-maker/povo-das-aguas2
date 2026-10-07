@@ -1186,8 +1186,7 @@ function uniqueRowsById_(rows){
 
 function personDeletePreview_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.id,
         'pessoa'
@@ -1325,8 +1324,7 @@ function personFolderCandidates_(person){
 
 function personDeleteCascade_(ctx,q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.id,
         'pessoa'
