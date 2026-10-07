@@ -4476,4 +4476,295 @@ main#app{
     min-width:0!important
   }
 }
+
+
+/* =========================================================
+   FICHA LATERAL REUTILIZÁVEL — ETAPA 2
+   ========================================================= */
+body.pda-drawer-open{overflow:hidden}
+.pda-drawer-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2200;
+  display:flex;
+  justify-content:flex-end;
+  background:rgba(4,24,34,.38);
+  backdrop-filter:blur(3px)
+}
+.pda-person-drawer{
+  width:min(860px,92vw);
+  height:100%;
+  overflow:auto;
+  background:#f8f5ee;
+  box-shadow:-24px 0 60px rgba(3,30,42,.28);
+  animation:pdaDrawerIn .16s ease-out
+}
+@keyframes pdaDrawerIn{
+  from{transform:translateX(28px);opacity:.5}
+  to{transform:none;opacity:1}
+}
+.pda-person-drawer-head{
+  position:sticky;
+  top:0;
+  z-index:4;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:18px 20px 14px;
+  color:#fff;
+  background:
+    linear-gradient(115deg,rgba(4,42,58,.94),rgba(8,90,99,.78)),
+    var(--pda-photo-channel);
+  background-size:cover;
+  background-position:center
+}
+.pda-person-drawer-head h2{
+  margin:2px 0 0!important;
+  color:#fff!important;
+  font-family:var(--pda-display)!important;
+  font-size:27px!important
+}
+.pda-drawer-kicker{
+  font-size:7px;
+  font-weight:850;
+  letter-spacing:.17em
+}
+.pda-drawer-close,
+.pda-modal-close{
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.28)!important;
+  border-radius:50%!important;
+  color:#fff!important;
+  background:rgba(4,35,49,.45)!important;
+  font-size:21px!important;
+  line-height:1!important
+}
+.pda-person-drawer-actions{
+  position:sticky;
+  top:74px;
+  z-index:3;
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  padding:10px 20px;
+  border-bottom:1px solid #ded9cf;
+  background:rgba(248,245,238,.95);
+  backdrop-filter:blur(10px)
+}
+.pda-person-drawer-actions button{
+  min-height:34px!important;
+  font-size:8.5px!important
+}
+.pda-person-drawer-actions .danger{
+  color:#8e382f!important;
+  border-color:#dfb4ae!important;
+  background:#fff7f5!important
+}
+.pda-person-drawer-body{padding:16px 20px 30px}
+.pda-person-summary{display:grid;gap:12px}
+.pda-person-counters{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px
+}
+.pda-person-counter{
+  padding:11px;
+  border:1px solid #ddd9d0;
+  border-radius:11px;
+  background:#fffdfa
+}
+.pda-person-counter strong{
+  display:block;
+  color:var(--pda-sea);
+  font-family:var(--pda-display);
+  font-size:21px
+}
+.pda-person-counter span{
+  display:block;
+  margin-top:2px;
+  color:#6e7c78;
+  font-size:8px
+}
+.pda-person-info-grid,
+.pda-person-data-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0;
+  overflow:hidden;
+  border:1px solid #ddd9d0;
+  border-radius:11px;
+  background:#fffdfa
+}
+.pda-person-info-item,
+.pda-person-data-item{
+  min-width:0;
+  padding:10px 12px;
+  border-right:1px solid #e7e1d8;
+  border-bottom:1px solid #e7e1d8
+}
+.pda-person-info-item span,
+.pda-person-data-item span{
+  display:block;
+  color:#7b8883;
+  font-size:7.5px
+}
+.pda-person-info-item strong,
+.pda-person-data-item strong{
+  display:block;
+  margin-top:2px;
+  overflow-wrap:anywhere;
+  color:#2d4e59;
+  font-size:9.5px
+}
+.pda-person-full{margin-top:16px}
+.pda-person-tabs{
+  display:flex;
+  gap:4px;
+  overflow-x:auto;
+  padding-bottom:5px
+}
+.pda-person-tabs button{
+  flex:0 0 auto;
+  min-height:32px!important;
+  padding:6px 10px!important;
+  color:#41616b!important;
+  border:1px solid #d4ddd9!important;
+  background:#fffdfa!important;
+  box-shadow:none!important;
+  font-size:8px!important
+}
+.pda-person-tabs button.active{
+  color:#fff!important;
+  border-color:var(--pda-sea)!important;
+  background:var(--pda-sea)!important
+}
+.pda-person-tab-panel{
+  min-height:170px;
+  margin-top:8px;
+  padding:12px;
+  border:1px solid #ddd9d0;
+  border-radius:12px;
+  background:#fffdfa
+}
+.pda-drawer-paged{
+  display:grid;
+  gap:8px
+}
+.pda-drawer-paged>button{
+  justify-self:center
+}
+.pda-person-task-list,
+.pda-person-history-list{
+  display:grid;
+  gap:6px
+}
+.pda-person-task-row,
+.pda-person-history-row{
+  display:grid;
+  gap:2px;
+  padding:9px 10px;
+  border:1px solid #e2ddd4;
+  border-radius:9px;
+  background:#faf8f3
+}
+.pda-person-task-row strong,
+.pda-person-history-row strong{
+  color:#294a55;
+  font-size:9px
+}
+.pda-person-task-row small,
+.pda-person-history-row small{
+  color:#75817d;
+  font-size:7.5px
+}
+.pda-person-task-history{margin-top:14px}
+.pda-drawer-table table{min-width:560px}
+
+/* Modal de criação de tarefa vinculada */
+.pda-modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2400;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(4,24,34,.46);
+  backdrop-filter:blur(4px)
+}
+.pda-task-create-modal{
+  width:min(720px,96vw);
+  max-height:92vh;
+  overflow:auto;
+  border:1px solid #d5ddd9;
+  border-radius:16px;
+  background:#fffdfa;
+  box-shadow:0 28px 70px rgba(3,30,42,.28)
+}
+.pda-modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  color:#fff;
+  background:linear-gradient(135deg,#07364b,#0f6673)
+}
+.pda-modal-head strong{
+  display:block;
+  font-family:var(--pda-display);
+  font-size:18px
+}
+.pda-modal-head small{
+  display:block;
+  margin-top:2px;
+  color:#d7e9ea;
+  font-size:8px
+}
+.pda-task-create-form{padding:14px 16px 16px}
+.pda-task-create-grid{
+  display:grid;
+  grid-template-columns:2fr 1.4fr 1fr 1fr;
+  gap:8px
+}
+.pda-task-create-form .wide{margin-top:8px}
+.pda-task-tag-label{
+  display:block;
+  margin:10px 0 5px;
+  color:#5c706f;
+  font-size:8px;
+  font-weight:750
+}
+.pda-task-tag-picker{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px
+}
+.pda-task-tag-option{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 8px;
+  border:1px solid color-mix(in srgb,var(--task-tag-color,#176e7d) 38%,white);
+  border-radius:999px;
+  color:var(--task-tag-color,#176e7d);
+  background:color-mix(in srgb,var(--task-tag-color,#176e7d) 9%,white);
+  font-size:7.5px;
+  font-weight:750
+}
+.pda-task-tag-option input{margin:0}
+
+@media(max-width:760px){
+  .pda-person-drawer{width:100vw}
+  .pda-person-counters,
+  .pda-person-info-grid,
+  .pda-person-data-list,
+  .pda-task-create-grid{
+    grid-template-columns:1fr
+  }
+  .pda-person-drawer-actions{top:71px}
+}
 </style>
