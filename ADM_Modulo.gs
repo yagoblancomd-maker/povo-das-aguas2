@@ -379,6 +379,12 @@ function userSave_(ctx,q){
     .trim()
     .toUpperCase();
 
+  const entidade=
+    String(
+      q.entidade||
+      ''
+    ).trim();
+
   required_(nome,'nome da pessoa');
   required_(funcao,'função da pessoa');
 
@@ -389,6 +395,24 @@ function userSave_(ctx,q){
     fail_(
       'E-mail ou perfil inválido.'
     );
+  }
+
+  if(perfil==='COLONIA_PESCADOR'){
+    const entidades=
+      (cfg_().entidades||[])
+        .filter(value=>
+          String(value||'').trim()&&
+          String(value||'').trim()!=='Outro'
+        );
+
+    if(
+      !entidade||
+      !entidades.includes(entidade)
+    ){
+      fail_(
+        'O perfil Colônia de Pescador deve estar vinculado a uma entidade válida.'
+      );
+    }
   }
 
   let permissions=
@@ -454,6 +478,10 @@ function userSave_(ctx,q){
     ativo:bool_(q.ativo),
     nome,
     funcao,
+    entidade:
+      perfil==='COLONIA_PESCADOR'
+        ?entidade
+        :'',
     permissoes:JSON.stringify(
       permissions
     ),
