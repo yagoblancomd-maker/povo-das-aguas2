@@ -222,4 +222,21 @@
     grid-template-columns:1fr
   }
 }
+
+.proc-detail-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:6px
+}
+.proc-detail-actions button{
+  min-height:32px!important;
+  padding:6px 9px!important;
+  font-size:7.8px!important
+}
+@media(max-width:620px){
+  .proc-detail-actions{
+    justify-content:flex-start
+  }
+}
 </style>
