@@ -649,9 +649,6 @@ n.className='status '+(error?'error':'ok');
       );
 
   if(!codes.length){
-    warmInitialData_(
-      allCodes
-    );
     return Promise.resolve();
   }
 
@@ -670,16 +667,11 @@ n.className='status '+(error?'error':'ok');
         });
 
         /*
-         * Primeiro liberamos os bundles. Os dados são aquecidos somente
-         * depois, para uma consulta pesada ao Sheets nunca segurar HTML/CSS/JS.
+         * O aquecimento automático fica restrito aos bundles dos módulos.
+         * Dados pesados são buscados apenas por interação do usuário
+         * (hover/foco/clique) ou pela abertura efetiva da tela, evitando
+         * concorrência entre várias leituras do Apps Script em segundo plano.
          */
-        setTimeout(
-          ()=>warmInitialData_(
-            allCodes
-          ),
-          40
-        );
-
         return modules;
       })
       .catch(()=>null)
