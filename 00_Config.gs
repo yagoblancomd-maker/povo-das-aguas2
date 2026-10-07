@@ -51,7 +51,12 @@ const SCHEMA = Object.freeze({
   TarefaAnexos:['tarefaId','fileId','url','nome','mime','hash','bytes','enviadoPor','pessoaId','documentoId'],
   TarefaLeituras:['usuario','ultimoVistoEm','tarefaId'],
   TarefaTags:['nome','cor','ativo'],
-  Processos:['pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes'],
+  Processos:[
+    'pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes',
+    'datajudTribunal','datajudGrau','datajudClasse','datajudOrgao','datajudSistema',
+    'datajudDataAjuizamento','datajudNivelSigilo','datajudAssuntos',
+    'datajudUltimaAtualizacaoOrigem','datajudUltimaConsulta','datajudStatus','datajudErro'
+  ],
   Operacoes:['hash','resultado']
 });
 
