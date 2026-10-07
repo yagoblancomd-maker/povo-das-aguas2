@@ -671,11 +671,17 @@ function apiAuthenticated_(action,q,sessionToken){
     }
 
     const digest=hash_({action,payload});
+    const ephemeral=
+      action==='tarefaMarcarVista'||
+      action==='notificacoesTarefasMarcarLidas';
+
     const previous=
-      findById_(
-        'Operacoes',
-        op
-      );
+      ephemeral
+        ?null
+        :findById_(
+            'Operacoes',
+            op
+          );
 
     if(previous){
       if(previous.hash!==digest)fail_('Operação já utilizada com conteúdo diferente.');
@@ -688,9 +694,7 @@ function apiAuthenticated_(action,q,sessionToken){
       hash:digest,
       changes:[],
       effects:[],
-      ephemeral:
-        action==='tarefaMarcarVista'||
-        action==='notificacoesTarefasMarcarLidas'
+      ephemeral
     };
 
     try{
