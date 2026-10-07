@@ -137,6 +137,103 @@ window.PDA_MODULES.PESS = (()=>{
     });
   }
 
+  async function prepareUploadFile_(file){
+    if(!file){
+      throw new Error('Arquivo inválido.');
+    }
+
+    if(file.size>5*1024*1024){
+      throw new Error(
+        file.name+': arquivo maior que 5 MB.'
+      );
+    }
+
+    const originalMime=mime_(file);
+
+    if(
+      ![
+        'application/pdf',
+        'image/jpeg',
+        'image/png'
+      ].includes(originalMime)
+    ){
+      throw new Error(
+        file.name+': formato não permitido. Use PDF, JPEG ou PNG.'
+      );
+    }
+
+    if(
+      originalMime==='application/pdf'||
+      file.size<=900*1024
+    ){
+      return {
+        nome:file.name,
+        mime:originalMime,
+        base64:await readFile_(file)
+      };
+    }
+
+    const url=URL.createObjectURL(file);
+
+    try{
+      const image=new Image();
+      image.src=url;
+      await image.decode();
+
+      const maxSide=1800;
+      const scale=Math.min(
+        1,
+        maxSide/image.width,
+        maxSide/image.height
+      );
+
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(
+        1,
+        Math.round(image.width*scale)
+      );
+      canvas.height=Math.max(
+        1,
+        Math.round(image.height*scale)
+      );
+
+      const context=canvas.getContext('2d');
+      context.drawImage(
+        image,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const blob=await new Promise(resolve=>
+        canvas.toBlob(
+          resolve,
+          'image/jpeg',
+          .82
+        )
+      );
+
+      if(!blob){
+        throw new Error(
+          'Não foi possível otimizar '+file.name+'.'
+        );
+      }
+
+      return {
+        nome:
+          String(file.name||'imagem')
+            .replace(/\.[^.]+$/,'')+
+          '.jpg',
+        mime:'image/jpeg',
+        base64:await readFile_(blob)
+      };
+
+    }finally{
+      URL.revokeObjectURL(url);
+    }
+  }
+
   function mime_(file){
     if(file.type)return file.type;
 
@@ -2269,7 +2366,7 @@ window.PDA_MODULES.PESS = (()=>{
 
         if(!residenceDateValue){
           throw new Error(
-            'Informe o vencimento do comprovante de residência.'
+            'Informe a data do comprovante de residência.'
           );
         }
 
@@ -2309,215 +2406,442 @@ window.PDA_MODULES.PESS = (()=>{
           }
         }
 
-        const saved=
-          await call(
-            'pessoaSalvar',
-            p,
-            true
-          );
+        const cpfAtual=
+          String(p.cpf||'')
+            .replace(/\D/g,'');
 
-        const enviados=[];
-        const erros=[];
+        const checkpointKey=
+          'PDA_CADASTRO_CHECKPOINT_V1_'+
+          cpfAtual;
 
-        for(
-          const [categoria,input]
-          of Object.entries(uploads)
-        ){
-          const files=
-            selectedFiles_(
-              categoria,
-              input
+        let checkpoint={};
+
+        try{
+          checkpoint=
+            JSON.parse(
+              sessionStorage.getItem(
+                checkpointKey
+              )||
+              '{}'
             );
-
-          for(const file of files){
-            try{
-              if(
-                file.size>
-                5*1024*1024
-              ){
-                throw new Error(
-                  'Arquivo maior que 5 MB.'
-                );
-              }
-
-              const mime=
-                mime_(file);
-
-              if(
-                ![
-                  'application/pdf',
-                  'image/jpeg',
-                  'image/png'
-                ].includes(mime)
-              ){
-                throw new Error(
-                  'Formato não permitido. Use PDF, JPEG ou PNG.'
-                );
-              }
-
-              const base64=
-                await readFile_(file);
-
-              await call(
-                'pessoaUpload',
-                {
-                  pessoaId:saved.id,
-                  categoria,
-                  base64,
-                  mime,
-                  vencimento:
-                    categoria==='RESIDENCIA'
-                      ?String(
-                          residenceDate.value||
-                          ''
-                        ).trim()
-                      :'',
-                  terceiro:
-                    categoria==='RESIDENCIA'
-                      ?!!residenceThird.checked
-                      :false,
-                  declaracaoTerceiro:
-                    categoria==='RESIDENCIA'
-                      ?!!residenceDeclaration.checked
-                      :false
-                },
-                true
-              );
-
-              enviados.push(
-                (
-                  DOCUMENT_LABELS[categoria]||
-                  categoria
-                )+
-                ' — '+
-                file.name
-              );
-
-            }catch(e){
-              erros.push(
-                (
-                  DOCUMENT_LABELS[categoria]||
-                  categoria
-                )+
-                ' — '+
-                file.name+
-                ': '+
-                (
-                  e.message||
-                  String(e)
-                )
-              );
-            }
-          }
+        }catch(e){
+          checkpoint={};
         }
 
-        if(
-          residenceThird&&
-          residenceThird.checked&&
-          residenceHolderIdentity&&
-          residenceHolderIdentity.files&&
-          residenceHolderIdentity.files.length
-        ){
-          const holderFiles=
-            Array.from(
-              residenceHolderIdentity.files
+        const saveCheckpoint_=
+          patch=>{
+            checkpoint=
+              Object.assign(
+                {},
+                checkpoint,
+                patch,
+                {
+                  cpf:cpfAtual,
+                  atualizadoEm:
+                    new Date().toISOString()
+                }
+              );
+
+            try{
+              sessionStorage.setItem(
+                checkpointKey,
+                JSON.stringify(
+                  checkpoint
+                )
+              );
+            }catch(e){}
+          };
+
+        let workflowId=
+          App.beginWorkflowProcessing(
+            'Salvando novo cadastro',
+            48
+          );
+
+        const progress_=
+          (
+            percent,
+            message,
+            remaining,
+            patch
+          )=>{
+            if(patch){
+              saveCheckpoint_(patch);
+            }
+
+            App.updateWorkflowProcessing(
+              workflowId,
+              percent,
+              message,
+              remaining
+            );
+          };
+
+        let saved=null;
+
+        try{
+          progress_(
+            4,
+            'Validando e registrando os dados da pessoa…',
+            45
+          );
+
+          if(
+            checkpoint.pessoaId
+          ){
+            saved={
+              id:
+                checkpoint.pessoaId
+            };
+
+            progress_(
+              12,
+              'Retomando cadastro já salvo anteriormente…',
+              39
             );
 
-          for(const file of holderFiles){
-            try{
-              if(file.size>5*1024*1024){
-                throw new Error(
-                  'Arquivo maior que 5 MB.'
-                );
-              }
-
-              const mime=
-                mime_(file);
-
-              if(
-                ![
-                  'application/pdf',
-                  'image/jpeg',
-                  'image/png'
-                ].includes(mime)
-              ){
-                throw new Error(
-                  'Formato não permitido. Use PDF, JPEG ou PNG.'
-                );
-              }
-
-              const base64=
-                await readFile_(file);
-
+          }else{
+            saved=
               await call(
-                'pessoaUpload',
-                {
-                  pessoaId:saved.id,
-                  categoria:'IDENTIDADE_TITULAR_RESIDENCIA',
-                  base64,
-                  mime,
+                'pessoaSalvar',
+                p,
+                true,
+                {silent:true}
+              );
+
+            saveCheckpoint_({
+              pessoaId:saved.id,
+              etapa:'PESSOA_SALVA'
+            });
+
+            progress_(
+              16,
+              'Cadastro salvo. Preparando os documentos…',
+              36
+            );
+          }
+
+          const specs=[];
+
+          Object.entries(uploads)
+            .forEach(
+              ([categoria,input])=>{
+                selectedFiles_(
+                  categoria,
+                  input
+                )
+                  .forEach(file=>
+                    specs.push({
+                      categoria,
+                      file,
+                      vencimento:
+                        categoria==='RESIDENCIA'
+                          ?residenceDateValue
+                          :'',
+                      terceiro:
+                        categoria==='RESIDENCIA'
+                          ?!!residenceThird.checked
+                          :false,
+                      declaracaoTerceiro:
+                        categoria==='RESIDENCIA'
+                          ?!!residenceDeclaration.checked
+                          :false
+                    })
+                  );
+              }
+            );
+
+          if(
+            residenceThird&&
+            residenceThird.checked&&
+            residenceHolderIdentity&&
+            residenceHolderIdentity.files
+          ){
+            Array.from(
+              residenceHolderIdentity.files
+            )
+              .forEach(file=>
+                specs.push({
+                  categoria:
+                    'IDENTIDADE_TITULAR_RESIDENCIA',
+                  file,
                   vencimento:'',
                   terceiro:false,
                   declaracaoTerceiro:false
-                },
-                true
+                })
               );
+          }
 
-              enviados.push(
-                'Carteira de identidade do titular da residência — '+
-                file.name
-              );
+          const prepared=[];
 
-            }catch(e){
-              erros.push(
-                'Carteira de identidade do titular da residência — '+
-                file.name+
-                ': '+
+          for(
+            let index=0;
+            index<specs.length;
+            index++
+          ){
+            const spec=specs[index];
+
+            progress_(
+              18+
+              Math.round(
                 (
-                  e.message||
-                  String(e)
+                  index/
+                  Math.max(
+                    1,
+                    specs.length
+                  )
+                )*
+                16
+              ),
+              'Preparando documento '+
+              (index+1)+
+              ' de '+
+              specs.length+
+              ': '+
+              spec.file.name,
+              Math.max(
+                24,
+                36-index*2
+              )
+            );
+
+            const file=
+              await prepareUploadFile_(
+                spec.file
+              );
+
+            prepared.push(
+              Object.assign(
+                {},
+                file,
+                {
+                  categoria:
+                    spec.categoria,
+                  vencimento:
+                    spec.vencimento,
+                  terceiro:
+                    spec.terceiro,
+                  declaracaoTerceiro:
+                    spec.declaracaoTerceiro
+                }
+              )
+            );
+          }
+
+          /*
+           * Agrupa os documentos em lotes de aproximadamente 12 MB de
+           * base64. Normalmente todo o cadastro segue em uma chamada, mas
+           * arquivos maiores são fracionados para evitar limites do Apps Script.
+           */
+          const batches=[];
+          let current=[];
+          let currentSize=0;
+          const maxBatchChars=
+            12*1024*1024;
+
+          prepared.forEach(item=>{
+            const size=
+              String(
+                item.base64||
+                ''
+              ).length;
+
+            if(
+              current.length&&
+              currentSize+size>
+                maxBatchChars
+            ){
+              batches.push(current);
+              current=[];
+              currentSize=0;
+            }
+
+            current.push(item);
+            currentSize+=size;
+          });
+
+          if(current.length){
+            batches.push(current);
+          }
+
+          const uploadErrors=[];
+          let uploadedCount=0;
+
+          for(
+            let index=0;
+            index<batches.length;
+            index++
+          ){
+            progress_(
+              38+
+              Math.round(
+                (
+                  index/
+                  Math.max(
+                    1,
+                    batches.length
+                  )
+                )*
+                30
+              ),
+              'Enviando documentos ao Drive — lote '+
+              (index+1)+
+              ' de '+
+              batches.length+
+              '…',
+              Math.max(
+                12,
+                26-index*7
+              ),
+              {
+                etapa:
+                  'ENVIANDO_DOCUMENTOS'
+              }
+            );
+
+            const batchResult=
+              await call(
+                'pessoaUploadLote',
+                {
+                  pessoaId:saved.id,
+                  arquivos:batches[index]
+                },
+                true,
+                {silent:true}
+              );
+
+            uploadedCount+=
+              Number(
+                batchResult.quantidade||
+                0
+              );
+
+            (
+              batchResult.erros||
+              []
+            )
+              .forEach(error=>
+                uploadErrors.push(
+                  (
+                    error.nome||
+                    'arquivo'
+                  )+
+                  ': '+
+                  (
+                    error.erro||
+                    'falha no envio'
+                  )
                 )
               );
-            }
           }
-        }
 
-        if(erros.length){
-          App.state.selection=
-            saved.id;
+          if(uploadErrors.length){
+            progress_(
+              68,
+              'Alguns documentos não foram concluídos.',
+              0,
+              {
+                etapa:
+                  'DOCUMENTOS_PENDENTES',
+                erros:
+                  uploadErrors
+              }
+            );
 
-          await go(
-            'ACOMP',
-            saved.id
+            throw new Error(
+              'O cadastro foi preservado, mas '+uploadErrors.length+
+              ' documento(s) ficaram pendentes:\n'+
+              uploadErrors.join('\n')
+            );
+          }
+
+          progress_(
+            72,
+            'Documentos salvos. Gerando a petição inicial e o PDF…',
+            15,
+            {
+              etapa:
+                'DOCUMENTOS_SALVOS',
+              documentos:
+                uploadedCount
+            }
           );
 
-          status(
-            'Cadastro salvo, mas existem documentos pendentes.\n\n'+
-            'Arquivos enviados com sucesso: '+
-            (
-              enviados.length
-                ?enviados.join(', ')
-                :'nenhum'
-            )+
-            '\n\nFalhas:\n'+
-            erros.join('\n')+
-            '\n\nA minuta não foi gerada.',
-            true
-          );
-
-          return;
-        }
-
-        try{
           await call(
             'pessoaFinalizarCadastro',
             {
               pessoaId:saved.id
             },
+            true,
+            {silent:true}
+          );
+
+          progress_(
+            88,
+            'Petição inicial concluída. Finalizando registros…',
+            7,
+            {
+              etapa:
+                'MINUTA_GERADA'
+            }
+          );
+
+          let relatorio=null;
+          let relatorioErro='';
+
+          if(
+            seguroDefesoConsulta&&
+            seguroDefesoConsulta.codigoConsultado===
+              cpfAtual
+          ){
+            progress_(
+              90,
+              'Gerando o relatório oficial do Seguro-Defeso…',
+              6
+            );
+
+            try{
+              relatorio=
+                await call(
+                  'seguroDefesoRelatorioGerar',
+                  {
+                    pessoaId:saved.id,
+                    generation:
+                      crypto.randomUUID()
+                  },
+                  true,
+                  {silent:true}
+                );
+            }catch(e){
+              relatorioErro=
+                e.message||
+                String(e);
+            }
+          }
+
+          progress_(
+            99,
+            'Cadastro concluído. Abrindo a ficha…',
+            1,
+            {
+              etapa:
+                'CONCLUIDO'
+            }
+          );
+
+          try{
+            sessionStorage.removeItem(
+              checkpointKey
+            );
+          }catch(e){}
+
+          App.endWorkflowProcessing(
+            workflowId,
             true
           );
 
-        }catch(e){
+          workflowId=null;
+
           App.state.selection=
             saved.id;
 
@@ -2526,76 +2850,61 @@ window.PDA_MODULES.PESS = (()=>{
             saved.id
           );
 
+          if(relatorioErro){
+            status(
+              'Cadastro, documentos e minuta concluídos. O relatório do Seguro-Defeso não pôde ser gravado: '+
+              relatorioErro,
+              true
+            );
+
+          }else if(relatorio){
+            status(
+              'Cadastro, documentos, minuta e relatório oficial do Seguro-Defeso concluídos com sucesso.'
+            );
+
+          }else{
+            status(
+              'Cadastro, documentos e minuta concluídos com sucesso.'
+            );
+          }
+
+        }catch(e){
+          saveCheckpoint_({
+            pessoaId:
+              saved&&saved.id||
+              checkpoint.pessoaId||
+              '',
+            etapa:
+              checkpoint.etapa||
+              'INTERROMPIDO',
+            ultimoErro:
+              e.message||
+              String(e)
+          });
+
+          if(workflowId){
+            App.endWorkflowProcessing(
+              workflowId,
+              false
+            );
+            workflowId=null;
+          }
+
           status(
-            'Cadastro e documentos foram salvos corretamente.\n\n'+
-            'A minuta não foi gerada:\n'+
+            (
+              saved&&saved.id
+                ?'O cadastro já salvo foi preservado. '
+                :'O processamento foi interrompido antes da conclusão. '
+            )+
             (
               e.message||
               String(e)
-            ),
+            )+
+            '\n\nMantenha os mesmos dados e clique novamente em “Salvar cadastro, documentos e gerar minuta” para retomar a partir do cadastro preservado.',
             true
           );
-
-          return;
         }
-
-        let relatorio=null;
-        let relatorioErro='';
-
-        const cpfAtual=
-          String(p.cpf||'')
-            .replace(/\D/g,'');
-
-        if(
-          seguroDefesoConsulta&&
-          seguroDefesoConsulta.codigoConsultado===
-            cpfAtual
-        ){
-          try{
-            relatorio=
-              await call(
-                'seguroDefesoRelatorioGerar',
-                {
-                  pessoaId:saved.id,
-                  generation:
-                    crypto.randomUUID()
-                },
-                true
-              );
-          }catch(e){
-            relatorioErro=
-              e.message||
-              String(e);
-          }
-        }
-
-        App.state.selection=
-          saved.id;
-
-        await go(
-          'ACOMP',
-          saved.id
-        );
-
-        if(relatorioErro){
-          status(
-            'Cadastro, documentos e minuta concluídos.\n'+
-            'O relatório do Seguro-Defeso não pôde ser gravado: '+
-            relatorioErro,
-            true
-          );
-
-        }else if(relatorio){
-          status(
-            'Cadastro, documentos, minuta e relatório oficial do Seguro-Defeso concluídos com sucesso.'
-          );
-
-        }else{
-          status(
-            'Cadastro, documentos e minuta concluídos com sucesso.'
-          );
-        }
-      },
+      }      },
       'Salvar cadastro, documentos e gerar minuta'
     );
 
