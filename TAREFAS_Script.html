@@ -1031,6 +1031,64 @@ window.PDA_MODULES.TAREFAS = (()=>{
       )
     );
 
+    if(detail.tarefa.pessoaId){
+      const linked=
+        el(
+          'section',
+          undefined,
+          'task-linked-person'
+        );
+
+      const linkedCopy=el('div');
+
+      linkedCopy.append(
+        el(
+          'span',
+          'CADASTRO VINCULADO'
+        ),
+        el(
+          'strong',
+          detail.tarefa.pessoa||
+          'Pessoa vinculada'
+        ),
+        el(
+          'small',
+          [
+            detail.tarefa.pessoaCpf
+              ?cpf_(detail.tarefa.pessoaCpf)
+              :'',
+            detail.tarefa.pessoaCidade||'',
+            detail.tarefa.pessoaJurisdicao||''
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+
+      linked.append(
+        linkedCopy,
+        button(
+          'Ver cadastro',
+          ()=>App.openPersonDrawer(
+            detail.tarefa.pessoaId,
+            {
+              summary:{
+                id:detail.tarefa.pessoaId,
+                nome:detail.tarefa.pessoa,
+                cpf:detail.tarefa.pessoaCpf,
+                cpfFormatado:cpf_(detail.tarefa.pessoaCpf),
+                cidade:detail.tarefa.pessoaCidade,
+                jurisdicao:detail.tarefa.pessoaJurisdicao
+              }
+            }
+          ),
+          true
+        )
+      );
+
+      body.append(linked);
+    }
+
     const files=el('section',undefined,'task-general-panel');
     const filesHead=el('div',undefined,'task-general-panel-head');
     const fileGrid=el('div',undefined,'task-general-files');
