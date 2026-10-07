@@ -829,7 +829,8 @@ const SELF_REGISTRATION_FUNCTIONS=Object.freeze([
   'Professor',
   'Residente',
   'Colaborador',
-  'Aluno'
+  'Aluno',
+  'Colônia de Pescador'
 ]);
 
 function selfRegistrationAccess_(funcao){
@@ -859,6 +860,15 @@ function selfRegistrationAccess_(funcao){
       permissoes:rolePermissions_('ALUNO'),
       aprovacaoPendente:false,
       resumo:'Consulta e Distribuir processos, para receber e concluir tarefas atribuídas.'
+    };
+  }
+
+  if(clean==='Colônia de Pescador'){
+    return {
+      perfil:'COLONIA_PESCADOR',
+      permissoes:rolePermissions_('COLONIA_PESCADOR'),
+      aprovacaoPendente:false,
+      resumo:'Acesso restrito aos cadastros, processos e tarefas da entidade vinculada.'
     };
   }
 
