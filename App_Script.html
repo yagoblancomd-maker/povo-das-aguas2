@@ -40,13 +40,36 @@ const App=(()=>{
   'pessoaAtendimentos',
   'pessoaHistorico',
   'historicoGeral',
+  'perfilRanking',
   'tarefaCriarOpcoes'
  ]);
  const MODULE_INITIAL_READ=Object.freeze({
   PAINEL:['painel',{}],
   TAREFAS:['tarefasMinhasAbertas',{}],
+  ACOMP:[
+    'pessoasLeve',
+    {
+      busca:'',
+      offset:0,
+      limit:30
+    }
+  ],
   DIST:['tarefasAbertasGestao',{}],
   PROC:['processos',{}],
+  HIST:[
+    'historicoGeral',
+    {
+      tipo:'cadastros',
+      busca:'',
+      pessoa:'',
+      usuario:'',
+      de:'',
+      ate:'',
+      offset:0,
+      limit:50
+    }
+  ],
+  PERF:['perfilRanking',{}],
   ADM:['adminUsuarios',{}]
  });
  const el=(tag,text,cls)=>{const n=document.createElement(tag);
