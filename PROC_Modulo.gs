@@ -1,11 +1,6 @@
 function processList_(q){
   q=q||{};
 
-  batchAll_([
-    'Pessoas',
-    'Processos'
-  ]);
-
   const search=
     String(q.busca||'')
       .trim()
@@ -25,6 +20,22 @@ function processList_(q){
         Number(q.limit)||50
       )
     );
+
+  if(!search){
+    return {
+      processos:[],
+      total:0,
+      offset,
+      limit,
+      hasMore:false,
+      aguardandoFiltro:true
+    };
+  }
+
+  batchAll_([
+    'Pessoas',
+    'Processos'
+  ]);
 
   const people=
     new Map(
