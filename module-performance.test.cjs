@@ -10,8 +10,10 @@ assert.match(app,/READ_CACHE_TTL_MS=30000/);
 assert.match(app,/READ_CACHE_REFRESH_MS=8000/);
 assert.match(app,/raw\(\s*'aquecerAplicacao'/s);
 assert.match(app,/requestIdleCallback/);
-assert.match(app,/mouseenter[\s\S]*prefetchModule_/);
-assert.match(app,/pointerdown[\s\S]*prefetchModule_/);
+assert.match(app,/function bindModulePrefetch_/);
+assert.match(app,/'mouseenter'/);
+assert.match(app,/'pointerdown'/);
+assert.match(app,/prefetchModule_/);
 assert.match(app,/window\.PDA_PERF/);
 assert.match(app,/\[PDA desempenho\]/);
 
