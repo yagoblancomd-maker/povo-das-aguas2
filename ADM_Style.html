@@ -306,4 +306,153 @@
   white-space:nowrap
 }
 
+
+
+/* Administração V2 — colunas, permissões e tags */
+.adm-users-layout{
+  display:grid;
+  grid-template-columns:minmax(240px,.72fr) minmax(0,1.8fr);
+  grid-template-rows:auto auto;
+  gap:12px;
+  align-items:start;
+  margin-top:10px
+}
+.adm-profile-guide{
+  grid-column:1;
+  grid-row:1 / span 2;
+  position:sticky;
+  top:12px;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:7px!important;
+  margin:0!important
+}
+.adm-user-list{
+  grid-column:2;
+  grid-row:1;
+  margin:0!important
+}
+.adm-user-add{
+  grid-column:2;
+  grid-row:2;
+  margin:0!important
+}
+.adm-profile-card{
+  min-height:0!important;
+  padding:9px!important
+}
+.adm-profile-card strong{
+  font-size:9.5px!important
+}
+.adm-profile-card span,
+.adm-profile-card small{
+  font-size:7.5px!important
+}
+.adm-user-box{
+  margin:0 0 7px!important
+}
+.adm-user-box>summary{
+  padding:9px 10px!important
+}
+.adm-user-editor{
+  padding:3px 1px 5px
+}
+.adm-user-form>.grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important
+}
+.adm-user-form>.grid>.field[data-field="nome"],
+.adm-user-form>.grid>.field[data-field="funcao"],
+.adm-user-form>.grid>.field[data-field="email"]{
+  grid-column:span 1!important
+}
+.adm-user-form>.grid>.field[data-field^="perm_"]{
+  min-height:54px!important
+}
+.adm-tags-card{
+  margin-top:12px!important
+}
+.adm-tags-grid{
+  display:grid;
+  gap:7px;
+  margin-top:10px
+}
+.adm-tag-row{
+  display:grid;
+  grid-template-columns:120px minmax(170px,1fr) 48px 80px auto;
+  gap:8px;
+  align-items:center;
+  padding:8px;
+  border:1px solid #d9ddd8;
+  border-radius:10px;
+  background:#fffdfa
+}
+.adm-tag-preview{
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  min-height:28px;
+  padding:4px 8px;
+  border:1px solid color-mix(in srgb,var(--tag-preview-color,#176e7d) 45%,white);
+  border-radius:999px;
+  color:var(--tag-preview-color,#176e7d);
+  background:color-mix(in srgb,var(--tag-preview-color,#176e7d) 10%,white);
+  font-size:7.5px;
+  font-weight:850
+}
+.adm-tag-row input[type="color"]{
+  width:42px!important;
+  min-height:34px!important;
+  padding:2px!important
+}
+.adm-tag-active{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  font-size:8px
+}
+.adm-tag-actions{
+  display:flex;
+  gap:5px;
+  justify-content:flex-end
+}
+.adm-tag-actions button{
+  min-height:32px!important;
+  padding:5px 8px!important;
+  font-size:8px!important
+}
+@media(max-width:1080px){
+  .adm-users-layout{
+    grid-template-columns:1fr
+  }
+  .adm-profile-guide,
+  .adm-user-list,
+  .adm-user-add{
+    grid-column:1;
+    grid-row:auto;
+    position:static
+  }
+  .adm-profile-guide{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+  .adm-user-form>.grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+}
+@media(max-width:700px){
+  .adm-tag-row{
+    grid-template-columns:1fr 50px;
+  }
+  .adm-tag-preview,
+  .adm-tag-active,
+  .adm-tag-actions{
+    grid-column:span 2
+  }
+  .adm-tag-actions{
+    justify-content:flex-start
+  }
+  .adm-user-form>.grid,
+  .adm-profile-guide{
+    grid-template-columns:1fr!important
+  }
+}
 </style>
