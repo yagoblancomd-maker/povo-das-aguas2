@@ -540,6 +540,8 @@ function personDeletePreview_(q){
 }
 
 function personDeleteCascade_(ctx,q){
+  ctx.redactDeletionAudit=true;
+
   const preview=personDeletePreview_(q);
   const person=get_('Pessoas',preview.pessoa.id);
 
@@ -617,8 +619,6 @@ function personDeleteCascade_(ctx,q){
   remove_(ctx,'Pessoas',person.id,person.versao);
 
   return {
-    id:person.id,
-    nome:person.nome,
     removidos:{
       tarefas:preview.tarefas,
       processos:preview.processos,
