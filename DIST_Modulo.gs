@@ -936,20 +936,17 @@ function distributionTaskAssign_(ctx,q){
     ctx,
     'Tarefas',
     task.id,
-    {
-      tipo:task.tipo,
-      pessoaId:task.pessoaId,
+    Object.assign({},task,{
       responsavel:email,
       situacao:DISTRIBUTION_TASK_ASSIGNED,
-      jurisdicao:task.jurisdicao,
-      valorCausa:task.valorCausa,
       atribuidaEm:now_(),
       concluidaEm:'',
       processoId:'',
-      observacoes:
-        task.observacoes||
-        ''
-    },
+      prazo:task.prazo||taskDatePlusDays_(task.criadoEm||now_(),4),
+      prioridade:task.prioridade||'ALTA',
+      tags:task.tags||JSON.stringify(['PROCESSO']),
+      modoDistribuicao:'MANUAL'
+    }),
     task.versao
   );
 }
@@ -1109,10 +1106,7 @@ function completeDistributionTask_(ctx,q){
       ctx,
       'Tarefas',
       task.id,
-      {
-        tipo:task.tipo,
-        pessoaId:task.pessoaId,
-        responsavel:task.responsavel,
+      Object.assign({},task,{
         situacao:DISTRIBUTION_TASK_DONE,
         jurisdicao:
           task.jurisdicao||
@@ -1125,13 +1119,16 @@ function completeDistributionTask_(ctx,q){
               p.parcelasNaoRecebidas
             )
           ),
-        atribuidaEm:task.atribuidaEm,
         concluidaEm:now_(),
         processoId:process.id,
         observacoes:
           'Distribuição concluída. Processo TRF4: '+
-          numero
-      },
+          numero,
+        prazo:task.prazo||taskDatePlusDays_(task.criadoEm||now_(),4),
+        prioridade:task.prioridade||'ALTA',
+        tags:task.tags||JSON.stringify(['PROCESSO']),
+        modoDistribuicao:task.modoDistribuicao||'MANUAL'
+      }),
       task.versao
     );
 
