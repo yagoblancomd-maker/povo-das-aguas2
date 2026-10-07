@@ -1,9 +1,13 @@
 let DATA_CACHE = {};
+let DATA_INDEX_CACHE_={};
+let ROW_INDEX_CACHE_={};
 let SPREADSHEET_CACHE_=null;
 let SPREADSHEET_CACHE_ID_='';
 
 function resetData_(){
   DATA_CACHE={};
+  DATA_INDEX_CACHE_={};
+  ROW_INDEX_CACHE_={};
   SPREADSHEET_CACHE_=null;
   SPREADSHEET_CACHE_ID_='';
 }
@@ -103,15 +107,202 @@ function all_(entity){
     .map(r=>Object.fromEntries(heads.map((h,i)=>[h,h==='versao'?Number(r[i]):r[i]])));
 }
 
+function mapRowToRecord_(entity,row){
+  const heads=headers_(entity);
+
+  return Object.fromEntries(
+    heads.map((head,index)=>[
+      head,
+      head==='versao'
+        ?Number(row[index])
+        :row[index]
+    ])
+  );
+}
+
 function get_(entity,id){
-  return all_(entity).find(r=>r.id===id)||fail_('Registro não encontrado: '+entity);
+  const wanted=String(id||'');
+
+  if(DATA_CACHE[entity]){
+    return DATA_CACHE[entity]
+      .find(row=>row.id===wanted)||
+      fail_('Registro não encontrado: '+entity);
+  }
+
+  const index=row_(entity,wanted);
+
+  if(index===null){
+    fail_('Registro não encontrado: '+entity);
+  }
+
+  const sh=ensureEntitySchema_(entity);
+  const values=
+    sh.getRange(
+      index+1,
+      1,
+      1,
+      headers_(entity).length
+    )
+      .getDisplayValues()[0];
+
+  if(!values||!values[0]){
+    fail_('Registro não encontrado: '+entity);
+  }
+
+  return mapRowToRecord_(
+    entity,
+    values
+  );
 }
 
 function row_(entity,id){
-  const sh=ensureEntitySchema_(entity);
-  const values=sh.getRange(1,1,Math.max(sh.getLastRow(),1),1).getDisplayValues();
-  const i=values.findIndex(r=>r[0]===id);
-  return i<0?null:i;
+  const wanted=String(id||'');
+
+  if(!ROW_INDEX_CACHE_[entity]){
+    ROW_INDEX_CACHE_[entity]=new Map();
+  }
+
+  const cache=
+    ROW_INDEX_CACHE_[entity];
+
+  if(cache.has(wanted)){
+    return cache.get(wanted);
+  }
+
+  const sh=
+    ensureEntitySchema_(
+      entity
+    );
+
+  const lastRow=
+    Math.max(
+      sh.getLastRow(),
+      1
+    );
+
+  if(lastRow<=1){
+    cache.set(wanted,null);
+    return null;
+  }
+
+  const column=
+    sh.getRange(
+      2,
+      1,
+      lastRow-1,
+      1
+    );
+
+  /*
+   * TextFinder executa a busca no serviço do Sheets. Em ambientes de teste
+   * ou runtimes sem TextFinder, mantemos fallback para a leitura da coluna.
+   */
+  if(
+    column&&
+    typeof column.createTextFinder==='function'
+  ){
+    try{
+      const finder=
+        column.createTextFinder(
+          wanted
+        );
+
+      if(
+        finder&&
+        typeof finder.matchEntireCell==='function'
+      ){
+        finder.matchEntireCell(true);
+      }
+
+      const match=
+        finder&&
+        typeof finder.findNext==='function'
+          ?finder.findNext()
+          :null;
+
+      if(match){
+        const index=
+          match.getRow()-1;
+
+        cache.set(
+          wanted,
+          index
+        );
+
+        return index;
+      }
+
+      cache.set(wanted,null);
+      return null;
+
+    }catch(e){}
+  }
+
+  const values=
+    column.getDisplayValues();
+
+  const localIndex=
+    values.findIndex(row=>
+      row[0]===wanted
+    );
+
+  const index=
+    localIndex<0
+      ?null
+      :localIndex+1;
+
+  cache.set(
+    wanted,
+    index
+  );
+
+  return index;
+}
+
+function indexBy_(entity,key){
+  const cacheKey=
+    entity+'|'+key;
+
+  if(DATA_INDEX_CACHE_[cacheKey]){
+    return DATA_INDEX_CACHE_[cacheKey];
+  }
+
+  const map=new Map();
+
+  all_(entity)
+    .forEach(row=>{
+      const value=
+        String(
+          row[key]||
+          ''
+        );
+
+      if(!map.has(value)){
+        map.set(
+          value,
+          []
+        );
+      }
+
+      map.get(value)
+        .push(row);
+    });
+
+  DATA_INDEX_CACHE_[cacheKey]=map;
+  return map;
+}
+
+function where_(entity,key,value){
+  return (
+    indexBy_(
+      entity,
+      key
+    )
+      .get(
+        String(value||'')
+      )||
+    []
+  );
 }
 
 function record_(entity,id,data,before,user){
