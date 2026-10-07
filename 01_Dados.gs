@@ -120,31 +120,139 @@ function mapRowToRecord_(entity,row){
   );
 }
 
-function get_(entity,id){
+
+function columnLetter_(number){
+  let n=Number(number)||1;
+  let out='';
+
+  while(n>0){
+    const mod=(n-1)%26;
+    out=String.fromCharCode(65+mod)+out;
+    n=Math.floor((n-1)/26);
+  }
+
+  return out;
+}
+
+/**
+ * Lê várias entidades do Sheets em uma única chamada à API avançada.
+ * Se a API não estiver disponível no ambiente de teste, mantém fallback.
+ */
+function batchAll_(entities){
+  const unique=[
+    ...new Set(
+      (entities||[])
+        .filter(entity=>SCHEMA[entity])
+    )
+  ]
+    .filter(entity=>!DATA_CACHE[entity]);
+
+  if(!unique.length){
+    return DATA_CACHE;
+  }
+
+  try{
+    if(
+      typeof Sheets==='undefined'||
+      !Sheets.Spreadsheets||
+      !Sheets.Spreadsheets.Values||
+      typeof Sheets.Spreadsheets.Values.batchGet!=='function'
+    ){
+      throw new Error('batchGet indisponível');
+    }
+
+    const spreadsheet=ss_();
+    const ranges=unique.map(entity=>{
+      const last=
+        columnLetter_(
+          headers_(entity).length
+        );
+
+      return "'"+
+        String(entity).replace(/'/g,"''")+
+        "'!A:"+
+        last;
+    });
+
+    const response=
+      Sheets.Spreadsheets.Values.batchGet(
+        spreadsheet.getId(),
+        {
+          ranges,
+          majorDimension:'ROWS',
+          valueRenderOption:'FORMATTED_VALUE'
+        }
+      );
+
+    const valueRanges=
+      response&&
+      response.valueRanges||
+      [];
+
+    unique.forEach((entity,index)=>{
+      const heads=headers_(entity);
+      const values=
+        valueRanges[index]&&
+        valueRanges[index].values||
+        [];
+
+      if(
+        values.length&&
+        JSON.stringify(
+          (values[0]||[]).slice(0,heads.length)
+        )!==
+        JSON.stringify(heads)
+      ){
+        throw new Error(
+          'Cabeçalhos alterados: '+
+          entity
+        );
+      }
+
+      DATA_CACHE[entity]=
+        values
+          .slice(1)
+          .filter(row=>row&&row[0])
+          .map(row=>
+            mapRowToRecord_(
+              entity,
+              row
+            )
+          );
+    });
+
+    return DATA_CACHE;
+
+  }catch(error){
+    unique.forEach(entity=>{
+      if(!DATA_CACHE[entity]){
+        all_(entity);
+      }
+    });
+
+    return DATA_CACHE;
+  }
+}
+
+function findById_(entity,id){
   const wanted=String(id||'');
 
-  if(DATA_CACHE[entity]){
-    const found=
-      (
-        indexBy_(
-          entity,
-          'id'
-        )
-          .get(wanted)||
-        []
-      )[0];
+  if(!wanted){
+    return null;
+  }
 
-    return found||
-      fail_(
-        'Registro não encontrado: '+
-        entity
-      );
+  if(DATA_CACHE[entity]){
+    return (
+      indexBy_(entity,'id')
+        .get(wanted)||
+      []
+    )[0]||null;
   }
 
   const index=row_(entity,wanted);
 
   if(index===null){
-    fail_('Registro não encontrado: '+entity);
+    return null;
   }
 
   const sh=ensureEntitySchema_(entity);
@@ -158,13 +266,27 @@ function get_(entity,id){
       .getDisplayValues()[0];
 
   if(!values||!values[0]){
-    fail_('Registro não encontrado: '+entity);
+    return null;
   }
 
   return mapRowToRecord_(
     entity,
     values
   );
+}
+
+function get_(entity,id){
+  const found=
+    findById_(
+      entity,
+      id
+    );
+
+  return found||
+    fail_(
+      'Registro não encontrado: '+
+      entity
+    );
 }
 
 function row_(entity,id){
@@ -332,17 +454,10 @@ function record_(entity,id,data,before,user){
 
 function change_(ctx,entity,id,data,version){
   const before=
-    (
-      indexBy_(
-        entity,
-        'id'
-      )
-        .get(
-          String(id||'')
-        )||
-      []
-    )[0]||
-    null;
+    findById_(
+      entity,
+      id
+    );
 
   if(before&&Number(version)!==before.versao){
     fail_('CONFLITO: o registro mudou. Reabra a ficha antes de salvar.');
@@ -355,17 +470,10 @@ function change_(ctx,entity,id,data,version){
 
 function remove_(ctx,entity,id,version){
   const before=
-    (
-      indexBy_(
-        entity,
-        'id'
-      )
-        .get(
-          String(id||'')
-        )||
-      []
-    )[0]||
-    null;
+    findById_(
+      entity,
+      id
+    );
 
   if(!before){
     fail_(
