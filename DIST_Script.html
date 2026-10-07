@@ -138,51 +138,18 @@ window.PDA_MODULES.DIST = (()=>{
   }
 
   async function openPdf_(taskId,attachment){
-    const tab=window.open('','_blank');
-
-    if(tab){
-      tab.document.title='Abrindo PDF…';
-      tab.document.body.innerHTML=
-        '<div style="font:14px system-ui;padding:24px;color:#173f51">Carregando PDF…</div>';
-    }
-
-    try{
-      const result=await call(
+    return App.openFileViewer(
+      ()=>call(
         'tarefaGeralAnexoConteudo',
         {
           id:taskId,
           anexoId:attachment.id
         }
-      );
-
-      const raw=atob(result.base64);
-      const bytes=new Uint8Array(raw.length);
-
-      for(let i=0;i<raw.length;i++){
-        bytes[i]=raw.charCodeAt(i);
+      ),
+      {
+        nome:attachment.nome||'Anexo da tarefa'
       }
-
-      const url=URL.createObjectURL(
-        new Blob([bytes],{type:result.mime||'application/pdf'})
-      );
-
-      if(tab){
-        tab.location.replace(url);
-      }else{
-        const a=document.createElement('a');
-        a.href=url;
-        a.target='_blank';
-        a.rel='noopener';
-        document.body.append(a);
-        a.click();
-        a.remove();
-      }
-
-      setTimeout(()=>URL.revokeObjectURL(url),60000);
-    }catch(e){
-      if(tab&&!tab.closed)tab.close();
-      throw e;
-    }
+    );
   }
 
   function assignmentCard_(task,users,refresh){
