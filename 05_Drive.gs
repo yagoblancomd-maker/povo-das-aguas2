@@ -228,6 +228,54 @@ function personFolder_(p){
   return folder;
 }
 
+function personFolderFromHint_(p,folderId){
+  const id=String(folderId||'').trim();
+
+  if(!id){
+    return personFolder_(p);
+  }
+
+  let folder;
+
+  try{
+    folder=DriveApp.getFolderById(id);
+  }catch(e){
+    return personFolder_(p);
+  }
+
+  const expectedName=
+    safeName_(p.nome)+
+    ' - '+
+    cpfDisplay_(p.cpf);
+
+  let parentOk=false;
+  const parents=folder.getParents();
+
+  while(parents.hasNext()){
+    if(
+      parents.next().getId()===
+      String(PDA.parent)
+    ){
+      parentOk=true;
+      break;
+    }
+  }
+
+  if(
+    !parentOk||
+    folder.getName()!==expectedName
+  ){
+    return personFolder_(p);
+  }
+
+  flattenLegacyPersonFolders_(
+    folder,
+    p
+  );
+
+  return folder;
+}
+
 function atendimentoRoot_(p){
   const pessoaFolder=personFolder_(p);
   const iterator=pessoaFolder.getFoldersByName('Atendimentos');
@@ -631,7 +679,11 @@ function personUploadBatch_(ctx,q){
 
   const c=cfg_();
   const owner=personOwnerKey_(p.id);
-  const folder=personFolder_(p);
+  const folder=
+    personFolderFromHint_(
+      p,
+      q.folderId
+    );
 
   const existingDocs=
     all_('Documentos')
