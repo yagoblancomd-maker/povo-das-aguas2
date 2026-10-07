@@ -13,7 +13,7 @@ const api=read('06_Modulos.gs');
 for(const token of ['pessoaFichaCargaInicial','documentoConteudo']) assert.ok(api.includes(token),token);
 
 const app=read('App_Script.html');
-for(const token of ['openFileViewer_','pda-file-viewer-overlay','pessoaFichaCargaInicial','drawerDocumentsTable_']) assert.ok(app.includes(token),token);
+for(const token of ['openFileViewer_','pda-file-viewer-dialog','pessoaFichaCargaInicial','drawerDocumentsTable_']) assert.ok(app.includes(token),token);
 assert.ok(!app.includes('Carregar ficha completa'));
 
 for(const file of ['DIST_Script.html','TAREFAS_Script.html','ACOMP_Script.html','MIN_Script.html']){
