@@ -229,6 +229,50 @@ function taskTagDelete_(ctx,q){
   return {ok:true,mensagem:'Tag excluída.'};
 }
 
+function taskMapsV2_(){
+  const users=all_('Usuarios');
+  const people=all_('Pessoas');
+  const tagColorMap=new Map(
+    taskTagCatalog_().map(tag=>[
+      String(tag.nome||'').toUpperCase(),
+      tag.cor||'#176e7d'
+    ])
+  );
+
+  return {
+    usersByEmail:new Map(
+      users.map(user=>[
+        String(user.email||'').toLowerCase(),
+        user
+      ])
+    ),
+    peopleById:new Map(
+      people.map(person=>[
+        person.id,
+        person
+      ])
+    ),
+    messageCounts:generalTaskCountMap_(
+      generalTaskRows_('TarefaMensagens')
+    ),
+    attachmentCounts:generalTaskCountMap_(
+      generalTaskRows_('TarefaAnexos')
+    ),
+    tagColors:tagColorMap
+  };
+}
+
+function taskSummaryV2_(task,maps){
+  return taskV2Summary_(
+    task,
+    maps.peopleById,
+    maps.usersByEmail,
+    maps.messageCounts,
+    maps.attachmentCounts,
+    maps.tagColors
+  );
+}
+
 function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap){
   let base;
 
