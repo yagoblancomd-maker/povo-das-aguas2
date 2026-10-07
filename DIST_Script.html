@@ -391,6 +391,127 @@ window.PDA_MODULES.DIST = (()=>{
     return card;
   }
 
+
+  function openInstantGeneralDialog_(root,task){
+    const prior=
+      root.querySelector(
+        '.dist-instant-dialog'
+      );
+
+    if(prior){
+      prior.remove();
+    }
+
+    const dialog=
+      el(
+        'dialog',
+        undefined,
+        'dist-instant-dialog'
+      );
+
+    const shell=
+      el(
+        'div',
+        undefined,
+        'dist-general-dialog-shell'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'dist-general-dialog-head'
+      );
+
+    const copy=el('div');
+
+    copy.append(
+      el(
+        'h3',
+        task.titulo||
+        'Tarefa'
+      ),
+      el(
+        'p',
+        [
+          task.pessoa
+            ?'Cadastro: '+task.pessoa
+            :'',
+          task.criadoPorNome
+            ?'Criada por '+task.criadoPorNome
+            :''
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      )
+    );
+
+    head.append(
+      copy,
+      button(
+        'Fechar',
+        ()=>dialog.close(),
+        true
+      )
+    );
+
+    const body=
+      el(
+        'div',
+        undefined,
+        'dist-general-dialog-body'
+      );
+
+    const overview=
+      el(
+        'div',
+        undefined,
+        'dist-general-overview'
+      );
+
+    [
+      [
+        'Responsável',
+        task.responsavelNome||
+        task.responsavel||
+        '—'
+      ],
+      [
+        'Prazo',
+        date_(task.prazo)
+      ],
+      [
+        'Mensagens',
+        String(task.mensagens||0)
+      ],
+      [
+        'PDFs',
+        String(task.anexos||0)
+      ]
+    ].forEach(([label,value])=>{
+      const item=el('div');
+      item.append(
+        el('span',label),
+        el('strong',value)
+      );
+      overview.append(item);
+    });
+
+    body.append(overview);
+    shell.append(head,body);
+    dialog.append(shell);
+    root.append(dialog);
+
+    dialog.addEventListener(
+      'close',
+      ()=>dialog.remove(),
+      {once:true}
+    );
+
+    dialog.showModal();
+    return dialog;
+  }
+
   function renderMessages_(container,detail){
     container.replaceChildren();
 
@@ -465,10 +586,29 @@ window.PDA_MODULES.DIST = (()=>{
   }
 
   async function openGeneralDialog_(root,task,refresh){
-    let detail=await call(
-      'tarefaGeralDetalhe',
-      {id:task.id}
-    );
+    const instant=
+      openInstantGeneralDialog_(
+        root,
+        task
+      );
+
+    let detail;
+
+    try{
+      detail=await call(
+        'tarefaGeralDetalhe',
+        {id:task.id}
+      );
+    }catch(error){
+      if(instant&&instant.open){
+        instant.close();
+      }
+      throw error;
+    }
+
+    if(instant){
+      instant.remove();
+    }
 
     const prior=root.querySelector('.dist-general-dialog');
     if(prior)prior.remove();
