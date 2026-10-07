@@ -455,4 +455,312 @@
     grid-template-columns:1fr!important
   }
 }
+
+
+/* =========================================================
+   ADMINISTRAÇÃO V3 — ABAS LAZY / LISTA + EDITOR
+   ========================================================= */
+.adm-v3-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:10px
+}
+.adm-v3-head h2{
+  margin:0!important
+}
+.adm-v3-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:5px
+}
+.adm-v3-tabs button{
+  min-height:32px!important;
+  padding:6px 9px!important;
+  color:#3c5b66!important;
+  border:1px solid #d4ddd9!important;
+  background:#fffdfa!important;
+  box-shadow:none!important;
+  font-size:7.8px!important
+}
+.adm-v3-tabs button.active{
+  color:#fff!important;
+  border-color:var(--pda-sea)!important;
+  background:var(--pda-sea)!important
+}
+.adm-v3-panel{
+  min-height:280px
+}
+.adm-v3-loading{
+  display:grid;
+  place-items:center;
+  min-height:220px;
+  color:#778581;
+  border:1px dashed #d7d3ca;
+  border-radius:12px;
+  background:#faf8f3;
+  font-size:9px
+}
+.adm-v3-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  margin-bottom:9px;
+  padding:9px 10px;
+  border:1px solid #ddd9d0;
+  border-radius:11px;
+  background:#fffdfa
+}
+.adm-v3-toolbar input[type="search"]{
+  flex:1 1 420px;
+  min-height:35px!important
+}
+.adm-v3-toolbar>p{
+  flex:1 1 auto;
+  margin:0!important
+}
+.adm-v3-toolbar button{
+  flex:0 0 auto;
+  min-height:32px!important;
+  font-size:7.8px!important
+}
+.adm-users-v3-layout{
+  display:grid;
+  grid-template-columns:minmax(230px,.72fr) minmax(0,1.8fr);
+  gap:10px;
+  align-items:start
+}
+.adm-users-v3-list{
+  max-height:690px;
+  overflow:auto;
+  border:1px solid #ddd9d0;
+  border-radius:11px;
+  background:#fffdfa
+}
+.adm-user-v3-item{
+  display:grid!important;
+  gap:2px!important;
+  width:100%!important;
+  min-height:51px!important;
+  padding:9px 10px!important;
+  border:0!important;
+  border-bottom:1px solid #ebe6dd!important;
+  border-radius:0!important;
+  color:#34545f!important;
+  text-align:left!important;
+  background:transparent!important;
+  box-shadow:none!important
+}
+.adm-user-v3-item:last-child{
+  border-bottom:0!important
+}
+.adm-user-v3-item:hover{
+  transform:none!important;
+  background:#f1f6f4!important
+}
+.adm-user-v3-item.active{
+  color:#fff!important;
+  background:linear-gradient(135deg,#0f6673,#0b5668)!important;
+  box-shadow:inset 3px 0 0 var(--pda-coral)!important
+}
+.adm-user-v3-item strong{
+  overflow:hidden;
+  font-size:8.8px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.adm-user-v3-item small{
+  overflow:hidden;
+  color:#778783;
+  font-size:7.2px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.adm-user-v3-item.active small{
+  color:#d7e9ea
+}
+.adm-users-v3-editor{
+  min-width:0;
+  padding:14px;
+  border:1px solid #ddd9d0;
+  border-radius:11px;
+  background:#fffdfa;
+  box-shadow:var(--pda-shadow-soft)
+}
+.adm-users-v3-editor>h3{
+  margin:0 0 10px!important;
+  color:#254a56!important;
+  font-family:var(--pda-display)!important;
+  font-size:18px!important
+}
+.adm-user-v3-basics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px
+}
+.adm-user-v3-form>h4{
+  margin:13px 0 6px;
+  color:#385862;
+  font-size:9px
+}
+.adm-permission-v3-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px
+}
+.adm-permission-v3-item{
+  display:flex;
+  align-items:flex-start;
+  gap:7px;
+  min-height:58px;
+  padding:8px;
+  border:1px solid #dde4e1;
+  border-radius:9px;
+  background:#f8faf7
+}
+.adm-permission-v3-item input{
+  flex:0 0 auto;
+  margin-top:2px
+}
+.adm-permission-v3-item>span{
+  display:grid;
+  gap:2px;
+  min-width:0
+}
+.adm-permission-v3-item strong{
+  color:#35545e;
+  font-size:8px
+}
+.adm-permission-v3-item small{
+  color:#788681;
+  font-size:6.8px;
+  line-height:1.3
+}
+.adm-user-v3-form>.actions{
+  justify-content:flex-end;
+  margin-top:10px
+}
+.adm-user-v3-form .danger{
+  color:#91372f!important;
+  border-color:#dfb6b0!important;
+  background:#fff6f4!important
+}
+
+/* Tags */
+.adm-tags-grid-v3{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px
+}
+.adm-tag-row-v3,
+.adm-tag-editor-v3{
+  display:grid;
+  grid-template-columns:minmax(120px,1fr) auto auto;
+  gap:8px;
+  align-items:center;
+  padding:9px 10px;
+  border:1px solid #ddd9d0;
+  border-radius:10px;
+  background:#fffdfa
+}
+.adm-tag-editor-v3{
+  grid-column:1/-1;
+  grid-template-columns:minmax(180px,1fr) 90px 90px auto auto
+}
+.adm-tag-chip-v3{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  min-height:27px;
+  padding:4px 9px;
+  border:1px solid color-mix(in srgb,var(--tag-color,#176e7d) 42%,white);
+  border-radius:999px;
+  color:var(--tag-color,#176e7d);
+  background:color-mix(in srgb,var(--tag-color,#176e7d) 9%,white);
+  font-size:7.5px;
+  font-weight:850
+}
+.adm-tag-row-v3 small{
+  color:#77847f;
+  font-size:7px
+}
+
+/* Modelo / APIs */
+.adm-v3-card{
+  max-width:880px;
+  margin:0 auto 10px!important
+}
+.adm-v3-card input[type="file"]{
+  display:block;
+  width:100%;
+  margin:8px 0
+}
+.adm-v3-card>.field{
+  margin-top:8px
+}
+
+/* Configurações */
+.adm-config-v3-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px
+}
+.adm-config-v3-item{
+  display:grid;
+  gap:7px;
+  align-content:start;
+  padding:11px;
+  border:1px solid #ddd9d0;
+  border-radius:10px;
+  background:#fffdfa
+}
+.adm-config-v3-item strong{
+  color:#31515c;
+  font-size:8.5px
+}
+.adm-config-v3-item textarea{
+  min-height:110px
+}
+.adm-config-v3-item button{
+  justify-self:end
+}
+
+@media(max-width:1080px){
+  .adm-permission-v3-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .adm-users-v3-layout{
+    grid-template-columns:minmax(190px,.62fr) minmax(0,1.5fr)
+  }
+}
+@media(max-width:780px){
+  .adm-v3-head,
+  .adm-v3-toolbar{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .adm-v3-tabs{
+    justify-content:flex-start
+  }
+  .adm-users-v3-layout,
+  .adm-user-v3-basics,
+  .adm-permission-v3-grid,
+  .adm-tags-grid-v3,
+  .adm-config-v3-grid{
+    grid-template-columns:1fr
+  }
+  .adm-users-v3-list{
+    max-height:290px
+  }
+  .adm-tag-editor-v3{
+    grid-template-columns:1fr 90px
+  }
+  .adm-tag-editor-v3>*{
+    min-width:0
+  }
+}
 </style>
