@@ -67,6 +67,72 @@ window.PDA_MODULES.PAINEL=(()=>{
     hero.append(heroContent);
     root.append(hero);
 
+    const cachedVisual=
+      sessionStorage.getItem(
+        'PDA_VISUAL_PAINEL_V1'
+      );
+
+    const applyVisual_=dataUrl=>{
+      if(!dataUrl)return;
+
+      hero.style.backgroundImage=
+        'linear-gradient(90deg,rgba(3,31,48,.92) 0%,rgba(4,47,64,.70) 46%,rgba(4,37,52,.20) 76%,rgba(4,37,52,.18) 100%),url("'+
+        dataUrl+
+        '")';
+    };
+
+    if(cachedVisual){
+      try{
+        const parsed=
+          JSON.parse(
+            cachedVisual
+          );
+
+        applyVisual_(
+          parsed&&
+          parsed.dataUrl
+        );
+      }catch(e){}
+    }else{
+      call(
+        'imagemSistemaAleatoria',
+        {uso:'PAINEL'},
+        false,
+        {noLoader:true}
+      )
+        .then(image=>{
+          if(
+            !alive(ctx)||
+            !image||
+            !image.base64||
+            !image.mime
+          ){
+            return;
+          }
+
+          const dataUrl=
+            'data:'+
+            image.mime+
+            ';base64,'+
+            image.base64;
+
+          applyVisual_(
+            dataUrl
+          );
+
+          try{
+            sessionStorage.setItem(
+              'PDA_VISUAL_PAINEL_V1',
+              JSON.stringify({
+                id:image.id,
+                dataUrl
+              })
+            );
+          }catch(e){}
+        })
+        .catch(()=>{});
+    }
+
     const metrics=el('section',undefined,'home-headline-metrics');
     metrics.append(
       metric_(number_(d.pessoas),'Pessoas cadastradas','Cadastros ativos.','people',{
