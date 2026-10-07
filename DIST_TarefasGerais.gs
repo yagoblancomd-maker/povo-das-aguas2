@@ -1202,6 +1202,11 @@ function generalTaskCreate_(ctx,q){
     pessoaId=pessoaId||proc.pessoaId;
   }
 
+  requireTaskAssigneePersonScope_(
+    assignee.user,
+    pessoaId
+  );
+
   const tags=
     taskTagsParse_(q.tags);
 
@@ -1510,6 +1515,11 @@ function generalTaskAssign_(ctx,q){
     generalTaskAssignee_(
       q.responsavel
     );
+
+  requireTaskAssigneePersonScope_(
+    assignee.user,
+    task.pessoaId
+  );
 
   const updated=
     change_(
