@@ -87,16 +87,51 @@ function dashboardActivityLabel_(h,peopleById,docsById){
 }
 
 function dashboard_(){
-  const pessoas=all_('Pessoas');
+  const user=activeUser_();
+
+  const pessoas=
+    filterPeopleByUserScope_(
+      all_('Pessoas'),
+      user
+    );
+
+  const visiblePersonIds=
+    new Set(
+      pessoas.map(person=>person.id)
+    );
 
   const documentos=
     all_('Documentos')
-      .filter(doc=>
-        bool_(doc.vigente)&&
-        !!personIdFromOwner_(doc.atendimentoId)
-      );
+      .filter(doc=>{
+        if(!bool_(doc.vigente)){
+          return false;
+        }
 
-  const processos=all_('Processos');
+        const personId=
+          personIdFromOwner_(
+            doc.atendimentoId
+          );
+
+        if(!personId){
+          return false;
+        }
+
+        return (
+          !isColonyUser_(user)||
+          visiblePersonIds.has(
+            personId
+          )
+        );
+      });
+
+  const processos=
+    all_('Processos')
+      .filter(process=>
+        !isColonyUser_(user)||
+        visiblePersonIds.has(
+          process.pessoaId
+        )
+      );
 
   const iniciais=documentos.filter(doc=>
     doc.categoria==='INICIAL_SEGURO_DEFESO_2025'
@@ -111,30 +146,71 @@ function dashboard_(){
   );
 
   const peopleById=new Map(
-    pessoas.map(person=>[person.id,person])
+    pessoas.map(person=>[
+      person.id,
+      person
+    ])
   );
 
   const valorCausas=pessoas.reduce(
-    (total,person)=>total+causeValueFromPerson_(person),
+    (total,person)=>
+      total+
+      causeValueFromPerson_(person),
     0
   );
 
-  const valorCausasTramitacao=processos.reduce(
-    (total,process)=>{
-      const person=peopleById.get(process.pessoaId);
-      return total+causeValueFromPerson_(person);
-    },
-    0
-  );
+  const valorCausasTramitacao=
+    processos.reduce(
+      (total,process)=>{
+        const person=
+          peopleById.get(
+            process.pessoaId
+          );
 
-  const currentEmail=String(identity_()||'').toLowerCase();
+        return (
+          total+
+          causeValueFromPerson_(
+            person
+          )
+        );
+      },
+      0
+    );
 
-  const minhasTarefas=all_('Tarefas')
-    .filter(task=>
-      task.situacao!==GENERAL_TASK_DONE&&
-      task.situacao!==DISTRIBUTION_TASK_DONE&&
-      String(task.responsavel||'').toLowerCase()===currentEmail
-    ).length;
+  const currentEmail=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const minhasTarefas=
+    all_('Tarefas')
+      .filter(task=>{
+        if(
+          task.situacao===GENERAL_TASK_DONE||
+          task.situacao===DISTRIBUTION_TASK_DONE||
+          String(
+            task.responsavel||
+            ''
+          ).toLowerCase()!==
+          currentEmail
+        ){
+          return false;
+        }
+
+        if(
+          isColonyUser_(user)&&
+          task.pessoaId&&
+          !visiblePersonIds.has(
+            task.pessoaId
+          )
+        ){
+          return false;
+        }
+
+        return true;
+      })
+      .length;
 
   return {
     atualizadoEm:now_(),
@@ -146,6 +222,10 @@ function dashboard_(){
     acoesTramitacao:processos.length,
     minhasTarefas,
     valorCausas,
-    valorCausasTramitacao
+    valorCausasTramitacao,
+    escopoEntidade:
+      isColonyUser_(user)
+        ?colonyUserEntity_(user)
+        :''
   };
 }
