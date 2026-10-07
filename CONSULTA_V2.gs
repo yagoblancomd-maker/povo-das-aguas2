@@ -461,6 +461,20 @@ function personDocumentContent_(q){
 }
 
 function personDrawerInitial_(q){
+  batchAll_([
+    'Pessoas',
+    'Usuarios',
+    'Atendimentos',
+    'Documentos',
+    'Processos',
+    'Tarefas',
+    'TarefaMensagens',
+    'TarefaAnexos',
+    'TarefaLeituras',
+    'TarefaTags',
+    'Historico'
+  ]);
+
   const pessoaId=String(
     required_(
       q.pessoaId||q.id,
