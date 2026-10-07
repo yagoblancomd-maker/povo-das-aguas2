@@ -16,7 +16,8 @@ assert.match(app,/'mouseenter'/);
 assert.match(app,/'pointerdown'/);
 assert.match(app,/prefetchModule_/);
 assert.match(app,/window\.PDA_PERF/);
-assert.match(app,/\[PDA desempenho\]/);
+assert.match(app,/renderInstantModuleShell_/);
+assert.match(app,/runModuleWarmup_\(\)/);
 
 const modules=read('06_Modulos.gs');
 assert.match(modules,/function aquecerDadosModulos\(/);
