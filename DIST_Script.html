@@ -1385,6 +1385,7 @@ window.PDA_MODULES.DIST = (()=>{
     let openData=null;
     let historyData=null;
     let rankingData=null;
+    const selectedTaskIds=new Set();
 
     const FILTER_KEY='PDA_DIST_FILTERS_V2';
     const filters={
@@ -1444,6 +1445,374 @@ window.PDA_MODULES.DIST = (()=>{
         if(!hay.includes(q))return false;
       }
       return true;
+    };
+
+    const updateBulkButton_=()=>{
+      const node=
+        content.querySelector(
+          '.dist-bulk-button'
+        );
+
+      if(!node)return;
+
+      const count=
+        selectedTaskIds.size;
+
+      node.disabled=
+        count===0;
+
+      node.textContent=
+        count
+          ?'Distribuir selecionadas ('+
+            count+
+            ')'
+          :'Distribuir selecionadas';
+    };
+
+    const attachBulkCheck_=(card,task)=>{
+      const label=
+        el(
+          'label',
+          undefined,
+          'dist-bulk-check'
+        );
+
+      const input=
+        el(
+          'input'
+        );
+
+      input.type='checkbox';
+      input.checked=
+        selectedTaskIds.has(
+          task.id
+        );
+
+      input.setAttribute(
+        'aria-label',
+        'Selecionar tarefa para distribuição em lote'
+      );
+
+      input.addEventListener(
+        'click',
+        event=>
+          event.stopPropagation()
+      );
+
+      input.addEventListener(
+        'change',
+        event=>{
+          event.stopPropagation();
+
+          if(input.checked){
+            selectedTaskIds.add(
+              task.id
+            );
+          }else{
+            selectedTaskIds.delete(
+              task.id
+            );
+          }
+
+          card.classList.toggle(
+            'is-bulk-selected',
+            input.checked
+          );
+
+          updateBulkButton_();
+        }
+      );
+
+      label.addEventListener(
+        'click',
+        event=>
+          event.stopPropagation()
+      );
+
+      label.append(
+        input,
+        el(
+          'span',
+          'Selecionar'
+        )
+      );
+
+      card.classList.add(
+        'dist-bulk-selectable'
+      );
+
+      card.classList.toggle(
+        'is-bulk-selected',
+        input.checked
+      );
+
+      card.prepend(label);
+      return card;
+    };
+
+    const openBulkAssignDialog_=data=>{
+      const tasks=
+        (data.tarefas||[])
+          .filter(task=>
+            selectedTaskIds.has(
+              task.id
+            )
+          );
+
+      if(!tasks.length){
+        throw new Error(
+          'Selecione ao menos uma tarefa.'
+        );
+      }
+
+      const hasDistribution=
+        tasks.some(task=>
+          task.tipo===
+          'DISTRIBUICAO_PROCESSO'
+        );
+
+      const users=
+        hasDistribution
+          ?(
+              data.usuariosDistribuicao||
+              []
+            )
+          :(
+              data.usuariosTarefas||
+              []
+            );
+
+      if(!users.length){
+        throw new Error(
+          'Nenhum usuário elegível foi localizado.'
+        );
+      }
+
+      const dialog=
+        el(
+          'dialog',
+          undefined,
+          'dist-bulk-dialog'
+        );
+
+      const shell=
+        el(
+          'div',
+          undefined,
+          'dist-bulk-shell'
+        );
+
+      const head=
+        el(
+          'div',
+          undefined,
+          'dist-bulk-head'
+        );
+
+      const copy=el('div');
+
+      copy.append(
+        el(
+          'h3',
+          'Distribuir tarefas em lote'
+        ),
+        el(
+          'p',
+          tasks.length+
+          (
+            tasks.length===1
+              ?' tarefa selecionada'
+              :' tarefas selecionadas'
+          )+
+          (
+            hasDistribution
+              ?' · somente usuários habilitados para distribuição processual'
+              :''
+          ),
+          'hint'
+        )
+      );
+
+      head.append(
+        copy,
+        button(
+          'Fechar',
+          ()=>dialog.close(),
+          true
+        )
+      );
+
+      const body=
+        el(
+          'div',
+          undefined,
+          'dist-bulk-body'
+        );
+
+      body.append(
+        el(
+          'p',
+          'Selecione um ou mais usuários. Com vários responsáveis, as tarefas serão distribuídas em rodízio entre eles.',
+          'hint'
+        )
+      );
+
+      const userList=
+        el(
+          'div',
+          undefined,
+          'dist-bulk-users'
+        );
+
+      users.forEach(user=>{
+        const label=
+          el(
+            'label',
+            undefined,
+            'dist-bulk-user'
+          );
+
+        const check=
+          el(
+            'input'
+          );
+
+        check.type='checkbox';
+        check.value=
+          String(
+            user.email||
+            ''
+          ).toLowerCase();
+
+        const copy=
+          el(
+            'span'
+          );
+
+        copy.append(
+          el(
+            'strong',
+            user.nome||
+            user.email
+          ),
+          el(
+            'small',
+            [
+              user.funcao,
+              user.email
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          )
+        );
+
+        label.append(
+          check,
+          copy
+        );
+
+        userList.append(label);
+      });
+
+      body.append(userList);
+
+      const actions=
+        el(
+          'div',
+          undefined,
+          'dist-bulk-actions'
+        );
+
+      actions.append(
+        button(
+          'Cancelar',
+          ()=>dialog.close(),
+          true
+        ),
+        button(
+          'Confirmar distribuição',
+          async()=>{
+            const responsaveis=
+              Array.from(
+                userList.querySelectorAll(
+                  'input:checked'
+                )
+              )
+                .map(input=>
+                  input.value
+                );
+
+            if(!responsaveis.length){
+              throw new Error(
+                'Selecione ao menos um usuário responsável.'
+              );
+            }
+
+            const result=
+              await call(
+                'tarefasAtribuirLote',
+                {
+                  ids:
+                    tasks.map(
+                      task=>task.id
+                    ),
+                  responsaveis
+                },
+                true
+              );
+
+            const changed=
+              new Map(
+                (
+                  result.alteradas||
+                  []
+                )
+                  .map(item=>[
+                    item.id,
+                    item
+                  ])
+              );
+
+            (data.tarefas||[])
+              .forEach(task=>{
+                const patch=
+                  changed.get(
+                    task.id
+                  );
+
+                if(patch){
+                  Object.assign(
+                    task,
+                    patch
+                  );
+                }
+              });
+
+            selectedTaskIds.clear();
+            dialog.close();
+            openData=data;
+            paintOpen_(data);
+
+            status(
+              result.mensagem||
+              'Tarefas distribuídas.'
+            );
+          }
+        )
+      );
+
+      body.append(actions);
+      shell.append(head,body);
+      dialog.append(shell);
+      root.append(dialog);
+
+      dialog.addEventListener(
+        'close',
+        ()=>dialog.remove(),
+        {once:true}
+      );
+
+      dialog.showModal();
     };
 
     const applyOpenTaskChange_=async change=>{
@@ -1745,8 +2114,33 @@ window.PDA_MODULES.DIST = (()=>{
         true
       );
 
-      actionBar.append(autoLabel,toggle,run,create,reconcile);
-      content.append(actionBar,filterBar_(data,paintOpen_));
+      const bulk=
+        button(
+          'Distribuir selecionadas',
+          ()=>openBulkAssignDialog_(data),
+          true
+        );
+
+      bulk.classList.add(
+        'dist-bulk-button'
+      );
+
+      bulk.disabled=
+        selectedTaskIds.size===0;
+
+      actionBar.append(
+        autoLabel,
+        toggle,
+        run,
+        bulk,
+        create,
+        reconcile
+      );
+
+      content.append(
+        actionBar,
+        filterBar_(data,paintOpen_)
+      );
 
       const tasks=(data.tarefas||[]).filter(matches_);
       const internal=tasks.filter(task=>task.tipo==='TAREFA_GERAL');
@@ -1772,7 +2166,20 @@ window.PDA_MODULES.DIST = (()=>{
       if(!internal.length){
         internalGrid.append(el('div','Nenhuma tarefa interna aberta com esses filtros.','dist-empty'));
       }else{
-        internal.forEach(task=>internalGrid.append(generalCard_(task,openGeneral_)));
+        internal.forEach(task=>{
+          const card=
+            generalCard_(
+              task,
+              openGeneral_
+            );
+
+          internalGrid.append(
+            attachBulkCheck_(
+              card,
+              task
+            )
+          );
+        });
       }
       internalSection.append(internalHead,internalGrid);
       content.append(internalSection);
@@ -1784,8 +2191,8 @@ window.PDA_MODULES.DIST = (()=>{
       if(!distribution.length){
         grid.append(el('div','Nenhuma distribuição processual aberta com esses filtros.','dist-empty'));
       }else{
-        distribution.forEach(task=>
-          grid.append(
+        distribution.forEach(task=>{
+          const card=
             assignmentCard_(
               task,
               data.usuariosDistribuicao||[],
@@ -1794,12 +2201,19 @@ window.PDA_MODULES.DIST = (()=>{
                 paintOpen_(data);
               },
               openDistribution_
+            );
+
+          grid.append(
+            attachBulkCheck_(
+              card,
+              task
             )
-          )
-        );
+          );
+        });
       }
       distributionSection.append(distributionHead,grid);
       content.append(distributionSection);
+      updateBulkButton_();
       content.removeAttribute('aria-busy');
     };
 
