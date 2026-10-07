@@ -5001,4 +5001,48 @@ body.pda-drawer-open{overflow:hidden}
     animation:none
   }
 }
+
+
+/* Navegação instantânea: estrutura aparece no mesmo clique */
+.pda-instant-module{
+  min-height:420px
+}
+.pda-instant-home-band{
+  min-height:205px;
+  margin-bottom:10px;
+  border-radius:16px;
+  background:
+    linear-gradient(115deg,rgba(4,42,58,.90),rgba(11,93,103,.62)),
+    var(--pda-photo-channel);
+  background-size:cover;
+  background-position:center
+}
+.pda-instant-module-surface{
+  display:grid;
+  gap:7px;
+  padding:12px 0
+}
+.pda-instant-line{
+  display:block;
+  height:10px;
+  border-radius:999px;
+  background:linear-gradient(
+    90deg,
+    rgba(21,92,102,.06),
+    rgba(21,92,102,.11),
+    rgba(21,92,102,.06)
+  )
+}
+.pda-instant-line.line-0{width:42%}
+.pda-instant-line.line-1{width:68%}
+.pda-instant-line.line-2{width:54%}
+@media(prefers-reduced-motion:no-preference){
+  .pda-instant-line{
+    animation:pdaInstantPulse 1.15s ease-in-out infinite alternate
+  }
+}
+@keyframes pdaInstantPulse{
+  from{opacity:.48}
+  to{opacity:.9}
+}
 </style>
