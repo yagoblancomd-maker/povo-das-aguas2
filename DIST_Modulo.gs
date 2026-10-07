@@ -503,7 +503,6 @@ function distributionTaskDetail_(q){
           ),
         nome:d.nome,
         mime:d.mime,
-        url:d.url,
         conferido:
           bool_(
             d.conferido
