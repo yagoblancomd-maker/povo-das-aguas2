@@ -4767,4 +4767,42 @@ body.pda-drawer-open{overflow:hidden}
   }
   .pda-person-drawer-actions{top:71px}
 }
+
+.pda-drawer-generate{
+  position:relative;
+  margin:0
+}
+.pda-drawer-generate>summary{
+  display:flex;
+  align-items:center;
+  min-height:34px;
+  padding:6px 9px;
+  list-style:none;
+  border:1px solid #b8d4d2;
+  border-radius:8px;
+  color:#0e6571;
+  background:#eef7f5;
+  cursor:pointer;
+  font-size:8.5px;
+  font-weight:750
+}
+.pda-drawer-generate>summary::-webkit-details-marker{display:none}
+.pda-drawer-generate-panel{
+  position:absolute;
+  z-index:8;
+  top:calc(100% + 5px);
+  left:0;
+  display:grid;
+  gap:5px;
+  width:260px;
+  padding:7px;
+  border:1px solid #d4ddd8;
+  border-radius:10px;
+  background:#fffdfa;
+  box-shadow:0 16px 34px rgba(3,30,42,.16)
+}
+.pda-drawer-generate-panel button{
+  width:100%!important;
+  justify-content:flex-start!important
+}
 </style>
