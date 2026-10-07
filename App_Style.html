@@ -4270,4 +4270,74 @@ nav#nav,
     display:none!important
   }
 }
+
+
+/* =========================================================
+   MENU — CONTRASTE DEFINITIVO E LEITURA DAS SUBGUIAS
+   ========================================================= */
+.pda-sidebar nav#nav .nav-group>.nav-submenu{
+  border:1px solid rgba(130,196,202,.28)!important;
+  background:
+    linear-gradient(180deg,rgba(6,51,70,.99),rgba(5,42,60,.99))!important;
+  box-shadow:
+    0 18px 42px rgba(2,22,32,.34),
+    inset 0 1px 0 rgba(255,255,255,.05)!important;
+  backdrop-filter:blur(14px)!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button{
+  color:#edf7f7!important;
+  border:1px solid transparent!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-weight:650!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button .nav-icon{
+  color:#a9d4d8!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button:hover,
+.pda-sidebar nav#nav .nav-group>.nav-submenu button:focus-visible{
+  color:#ffffff!important;
+  border-color:rgba(150,218,222,.16)!important;
+  background:rgba(255,255,255,.09)!important;
+  transform:translateX(2px)!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button:hover .nav-icon,
+.pda-sidebar nav#nav .nav-group>.nav-submenu button:focus-visible .nav-icon{
+  color:#ffffff!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button[aria-current="page"]{
+  color:#ffffff!important;
+  border-color:rgba(98,207,214,.20)!important;
+  background:
+    linear-gradient(135deg,rgba(13,128,143,.98),rgba(10,96,117,.98))!important;
+  box-shadow:
+    inset 3px 0 0 var(--pda-coral)!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-submenu button[aria-current="page"] .nav-icon{
+  color:#ffffff!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-group-summary{
+  color:#e5f1f2!important
+}
+
+.pda-sidebar nav#nav .nav-group>.nav-group-summary .nav-icon{
+  color:#b9d9dd!important
+}
+
+.pda-sidebar nav#nav .nav-group[open]>.nav-group-summary,
+.pda-sidebar nav#nav .nav-group.active>.nav-group-summary{
+  color:#ffffff!important
+}
+
+.pda-sidebar nav#nav .nav-group[open]>.nav-group-summary::after,
+.pda-sidebar nav#nav .nav-group.active>.nav-group-summary::after{
+  color:#d7ecee!important
+}
 </style>
