@@ -924,26 +924,54 @@ n.className='status '+(error?'error':'ok');
   const progress=
     processingState.complete
       ?100
-      :processingPercent_(
-        elapsed,
-        profile.seconds
-      );
+      :processingState.manual
+        ?Math.max(
+            0,
+            Math.min(
+              99,
+              Math.round(
+                Number(
+                  processingState.manualProgress||
+                  0
+                )
+              )
+            )
+          )
+        :processingPercent_(
+            elapsed,
+            profile.seconds
+          );
 
   const message=
     processingState.complete
       ?'Operação concluída'
-      :phaseForProgress_(
-        profile,
-        progress
-      );
+      :processingState.manual
+        ?String(
+            processingState.manualMessage||
+            'Processando cadastro…'
+          )
+        :phaseForProgress_(
+            profile,
+            progress
+          );
 
   const estimatedLeft=
-    Math.max(
-      0,
-      Math.ceil(
-        profile.seconds-elapsed
-      )
-    );
+    processingState.manual&&
+    Number.isFinite(
+      processingState.manualRemaining
+    )
+      ?Math.max(
+          0,
+          Math.ceil(
+            processingState.manualRemaining
+          )
+        )
+      :Math.max(
+          0,
+          Math.ceil(
+            profile.seconds-elapsed
+          )
+        );
 
   overlay.querySelector('#pda-processing-title').textContent=
     processingState.complete
@@ -1039,6 +1067,78 @@ n.className='status '+(error?'error':'ok');
     );
 
   return id;
+ }
+
+ function beginWorkflowProcessing_(title,seconds=45){
+  if(processingHideTimer){
+    clearTimeout(processingHideTimer);
+    processingHideTimer=null;
+  }
+
+  const id=crypto.randomUUID();
+
+  processingState={
+    id,
+    action:'workflow',
+    profile:{
+      seconds:Math.max(5,Number(seconds)||45),
+      title:String(title||'Processando'),
+      phases:[[0,'Preparando']]
+    },
+    started:performance.now(),
+    complete:false,
+    manual:true,
+    manualProgress:1,
+    manualMessage:'Preparando…',
+    manualRemaining:Math.max(0,Number(seconds)||45)
+  };
+
+  const overlay=ensureProcessingOverlay_();
+  overlay.hidden=false;
+  document.body.classList.add('processing-active');
+
+  startProcessingPhrases_();
+  renderProcessing_();
+
+  if(processingTimer){
+    clearInterval(processingTimer);
+  }
+
+  processingTimer=setInterval(
+    renderProcessing_,
+    600
+  );
+
+  return id;
+ }
+
+ function updateWorkflowProcessing_(id,progress,message,remainingSeconds){
+  if(
+    !processingState||
+    !processingState.manual||
+    processingState.id!==id
+  ){
+    return;
+  }
+
+  processingState.manualProgress=
+    Number(progress)||0;
+
+  processingState.manualMessage=
+    String(message||'Processando…');
+
+  processingState.manualRemaining=
+    Number.isFinite(
+      Number(remainingSeconds)
+    )
+      ?Number(remainingSeconds)
+      :processingState.manualRemaining;
+
+  renderProcessing_();
+ }
+
+ function endWorkflowProcessing_(id,success=true){
+  endProcessing_(id,success);
  }
 
  function safeBeginProcessing_(action,write){
@@ -5320,7 +5420,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,refreshCurrent:refreshCurrentModule_,softRefresh:softRefresh_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,softRefresh:softRefresh_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,beginWorkflowProcessing:beginWorkflowProcessing_,updateWorkflowProcessing:updateWorkflowProcessing_,endWorkflowProcessing:endWorkflowProcessing_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
