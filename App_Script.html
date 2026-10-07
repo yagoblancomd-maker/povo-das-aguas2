@@ -1258,6 +1258,173 @@ return d;
   section.prepend(hero);
  }
 
+ async function refreshCurrentModule_(options={}){
+  const code=options.code||current;
+  const pessoaId=
+    Object.prototype.hasOwnProperty.call(
+      options,
+      'pessoaId'
+    )
+      ?options.pessoaId
+      :selection;
+
+  if(!code)return;
+
+  if(pessoaId){
+    selection=pessoaId;
+  }
+
+  const root=
+    document.getElementById('app');
+
+  if(!root)return;
+
+  const token=++epoch;
+  const scrollX=window.scrollX;
+  const scrollY=window.scrollY;
+  const active=document.activeElement;
+  const activeId=
+    active&&active.id
+      ?active.id
+      :'';
+  const activeName=
+    active&&active.getAttribute
+      ?active.getAttribute('name')||''
+      :'';
+
+  root.setAttribute(
+    'data-syncing',
+    'true'
+  );
+
+  let stage=null;
+
+  try{
+    const module=
+      await getModule_(code);
+
+    if(token!==epoch)return;
+
+    installModuleScript_(
+      code,
+      module
+    );
+
+    stage=
+      el(
+        'div',
+        undefined,
+        'app-module-stage'
+      );
+
+    stage.innerHTML=
+      module.style+
+      module.view;
+
+    const section=
+      stage.querySelector(
+        'section'
+      );
+
+    if(!section){
+      throw new Error(
+        'Estrutura inválida do módulo '+code+'.'
+      );
+    }
+
+    await window.PDA_MODULES[code]({
+      root:section,
+      token
+    });
+
+    decorateModule_(
+      code,
+      section
+    );
+
+    if(token!==epoch){
+      stage.remove();
+      return;
+    }
+
+    root.replaceChildren(
+      ...Array.from(
+        stage.childNodes||
+        stage.children||
+        []
+      )
+    );
+
+    current=code;
+    renderNavigation_();
+
+    requestAnimationFrame(()=>{
+      window.scrollTo(
+        scrollX,
+        scrollY
+      );
+
+      let target=null;
+
+      if(activeId){
+        target=
+          document.getElementById(
+            activeId
+          );
+      }
+
+      if(
+        !target&&
+        activeName
+      ){
+        target=
+          root.querySelector(
+            '[name="'+
+            CSS.escape(activeName)+
+            '"]'
+          );
+      }
+
+      if(
+        target&&
+        typeof target.focus==='function'
+      ){
+        try{
+          target.focus({
+            preventScroll:true
+          });
+        }catch(e){
+          target.focus();
+        }
+      }
+    });
+
+  }catch(e){
+    if(
+      /AUTH:/.test(e.message)&&
+      window.PDA_AUTH
+    ){
+      window.PDA_AUTH.sessionExpired(
+        e.message
+      );
+      return;
+    }
+
+    status(
+      e.message||
+      String(e),
+      true
+    );
+
+  }finally{
+    if(token===epoch){
+      root.removeAttribute(
+        'data-syncing'
+      );
+    }
+  }
+ }
+
  async function go(code,pessoaId){
   if(busy)return;
 
@@ -2394,7 +2561,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
