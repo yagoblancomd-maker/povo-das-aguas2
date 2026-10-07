@@ -26,7 +26,8 @@
       "jurisdicao",
       "cep",
       "email",
-      "criadoPor"
+      "criadoPor",
+      "origemCadastro"
     ],
     "Atendimentos": [
       "pessoaId",
