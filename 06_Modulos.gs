@@ -584,6 +584,7 @@ function apiAuthenticated_(action,q,sessionToken){
     seguroDefesoRelatorioGerar:['cadastro',seguroDefesoRelatorioGerar_],
     configSalvar:['administracao',adminSave_],
     usuarioSalvar:['administracao',userSave_],
+    usuarioRedefinirSenha:['administracao',userAdminResetPassword_],
     usuarioAprovarProfessorResidente:['administracao',userApproveProfessorResident_],
     usuarioExcluir:['administracao',userDelete_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
