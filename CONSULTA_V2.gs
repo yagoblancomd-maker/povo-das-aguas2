@@ -514,138 +514,361 @@ function personDrawerInitial_(q){
 }
 
 function personDocumentsPage_(q){
-  const person=get_('Pessoas',required_(q.pessoaId,'pessoa'));
-  const owner=personOwnerKey_(person.id);
-  const attendanceIds=new Set(
-    all_('Atendimentos')
-      .filter(row=>row.pessoaId===person.id)
-      .map(row=>row.id)
-  );
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.pessoaId,
+        'pessoa'
+      )
+    );
 
-  let rows=all_('Documentos')
-    .filter(row=>
-      row.atendimentoId===owner||
-      attendanceIds.has(row.atendimentoId)
+  const owner=
+    personOwnerKey_(
+      person.id
+    );
+
+  const attendances=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    );
+
+  const rows=[
+    ...where_(
+      'Documentos',
+      'atendimentoId',
+      owner
     )
+  ];
+
+  attendances.forEach(attendance=>{
+    rows.push(
+      ...where_(
+        'Documentos',
+        'atendimentoId',
+        attendance.id
+      )
+    );
+  });
+
+  const seen=new Set();
+
+  let filtered=rows
+    .filter(row=>{
+      if(seen.has(row.id)){
+        return false;
+      }
+
+      seen.add(row.id);
+      return true;
+    })
     .sort((a,b)=>
-      String(b.criadoEm||b.alteradoEm||'')
-        .localeCompare(String(a.criadoEm||a.alteradoEm||''))
+      String(
+        b.criadoEm||
+        b.alteradoEm||
+        ''
+      )
+        .localeCompare(
+          String(
+            a.criadoEm||
+            a.alteradoEm||
+            ''
+          )
+        )
     );
 
   if(q.apenasVigentes!==false){
-    rows=rows.filter(row=>bool_(row.vigente));
+    filtered=
+      filtered.filter(row=>
+        bool_(row.vigente)
+      );
   }
 
-  const total=rows.length;
-  const offset=Math.max(0,Number(q.offset)||0);
-  const limit=Math.min(100,Math.max(10,Number(q.limit)||20));
+  const total=filtered.length;
+  const offset=
+    Math.max(
+      0,
+      Number(q.offset)||0
+    );
+
+  const limit=
+    Math.min(
+      100,
+      Math.max(
+        10,
+        Number(q.limit)||20
+      )
+    );
 
   return {
-    documentos:rows
-      .slice(offset,offset+limit)
-      .map(personDocumentPublic_),
+    documentos:
+      filtered
+        .slice(
+          offset,
+          offset+limit
+        )
+        .map(
+          personDocumentPublic_
+        ),
     total,
     offset,
     limit,
-    hasMore:offset+limit<total
+    hasMore:
+      offset+limit<
+      total
   };
 }
 
 function personProcessesPage_(q){
-  const person=get_('Pessoas',required_(q.pessoaId,'pessoa'));
-  const rows=all_('Processos')
-    .filter(row=>row.pessoaId===person.id)
-    .sort((a,b)=>
-      String(b.distribuidoEm||b.criadoEm||'')
-        .localeCompare(String(a.distribuidoEm||a.criadoEm||''))
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.pessoaId,
+        'pessoa'
+      )
     );
 
+  const rows=
+    where_(
+      'Processos',
+      'pessoaId',
+      person.id
+    )
+      .slice()
+      .sort((a,b)=>
+        String(
+          b.distribuidoEm||
+          b.criadoEm||
+          ''
+        )
+          .localeCompare(
+            String(
+              a.distribuidoEm||
+              a.criadoEm||
+              ''
+            )
+          )
+      );
+
   const total=rows.length;
-  const offset=Math.max(0,Number(q.offset)||0);
-  const limit=Math.min(100,Math.max(10,Number(q.limit)||20));
+  const offset=
+    Math.max(
+      0,
+      Number(q.offset)||0
+    );
+
+  const limit=
+    Math.min(
+      100,
+      Math.max(
+        10,
+        Number(q.limit)||20
+      )
+    );
 
   return {
-    processos:rows.slice(offset,offset+limit),
+    processos:
+      rows.slice(
+        offset,
+        offset+limit
+      ),
     total,
     offset,
     limit,
-    hasMore:offset+limit<total
+    hasMore:
+      offset+limit<
+      total
   };
 }
 
 function personAttendancesPage_(q){
-  const person=get_('Pessoas',required_(q.pessoaId,'pessoa'));
-  const rows=all_('Atendimentos')
-    .filter(row=>row.pessoaId===person.id)
-    .sort((a,b)=>
-      String(b.criadoEm||b.alteradoEm||'')
-        .localeCompare(String(a.criadoEm||a.alteradoEm||''))
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.pessoaId,
+        'pessoa'
+      )
     );
 
+  const rows=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    )
+      .slice()
+      .sort((a,b)=>
+        String(
+          b.criadoEm||
+          b.alteradoEm||
+          ''
+        )
+          .localeCompare(
+            String(
+              a.criadoEm||
+              a.alteradoEm||
+              ''
+            )
+          )
+      );
+
   const total=rows.length;
-  const offset=Math.max(0,Number(q.offset)||0);
-  const limit=Math.min(100,Math.max(10,Number(q.limit)||20));
+  const offset=
+    Math.max(
+      0,
+      Number(q.offset)||0
+    );
+
+  const limit=
+    Math.min(
+      100,
+      Math.max(
+        10,
+        Number(q.limit)||20
+      )
+    );
 
   return {
-    atendimentos:rows.slice(offset,offset+limit),
+    atendimentos:
+      rows.slice(
+        offset,
+        offset+limit
+      ),
     total,
     offset,
     limit,
-    hasMore:offset+limit<total
+    hasMore:
+      offset+limit<
+      total
   };
 }
 
 function personHistoryPage_(q){
-  const person=get_('Pessoas',required_(q.pessoaId,'pessoa'));
-  const owner=personOwnerKey_(person.id);
-  const attendanceIds=new Set(
-    all_('Atendimentos')
-      .filter(row=>row.pessoaId===person.id)
-      .map(row=>row.id)
-  );
-  const documentIds=new Set(
-    all_('Documentos')
-      .filter(row=>
-        row.atendimentoId===owner||
-        attendanceIds.has(row.atendimentoId)
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.pessoaId,
+        'pessoa'
       )
-      .map(row=>row.id)
-  );
-  const processIds=new Set(
-    all_('Processos')
-      .filter(row=>row.pessoaId===person.id)
-      .map(row=>row.id)
-  );
-  const taskIds=new Set(
-    all_('Tarefas')
-      .filter(row=>row.pessoaId===person.id)
-      .map(row=>row.id)
-  );
-
-  const related=new Set([
-    person.id,
-    ...attendanceIds,
-    ...documentIds,
-    ...processIds,
-    ...taskIds
-  ]);
-
-  let rows=all_('Historico')
-    .filter(row=>related.has(row.registroId))
-    .sort((a,b)=>
-      String(b.alteradoEm||'').localeCompare(String(a.alteradoEm||''))
     );
 
+  const owner=
+    personOwnerKey_(
+      person.id
+    );
+
+  const attendances=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    );
+
+  const tasks=
+    where_(
+      'Tarefas',
+      'pessoaId',
+      person.id
+    );
+
+  const processes=
+    where_(
+      'Processos',
+      'pessoaId',
+      person.id
+    );
+
+  const documents=[
+    ...where_(
+      'Documentos',
+      'atendimentoId',
+      owner
+    )
+  ];
+
+  attendances.forEach(attendance=>{
+    documents.push(
+      ...where_(
+        'Documentos',
+        'atendimentoId',
+        attendance.id
+      )
+    );
+  });
+
+  const relatedIds=[
+    person.id,
+    ...attendances.map(row=>row.id),
+    ...documents.map(row=>row.id),
+    ...processes.map(row=>row.id),
+    ...tasks.map(row=>row.id)
+  ];
+
+  const rows=[];
+  const seen=new Set();
+
+  relatedIds.forEach(registroId=>{
+    where_(
+      'Historico',
+      'registroId',
+      registroId
+    )
+      .forEach(row=>{
+        if(seen.has(row.id)){
+          return;
+        }
+
+        seen.add(row.id);
+        rows.push(row);
+      });
+  });
+
+  rows.sort((a,b)=>
+    String(
+      b.alteradoEm||
+      ''
+    )
+      .localeCompare(
+        String(
+          a.alteradoEm||
+          ''
+        )
+      )
+  );
+
   const total=rows.length;
-  const offset=Math.max(0,Number(q.offset)||0);
-  const limit=Math.min(100,Math.max(10,Number(q.limit)||30));
+  const offset=
+    Math.max(
+      0,
+      Number(q.offset)||0
+    );
+
+  const limit=
+    Math.min(
+      100,
+      Math.max(
+        10,
+        Number(q.limit)||30
+      )
+    );
 
   return {
-    historico:rows.slice(offset,offset+limit),
+    historico:
+      rows.slice(
+        offset,
+        offset+limit
+      ),
     total,
     offset,
     limit,
-    hasMore:offset+limit<total
+    hasMore:
+      offset+limit<
+      total
   };
 }
 
