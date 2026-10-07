@@ -284,8 +284,19 @@ function distributionUsers_(){
 }
 
 function distributionQueue_(){
+  const currentUser=
+    activeUser_();
+
   const people=
-    all_('Pessoas');
+    filterPeopleByUserScope_(
+      all_('Pessoas'),
+      currentUser
+    );
+
+  const visiblePersonIds=
+    new Set(
+      people.map(person=>person.id)
+    );
 
   const users=
     all_('Usuarios');
@@ -313,7 +324,13 @@ function distributionQueue_(){
     all_('Tarefas')
       .filter(t=>
         t.tipo===
-        DISTRIBUTION_TASK_TYPE
+          DISTRIBUTION_TASK_TYPE&&
+        (
+          !isColonyUser_(currentUser)||
+          visiblePersonIds.has(
+            t.pessoaId
+          )
+        )
       )
       .sort((a,b)=>{
         const aDone=
