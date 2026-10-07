@@ -105,8 +105,83 @@ function personSave_(ctx,q){
       )
       :ctx.email;
 
-  const other=all_('Pessoas').find(r=>r.cpf===p.cpf&&r.id!==q.id);
-  if(other)fail_('CPF já cadastrado. Abra a pessoa existente: '+other.id);
+  const other=
+    all_('Pessoas')
+      .find(r=>
+        r.cpf===p.cpf&&
+        r.id!==q.id
+      );
+
+  if(other){
+    const state=
+      personRegistrationStateGet_(
+        other.id
+      );
+
+    if(
+      state&&
+      state.etapa&&
+      state.etapa!=='CONCLUIDO'
+    ){
+      authorizePersonRetification_(
+        other
+      );
+
+      p.criadoPor=
+        other.criadoPor||
+        personCreatorEmail_(other)||
+        other.usuario||
+        ctx.email;
+
+      const resumed=
+        change_(
+          ctx,
+          'Pessoas',
+          other.id,
+          p,
+          other.versao
+        );
+
+      const resumedFolder=
+        personFolderFromHint_(
+          resumed,
+          state.folderId
+        );
+
+      personRegistrationStateSet_(
+        resumed.id,
+        'PESSOA_SALVA',
+        ctx,
+        {
+          folderId:
+            resumedFolder.getId(),
+          retomado:true
+        }
+      );
+
+      ctx.effects.push(
+        'Cadastro incompleto retomado: '+
+        resumed.id
+      );
+
+      return Object.assign(
+        {},
+        resumed,
+        {
+          folderId:
+            resumedFolder.getId(),
+          folderUrl:
+            resumedFolder.getUrl(),
+          retomado:true
+        }
+      );
+    }
+
+    fail_(
+      'CPF já cadastrado. Abra a pessoa existente: '+
+      other.id
+    );
+  }
 
   const saved=change_(ctx,'Pessoas',q.id||id_('PES',ctx.op),p,q.versao);
   const folder=personFolder_(saved);
