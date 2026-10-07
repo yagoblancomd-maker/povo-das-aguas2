@@ -133,7 +133,22 @@ window.PDA_MODULES.ACOMP = (()=>{
       docs,
       d=>{
         const actions=[
-          link(d.url,'Abrir arquivo')
+          button(
+            'Visualizar',
+            ()=>App.openFileViewer(
+              ()=>call(
+                'documentoConteudo',
+                {
+                  id:d.id,
+                  pessoaId:p.id
+                }
+              ),
+              {
+                nome:d.nome
+              }
+            ),
+            true
+          )
         ];
 
         if(can('conferencia')){
