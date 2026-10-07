@@ -863,9 +863,11 @@ window.PDA_MODULES.DIST = (()=>{
 
   return async function(ctx){
     const root=ctx.root;
+    const content=el('div',undefined,'dist-live-content');
+    root.append(content);
 
     const render=async()=>{
-      root.replaceChildren();
+      content.setAttribute('aria-busy','true');
 
       const data=await call('distribuicaoFila');
       if(!alive(ctx))return;
@@ -906,7 +908,7 @@ window.PDA_MODULES.DIST = (()=>{
       );
 
       head.append(headCopy,headActions);
-      root.append(head);
+      content.append(head);
 
       const stats=el('div',undefined,'dist-stats');
 
@@ -927,7 +929,7 @@ window.PDA_MODULES.DIST = (()=>{
         stats.append(box);
       });
 
-      root.append(stats);
+      content.append(stats);
 
       const generalSection=el(
         'section',
@@ -970,7 +972,7 @@ window.PDA_MODULES.DIST = (()=>{
       }
 
       generalSection.append(generalHead,generalGrid);
-      root.append(generalSection);
+      content.append(generalSection);
 
       const workload=el('section',undefined,'dist-workload');
       workload.append(el('h3','Equipe de distribuição'));
@@ -1016,7 +1018,7 @@ window.PDA_MODULES.DIST = (()=>{
       }
 
       workload.append(workloadGrid);
-      root.append(workload);
+      content.append(workload);
 
       const active=data.tarefas.filter(
         task=>task.situacao!=='CONCLUIDA'
@@ -1053,7 +1055,7 @@ window.PDA_MODULES.DIST = (()=>{
       }
 
       section.append(sectionHead,grid);
-      root.append(section);
+      content.append(section);
 
       const completed=data.tarefas.filter(
         task=>task.situacao==='CONCLUIDA'
@@ -1087,8 +1089,10 @@ window.PDA_MODULES.DIST = (()=>{
         });
 
         done.append(doneGrid);
-        root.append(done);
+        content.append(done);
       }
+
+      content.removeAttribute('aria-busy');
     };
 
     await render();
