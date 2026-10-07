@@ -181,10 +181,12 @@ function taskTagColor_(name){
   return tag?tag.cor:'#176e7d';
 }
 
-function taskTagsDecorated_(value){
+function taskTagsDecorated_(value,colorMap){
   return taskTagsParse_(value).map(nome=>({
     nome,
-    cor:taskTagColor_(nome)
+    cor:colorMap
+      ?(colorMap.get(String(nome).toUpperCase())||'#176e7d')
+      :taskTagColor_(nome)
   }));
 }
 
@@ -231,7 +233,7 @@ function taskTagDelete_(ctx,q){
   return {ok:true,mensagem:'Tag excluída.'};
 }
 
-function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts){
+function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap){
   let base;
 
   if(task.tipo===DISTRIBUTION_TASK_TYPE){
@@ -244,14 +246,14 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
     base.criadoPorNome=generalTaskDisplayUser_(task.criadoPor,usersByEmail);
     base.prioridade=task.prioridade||'ALTA';
     base.prazo=task.prazo||'';
-    base.tags=taskTagsDecorated_(task.tags||JSON.stringify(['PROCESSO']));
+    base.tags=taskTagsDecorated_(task.tags||JSON.stringify(['PROCESSO']),tagColorMap);
     base.modoDistribuicao=task.modoDistribuicao||'MANUAL';
     base.mensagens=Number(messageCounts.get(task.id)||0);
     base.anexos=Number(attachmentCounts.get(task.id)||0);
   }else{
     base=generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts);
     base.tipoLabel='Tarefa interna';
-    base.tags=taskTagsDecorated_(task.tags);
+    base.tags=taskTagsDecorated_(task.tags,tagColorMap);
   }
 
   const due=taskDueState_(task);
@@ -271,6 +273,13 @@ function tasksCollectionV2_(q,mode){
   const usersByEmail=new Map(users.map(u=>[String(u.email||'').toLowerCase(),u]));
   const messageCounts=generalTaskCountMap_(generalTaskRows_('TarefaMensagens'));
   const attachmentCounts=generalTaskCountMap_(generalTaskRows_('TarefaAnexos'));
+  const tagCatalog=taskTagCatalog_();
+  const tagColorMap=new Map(
+    tagCatalog.map(tag=>[
+      String(tag.nome||'').toUpperCase(),
+      tag.cor||'#176e7d'
+    ])
+  );
 
   const isDone=task=>
     task.situacao===GENERAL_TASK_DONE||
@@ -292,7 +301,7 @@ function tasksCollectionV2_(q,mode){
       if(q.prazoAte&&due>q.prazoAte)return false;
       return true;
     })
-    .map(task=>taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts));
+    .map(task=>taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap));
 
   const term=String(q.busca||'').trim().toLowerCase();
   if(term){
@@ -404,8 +413,8 @@ function distributionRanking_(q){
   distributionRankingAllowed_();
   q=q||{};
 
-  const from=String(q.de||'');
-  const to=String(q.ate||'');
+  const from=String(q.de||q.inicio||'');
+  const to=String(q.ate||q.fim||'');
 
   const inRange=value=>{
     const day=String(value||'').slice(0,10);
@@ -500,6 +509,8 @@ function distributionRanking_(q){
   return {
     de:from,
     ate:to,
+    inicio:from,
+    fim:to,
     linhas:rows
   };
 }
