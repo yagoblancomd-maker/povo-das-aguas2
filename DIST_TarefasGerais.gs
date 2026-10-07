@@ -338,6 +338,211 @@ function generalTaskCountMap_(rows){
   return map;
 }
 
+
+function taskMovementMaps_(tasks,messages,attachments,email){
+  const lastByTask=new Map();
+  const readByTask=new Map();
+
+  const bump_=(taskId,when)=>{
+    const id=
+      String(taskId||'');
+    const value=
+      String(when||'');
+
+    if(!id||!value)return;
+
+    const current=
+      String(
+        lastByTask.get(id)||
+        ''
+      );
+
+    if(!current||value>current){
+      lastByTask.set(
+        id,
+        value
+      );
+    }
+  };
+
+  (tasks||[]).forEach(task=>{
+    bump_(
+      task.id,
+      task.alteradoEm||
+      task.atribuidaEm||
+      task.criadoEm
+    );
+  });
+
+  (messages||[]).forEach(row=>
+    bump_(
+      row.tarefaId,
+      row.criadoEm||
+      row.alteradoEm
+    )
+  );
+
+  (attachments||[]).forEach(row=>
+    bump_(
+      row.tarefaId,
+      row.criadoEm||
+      row.alteradoEm
+    )
+  );
+
+  const normalized=
+    String(email||'')
+      .toLowerCase();
+
+  generalTaskRows_(
+    'TarefaLeituras'
+  )
+    .forEach(row=>{
+      if(
+        !row.tarefaId||
+        String(
+          row.usuario||
+          ''
+        ).toLowerCase()!==
+        normalized
+      ){
+        return;
+      }
+
+      const current=
+        String(
+          readByTask.get(
+            row.tarefaId
+          )||
+          ''
+        );
+
+      const value=
+        String(
+          row.ultimoVistoEm||
+          ''
+        );
+
+      if(
+        !current||
+        value>current
+      ){
+        readByTask.set(
+          row.tarefaId,
+          value
+        );
+      }
+    });
+
+  return {
+    lastByTask,
+    readByTask
+  };
+}
+
+function taskViewMark_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const task=
+    get_(
+      'Tarefas',
+      required_(
+        q.id,
+        'tarefa'
+      )
+    );
+
+  const user=
+    activeUser_();
+
+  if(
+    task.tipo===
+    GENERAL_TASK_TYPE
+  ){
+    requireGeneralTaskAccess_(
+      task
+    );
+  }else if(
+    task.tipo===
+    DISTRIBUTION_TASK_TYPE
+  ){
+    const email=
+      String(
+        user.email||
+        ''
+      ).toLowerCase();
+
+    const isOwner=
+      email===
+      String(
+        task.responsavel||
+        ''
+      ).toLowerCase();
+
+    const canManage=
+      hasPermission_(
+        user,
+        'gestao_distribuicao'
+      );
+
+    if(
+      !isOwner&&
+      !canManage
+    ){
+      fail_(
+        'Você não possui acesso a esta tarefa.'
+      );
+    }
+  }else{
+    fail_(
+      'Tipo de tarefa inválido.'
+    );
+  }
+
+  const email=
+    String(
+      user.email||
+      ctx.email||
+      ''
+    ).toLowerCase();
+
+  const rowId=
+    id_(
+      'TREAD',
+      email+
+      '|'+
+      task.id
+    );
+
+  const previous=
+    all_('TarefaLeituras')
+      .find(row=>
+        row.id===rowId
+      )||
+    null;
+
+  const saved=
+    change_(
+      ctx,
+      'TarefaLeituras',
+      rowId,
+      {
+        tarefaId:task.id,
+        usuario:email,
+        ultimoVistoEm:now_()
+      },
+      previous
+        ?previous.versao
+        :undefined
+    );
+
+  return {
+    tarefaId:task.id,
+    ultimoVistoEm:
+      saved.ultimoVistoEm
+  };
+}
+
 function generalTaskSort_(a,b){
   const aDone=
     a.situacao===
