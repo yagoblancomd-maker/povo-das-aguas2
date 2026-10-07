@@ -611,7 +611,17 @@ window.PDA_MODULES.DIST = (()=>{
             renderOverview();
             status('Responsável atualizado.');
 
-            refresh().catch(()=>{});
+            await Promise.resolve(
+              refresh({
+                kind:'update',
+                id:detail.tarefa.id,
+                patch:{
+                  versao:detail.tarefa.versao,
+                  responsavel:detail.tarefa.responsavel,
+                  responsavelNome:detail.tarefa.responsavelNome
+                }
+              })
+            );
           }
         )
       );
@@ -653,7 +663,15 @@ window.PDA_MODULES.DIST = (()=>{
       addFile.value='';
       status('PDF(s) anexado(s).');
 
-      refresh().catch(()=>{});
+      await Promise.resolve(
+        refresh({
+          kind:'update',
+          id:detail.tarefa.id,
+          patch:{
+            anexos:(detail.anexos||[]).length
+          }
+        })
+      );
     });
 
     filesHead.append(upload,addFile);
@@ -702,7 +720,15 @@ window.PDA_MODULES.DIST = (()=>{
           textarea.value='';
           status('Mensagem enviada.');
 
-          refresh().catch(()=>{});
+          await Promise.resolve(
+            refresh({
+              kind:'update',
+              id:detail.tarefa.id,
+              patch:{
+                mensagens:(detail.mensagens||[]).length
+              }
+            })
+          );
         }
       )
     );
@@ -729,7 +755,12 @@ window.PDA_MODULES.DIST = (()=>{
 
             status('Tarefa reaberta.');
             dialog.close();
-            await refresh();
+            await Promise.resolve(
+              refresh({
+                kind:'reopen',
+                id:detail.tarefa.id
+              })
+            );
           },
           true
         )
@@ -753,7 +784,12 @@ window.PDA_MODULES.DIST = (()=>{
 
             status('Tarefa concluída.');
             dialog.close();
-            await refresh();
+            await Promise.resolve(
+              refresh({
+                kind:'complete',
+                id:detail.tarefa.id
+              })
+            );
           }
         )
       );
@@ -1074,8 +1110,42 @@ window.PDA_MODULES.DIST = (()=>{
       return true;
     };
 
+    const applyOpenTaskChange_=async change=>{
+      if(!change)return;
+
+      if(change.kind==='reopen'){
+        historyData=null;
+        await renderOpen_();
+        return;
+      }
+
+      const target=
+        mode==='history'
+          ?historyData
+          :openData;
+
+      if(!target||!Array.isArray(target.tarefas))return;
+
+      if(change.kind==='complete'){
+        target.tarefas=
+          target.tarefas.filter(task=>task.id!==change.id);
+        target.total=Math.max(0,Number(target.total||0)-1);
+        historyData=null;
+      }else if(change.kind==='update'){
+        const task=target.tarefas.find(item=>item.id===change.id);
+        if(task)Object.assign(task,change.patch||{});
+      }
+
+      if(mode==='history'){
+        paintHistory_(target);
+      }else{
+        openData=target;
+        paintOpen_(target);
+      }
+    };
+
     const openGeneral_=task=>
-      openGeneralDialog_(root,task,renderOpen_);
+      openGeneralDialog_(root,task,applyOpenTaskChange_);
 
     const openDistribution_=async task=>{
       const detail=await call(
