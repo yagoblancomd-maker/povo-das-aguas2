@@ -2491,7 +2491,10 @@ window.PDA_MODULES.PESS = (()=>{
           ){
             saved={
               id:
-                checkpoint.pessoaId
+                checkpoint.pessoaId,
+              folderId:
+                checkpoint.folderId||
+                ''
             };
 
             progress_(
@@ -2511,6 +2514,9 @@ window.PDA_MODULES.PESS = (()=>{
 
             saveCheckpoint_({
               pessoaId:saved.id,
+              folderId:
+                saved.folderId||
+                '',
               etapa:'PESSOA_SALVA'
             });
 
@@ -2704,6 +2710,10 @@ window.PDA_MODULES.PESS = (()=>{
                 'pessoaUploadLote',
                 {
                   pessoaId:saved.id,
+                  folderId:
+                    saved.folderId||
+                    checkpoint.folderId||
+                    '',
                   arquivos:batches[index]
                 },
                 true,
@@ -2770,7 +2780,11 @@ window.PDA_MODULES.PESS = (()=>{
           await call(
             'pessoaFinalizarCadastro',
             {
-              pessoaId:saved.id
+              pessoaId:saved.id,
+              folderId:
+                saved.folderId||
+                checkpoint.folderId||
+                ''
             },
             true,
             {silent:true}
