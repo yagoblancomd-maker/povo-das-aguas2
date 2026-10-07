@@ -105,7 +105,10 @@ function checkDoc_(ctx,q){
 
   if(!personId){
     a=get_('Atendimentos',d.atendimentoId);
+    getScopedPerson_(a.pessoaId);
     version_(a,q.atendimentoVersao);
+  }else{
+    getScopedPerson_(personId);
   }
 
   const data=
@@ -154,6 +157,10 @@ function pendSave_(ctx,q){
   const aid=old?old.atendimentoId:q.atendimentoId;
   const a=get_('Atendimentos',aid);
 
+  getScopedPerson_(
+    a.pessoaId
+  );
+
   version_(a,q.atendimentoVersao);
   required_(q.descricao,'descrição');
 
@@ -192,6 +199,11 @@ function pendSave_(ctx,q){
 
 function checkAtend_(ctx,q){
   const a=get_('Atendimentos',q.id);
+
+  getScopedPerson_(
+    a.pessoaId
+  );
+
   version_(a,q.versao);
 
   const errors=eligibility_(a,true);
