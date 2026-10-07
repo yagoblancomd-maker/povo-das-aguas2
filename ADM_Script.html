@@ -273,9 +273,28 @@ window.PDA_MODULES.ADM=(()=>{
         if(!isNew)email.readOnly=true;
 
         const profile=select_(
-          (data.perfis||[]).map(value=>[value,value]),
+          (data.perfis||[]).map(value=>[
+            value,
+            value==='COLONIA_PESCADOR'
+              ?'COLÔNIA DE PESCADOR'
+              :value
+          ]),
           source.perfil||'CONSULTA'
         );
+
+        const entity=select_(
+          [
+            ['','Selecione uma entidade'],
+            ...(data.entidades||[]).map(value=>[value,value])
+          ],
+          source.entidade||''
+        );
+
+        const entityField=
+          field_(
+            'Entidade vinculada',
+            entity
+          );
 
         const activeBox=input_('checkbox');
         activeBox.checked=source.ativo===true||source.ativo==='true';
@@ -286,6 +305,7 @@ window.PDA_MODULES.ADM=(()=>{
           field_('Função',func),
           field_('E-mail',email),
           field_('Perfil-base',profile),
+          entityField,
           field_('Ativo',activeBox)
         );
 
@@ -307,6 +327,16 @@ window.PDA_MODULES.ADM=(()=>{
           if(required){
             required.checked=true;
             required.disabled=true;
+          }
+
+          const colony=
+            profile.value==='COLONIA_PESCADOR';
+
+          entityField.hidden=!colony;
+          entity.required=colony;
+
+          if(!colony){
+            entity.value='';
           }
         };
 
@@ -335,6 +365,25 @@ window.PDA_MODULES.ADM=(()=>{
         }
 
         profile.addEventListener('change',syncProfile_);
+
+        const syncEntityVisibility_=()=>{
+          const colony=
+            profile.value==='COLONIA_PESCADOR';
+
+          entityField.hidden=!colony;
+          entity.required=colony;
+
+          if(!colony){
+            entity.value='';
+          }
+        };
+
+        profile.addEventListener(
+          'change',
+          syncEntityVisibility_
+        );
+
+        syncEntityVisibility_();
 
         const actions=el('div',undefined,'actions');
         const save=el('button',isNew?'Autorizar usuário':'Salvar usuário');
@@ -412,6 +461,7 @@ window.PDA_MODULES.ADM=(()=>{
               funcao:func.value,
               email:email.value,
               perfil:profile.value,
+              entidade:entity.value,
               ativo:activeBox.checked,
               permissoes:permissions
             },
