@@ -22,17 +22,47 @@ function globalHistory_(q){
   const offset=Math.max(0,Number(q.offset)||0);
   const limit=Math.min(100,Math.max(10,Number(q.limit)||50));
 
+  const dependencies=
+    type==='cadastros'
+      ?['Pessoas']
+      :type==='documentos'
+        ?['Pessoas','Atendimentos','Documentos']
+        :type==='processos'
+          ?['Pessoas','Processos']
+          :[
+              'Pessoas',
+              'Atendimentos',
+              'Documentos',
+              'Processos',
+              'Tarefas',
+              'Historico'
+            ];
+
+  batchAll_(dependencies);
+
   const people=all_('Pessoas');
-  const documents=all_('Documentos');
-  const processes=all_('Processos');
-  const tasks=all_('Tarefas');
+  const documents=
+    dependencies.includes('Documentos')
+      ?all_('Documentos')
+      :[];
+  const processes=
+    dependencies.includes('Processos')
+      ?all_('Processos')
+      :[];
+  const tasks=
+    dependencies.includes('Tarefas')
+      ?all_('Tarefas')
+      :[];
   const peopleById=new Map(people.map(person=>[person.id,person]));
   const documentsById=new Map(documents.map(row=>[row.id,row]));
   const processesById=new Map(processes.map(row=>[row.id,row]));
   const tasksById=new Map(tasks.map(row=>[row.id,row]));
-  const attendancePerson=new Map(
-    all_('Atendimentos').map(row=>[row.id,row.pessoaId])
-  );
+  const attendancePerson=
+    dependencies.includes('Atendimentos')
+      ?new Map(
+          all_('Atendimentos').map(row=>[row.id,row.pessoaId])
+        )
+      :new Map();
 
   const personFromDocument_=doc=>{
     const direct=personIdFromOwner_(doc.atendimentoId);
@@ -93,7 +123,7 @@ function globalHistory_(q){
       };
     });
   }else{
-    rows=all_('Historico').map(item=>{
+    rows=(DATA_CACHE.Historico||all_('Historico')).map(item=>{
       let personId='';
       const direct=peopleById.get(item.registroId);
       if(direct){
