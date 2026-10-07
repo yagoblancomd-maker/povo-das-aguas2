@@ -929,4 +929,154 @@
   color:#6b7b78;
   font-size:7px
 }
+
+
+/* Seleção e distribuição em lote */
+.dist-task-card,
+.dist-general-card{
+  position:relative
+}
+.dist-bulk-selectable{
+  padding-left:34px!important
+}
+.dist-bulk-check{
+  position:absolute;
+  top:50%;
+  left:8px;
+  z-index:3;
+  display:grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  margin:0;
+  transform:translateY(-50%);
+  cursor:pointer
+}
+.dist-bulk-check input{
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:var(--pda-sea);
+  cursor:pointer
+}
+.dist-bulk-check span{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap
+}
+.dist-task-card.is-bulk-selected,
+.dist-general-card.is-bulk-selected{
+  border-color:#0f7a84!important;
+  background:#f1f9f8!important;
+  box-shadow:
+    inset 3px 0 0 #0f7a84,
+    0 5px 16px rgba(8,68,80,.12)!important
+}
+.dist-bulk-button:disabled{
+  opacity:.48;
+  cursor:not-allowed
+}
+.dist-bulk-dialog{
+  width:min(720px,94vw);
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:14px;
+  background:#fffdfa;
+  box-shadow:0 25px 70px rgba(3,30,42,.28)
+}
+.dist-bulk-dialog::backdrop{
+  background:rgba(3,24,34,.44);
+  backdrop-filter:blur(3px)
+}
+.dist-bulk-shell{
+  display:grid;
+  max-height:min(760px,90vh);
+  overflow:hidden
+}
+.dist-bulk-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 18px;
+  border-bottom:1px solid #d7e2df;
+  background:#f2f7f5
+}
+.dist-bulk-head h3{
+  margin:0;
+  color:#143f49;
+  font-size:15px
+}
+.dist-bulk-head p{
+  margin:4px 0 0
+}
+.dist-bulk-body{
+  overflow:auto;
+  padding:16px 18px 18px
+}
+.dist-bulk-users{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin:12px 0
+}
+.dist-bulk-user{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 10px;
+  border:1px solid #d4e1de;
+  border-radius:9px;
+  background:#fff;
+  cursor:pointer
+}
+.dist-bulk-user:has(input:checked){
+  border-color:#0f7a84;
+  background:#eef8f7
+}
+.dist-bulk-user input{
+  flex:0 0 auto;
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:var(--pda-sea)
+}
+.dist-bulk-user span{
+  display:grid;
+  min-width:0;
+  gap:2px
+}
+.dist-bulk-user strong{
+  overflow:hidden;
+  color:#173f49;
+  font-size:9px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.dist-bulk-user small{
+  overflow:hidden;
+  color:#6a7d80;
+  font-size:7px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.dist-bulk-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:7px;
+  padding-top:12px;
+  border-top:1px solid #dde6e4
+}
+@media(max-width:700px){
+  .dist-bulk-users{
+    grid-template-columns:1fr
+  }
+  .dist-bulk-selectable{
+    padding-left:34px!important
+  }
+}
 </style>
