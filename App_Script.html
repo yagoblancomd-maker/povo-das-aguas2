@@ -4210,6 +4210,73 @@ f.insertBefore(file,f.firstChild);
   );
  }
 
+ async function softRefresh_(){
+  const trigger=
+    document.getElementById(
+      'reloadButton'
+    );
+
+  if(trigger){
+    trigger.disabled=true;
+    trigger.classList.add(
+      'is-loading'
+    );
+  }
+
+  status('Atualizando dados…');
+
+  /*
+   * O refresh suave invalida apenas leituras. Bundles dos módulos, sessão
+   * e identidade visual permanecem na página.
+   */
+  clearReadCaches_();
+
+  try{
+    if(activePersonDrawer){
+      const drawer=
+        activePersonDrawer
+          .querySelector(
+            '.pda-person-drawer'
+          );
+
+      const personId=
+        drawer&&
+        drawer.dataset
+          ?drawer.dataset.personId
+          :'';
+
+      if(personId){
+        closePersonDrawer_();
+
+        await openPersonDrawer_(
+          personId
+        );
+
+        status('Ficha atualizada.');
+        return;
+      }
+    }
+
+    await refreshCurrentModule_({
+      code:current,
+      pessoaId:selection
+    });
+
+    refreshTaskNotifications_()
+      .catch(()=>{});
+
+    status('Dados atualizados agora.');
+
+  }finally{
+    if(trigger){
+      trigger.disabled=false;
+      trigger.classList.remove(
+        'is-loading'
+      );
+    }
+  }
+ }
+
  function renderNavigation_(){
   if(!boot)return;
 
@@ -4237,6 +4304,8 @@ f.insertBefore(file,f.firstChild);
     document.getElementById('profileShortcut');
   const profileButton=
     document.getElementById('profileButton');
+  const reloadButton=
+    document.getElementById('reloadButton');
 
   const displayName=
     user.nomeUsuario||
@@ -4308,6 +4377,18 @@ f.insertBefore(file,f.firstChild);
   if(profileButton){
     profileButton.onclick=
       ()=>go('PERF');
+  }
+
+  if(reloadButton){
+    reloadButton.onclick=
+      ()=>softRefresh_()
+        .catch(error=>
+          status(
+            error.message||
+            String(error),
+            true
+          )
+        );
   }
 
   const nav=
@@ -4636,7 +4717,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,refreshCurrent:refreshCurrentModule_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,softRefresh:softRefresh_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
