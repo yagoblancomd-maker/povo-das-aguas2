@@ -4340,4 +4340,140 @@ nav#nav,
 .pda-sidebar nav#nav .nav-group.active>.nav-group-summary::after{
   color:#d7ecee!important
 }
+
+
+/* =========================================================
+   SHELL V5 — PERFIL E CONTROLES EXCLUSIVAMENTE NA SIDEBAR
+   ========================================================= */
+.app-header{
+  display:none!important
+}
+.pda-workspace{
+  min-height:100vh!important
+}
+.pda-sidebar-user{
+  position:relative;
+  z-index:1280;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto;
+  gap:9px;
+  align-items:center;
+  margin:2px 12px 7px;
+  padding:10px;
+  border:1px solid rgba(192,225,229,.14);
+  border-radius:12px;
+  background:rgba(2,34,49,.38);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)
+}
+.pda-sidebar-avatar{
+  width:40px!important;
+  height:40px!important;
+  min-width:40px!important;
+  min-height:40px!important;
+  margin:0!important;
+  border:1px solid rgba(255,255,255,.28)!important;
+  background:#fff!important
+}
+.pda-sidebar-avatar img,
+.pda-sidebar-avatar .app-user-avatar-fallback{
+  width:34px!important;
+  height:34px!important
+}
+.pda-sidebar-user-copy{
+  display:grid;
+  min-width:0;
+  gap:1px
+}
+.pda-sidebar-user-copy .app-header-user-name{
+  overflow:hidden;
+  color:#fff!important;
+  font-size:9.5px!important;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-sidebar-user-function{
+  overflow:hidden;
+  color:#bcd8dd;
+  font-size:7.6px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-sidebar-user-profile{
+  color:#7fc5ca;
+  font-size:6.8px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase
+}
+.pda-sidebar-user-actions{
+  display:flex;
+  align-items:center;
+  gap:2px
+}
+.pda-sidebar-user-actions .app-profile-button,
+.pda-sidebar-user-actions .app-logout-button,
+.pda-sidebar-user-actions .app-notification-button{
+  width:27px!important;
+  height:27px!important;
+  min-width:27px!important;
+  min-height:27px!important;
+  padding:5px!important;
+  color:#d9e9eb!important;
+  border:1px solid transparent!important;
+  background:transparent!important;
+  box-shadow:none!important
+}
+.pda-sidebar-user-actions .app-profile-button:hover,
+.pda-sidebar-user-actions .app-logout-button:hover,
+.pda-sidebar-user-actions .app-notification-button:hover,
+.pda-sidebar-user-actions .app-notification-button[aria-expanded="true"]{
+  color:#fff!important;
+  border-color:rgba(255,255,255,.12)!important;
+  background:rgba(255,255,255,.08)!important
+}
+.pda-sidebar-user-actions svg{
+  width:14px!important;
+  height:14px!important
+}
+.pda-sidebar-user .app-task-notifications{
+  position:relative
+}
+.pda-sidebar-user .app-notification-panel{
+  top:-2px!important;
+  right:auto!important;
+  left:calc(100% + 16px)!important;
+  width:min(390px,calc(100vw - 270px))!important;
+  min-width:330px!important;
+  color:var(--pda-ink)!important
+}
+.pda-sidebar-user .app-notification-head{
+  color:var(--pda-ink)!important
+}
+.pda-sidebar-user .app-notification-button{
+  position:relative
+}
+.pda-sidebar-user .app-notification-badge{
+  position:absolute!important;
+  top:-5px!important;
+  right:-5px!important
+}
+main#app{
+  padding-top:20px!important
+}
+.status{
+  margin-top:0!important
+}
+@media(max-width:900px){
+  .pda-sidebar-user{
+    margin:0 12px 8px;
+  }
+  .pda-sidebar-user .app-notification-panel{
+    position:fixed!important;
+    top:76px!important;
+    right:12px!important;
+    left:auto!important;
+    width:min(390px,calc(100vw - 24px))!important;
+    min-width:0!important
+  }
+}
 </style>
