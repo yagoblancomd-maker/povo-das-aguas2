@@ -758,6 +758,43 @@ window.PDA_MODULES.DIST = (()=>{
     const deadline=el('input');
     deadline.type='date';
 
+    const personSearch=el('input');
+    personSearch.type='search';
+    personSearch.placeholder='Buscar cadastro por nome, CPF ou município';
+
+    const person=el('select');
+    person.append(new Option('Sem vínculo com cadastro',''));
+
+    let personTimer=null;
+    personSearch.addEventListener('input',()=>{
+      if(personTimer)clearTimeout(personTimer);
+      personTimer=setTimeout(async()=>{
+        const term=String(personSearch.value||'').trim();
+        person.replaceChildren(new Option('Sem vínculo com cadastro',''));
+
+        if(term.length<2)return;
+
+        try{
+          const rows=await call('pessoas',{busca:term});
+          rows.slice(0,40).forEach(item=>{
+            person.append(
+              new Option(
+                [item.nome,item.cpf,item.cidade].filter(Boolean).join(' · '),
+                item.id
+              )
+            );
+          });
+        }catch(e){}
+      },220);
+    });
+
+    const tags=el('select');
+    tags.multiple=true;
+    tags.size=Math.min(5,Math.max(3,(data.tags||[]).length||3));
+    (data.tags||[]).forEach(tag=>{
+      tags.append(new Option(tag.nome,tag.nome));
+    });
+
     const files=el('input');
     files.type='file';
     files.accept='application/pdf,.pdf';
@@ -774,6 +811,9 @@ window.PDA_MODULES.DIST = (()=>{
 
     body.append(
       grid,
+      field_('Vincular a um cadastro (opcional)',personSearch),
+      field_('Cadastro selecionado',person),
+      field_('Tags',tags),
       field_('Informações da tarefa',description),
       field_('PDFs (opcional, até 5 MB por arquivo)',files)
     );
@@ -807,7 +847,9 @@ window.PDA_MODULES.DIST = (()=>{
               descricao:String(description.value||'').trim(),
               responsavel:responsible.value,
               prioridade:priority.value,
-              prazo:deadline.value
+              prazo:deadline.value,
+              pessoaId:person.value,
+              tags:Array.from(tags.selectedOptions).map(option=>option.value)
             },
             true
           );
