@@ -8,7 +8,8 @@ const read=name=>fs.readFileSync(path.join(base,name),'utf8');
 const app=read('App_Script.html');
 assert.match(app,/READ_CACHE_TTL_MS=30000/);
 assert.match(app,/READ_CACHE_REFRESH_MS=8000/);
-assert.match(app,/raw\(\s*'aquecerAplicacao'/s);
+assert.match(app,/raw\(\s*'carregarModulos'/s);
+assert.match(app,/raw\(\s*'aquecerDadosModulos'/s);
 assert.match(app,/requestIdleCallback/);
 assert.match(app,/function bindModulePrefetch_/);
 assert.match(app,/'mouseenter'/);
@@ -18,6 +19,7 @@ assert.match(app,/window\.PDA_PERF/);
 assert.match(app,/\[PDA desempenho\]/);
 
 const modules=read('06_Modulos.gs');
+assert.match(modules,/function aquecerDadosModulos\(/);
 assert.match(modules,/function aquecerAplicacao\(/);
 assert.match(modules,/'admin'/);
 assert.match(modules,/cache\.put\([\s\S]*?60\s*\)/);
