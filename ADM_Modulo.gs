@@ -358,6 +358,100 @@ function userApproveProfessorResident_(ctx,q){
   return authPublicUser_(change_(ctx,'Usuarios',user.id,userData,q.versao));
 }
 
+function userAdminResetPassword_(ctx,q){
+  const user=
+    get_(
+      'Usuarios',
+      required_(
+        q.id,
+        'usuário'
+      )
+    );
+
+  const senha=
+    authPassword_(
+      q.senha
+    );
+
+  const updated=
+    change_(
+      ctx,
+      'Usuarios',
+      user.id,
+      Object.assign(
+        {},
+        user,
+        authPasswordFields_(
+          senha
+        ),
+        {
+          sessionVersion:
+            Number(
+              user.sessionVersion||
+              0
+            )+1
+        }
+      ),
+      q.versao
+    );
+
+  all_('Sessoes')
+    .filter(session=>
+      session.usuarioId===
+      user.id&&
+      !bool_(
+        session.revogada
+      )
+    )
+    .forEach(session=>
+      change_(
+        ctx,
+        'Sessoes',
+        session.id,
+        Object.assign(
+          {},
+          session,
+          {
+            revogada:true
+          }
+        ),
+        session.versao
+      )
+    );
+
+  props_()
+    .deleteProperty(
+      'AUTH_LIMIT_login_'+
+      hash_(
+        String(
+          user.nomeUsuario||
+          user.email||
+          ''
+        ).toLowerCase()
+      )
+    );
+
+  props_()
+    .deleteProperty(
+      'AUTH_LIMIT_login_'+
+      hash_(
+        String(
+          user.email||
+          ''
+        ).toLowerCase()
+      )
+    );
+
+  return {
+    usuario:
+      authPublicUser_(
+        updated
+      ),
+    mensagem:
+      'Senha redefinida. As sessões anteriores deste usuário foram encerradas.'
+  };
+}
+
 function userSave_(ctx,q){
   const nome=String(
     q.nome||''
@@ -372,6 +466,16 @@ function userSave_(ctx,q){
   )
     .trim()
     .toLowerCase();
+
+  const nomeUsuario=
+    authUsername_(
+      q.nomeUsuario||
+      (
+        q.id
+          ?get_('Usuarios',q.id).nomeUsuario
+          :''
+      )
+    );
 
   const perfil=String(
     q.perfil||''
@@ -437,12 +541,26 @@ function userSave_(ctx,q){
     permissions.unshift('consulta');
   }
 
+  const existingById=
+    q.id
+      ?get_(
+          'Usuarios',
+          q.id
+        )
+      :null;
+
+  authCheckAvailableUsername_(
+    nomeUsuario,
+    existingById&&
+    existingById.id
+  );
+
   const old=all_('Usuarios')
     .find(u=>u.email===email);
 
   if(
     q.id&&
-    get_('Usuarios',q.id).email!==email
+    existingById.email!==email
   ){
     fail_(
       'O próprio usuário pode alterar seu e-mail em Meu perfil.'
@@ -474,6 +592,7 @@ function userSave_(ctx,q){
 
   const userData={
     email,
+    nomeUsuario,
     perfil,
     ativo:bool_(q.ativo),
     nome,
