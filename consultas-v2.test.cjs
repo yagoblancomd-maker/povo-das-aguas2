@@ -1,0 +1,12 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const base=__dirname;
+const read=name=>fs.readFileSync(path.join(base,name),'utf8');
+const backend=read('CONSULTA_V2.gs');
+for(const fn of ['personListLite_','personQuickSummary_','personFichaMeta_','personDocumentsPage_','personProcessesPage_','personAttendancesPage_','personHistoryPage_','taskCreateOptions_']) assert.ok(backend.includes('function '+fn+'('),fn);
+const api=read('06_Modulos.gs');
+for(const action of ['pessoasLeve','pessoaResumo','pessoaFichaMeta','pessoaDocumentos','pessoaProcessos','pessoaAtendimentos','pessoaHistorico','tarefaCriarOpcoes']) assert.ok(api.includes(action),action);
+const app=read('App_Script.html');
+for(const action of ['pessoasLeve','pessoaResumo','pessoaFichaMeta','pessoaDocumentos','pessoaProcessos','pessoaAtendimentos','pessoaHistorico','tarefaCriarOpcoes']) assert.ok(app.includes(action),action);
+console.log('PASS etapa 1: consultas leves e ficha lazy conectadas.');
