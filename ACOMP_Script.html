@@ -85,7 +85,7 @@ window.PDA_MODULES.ACOMP = (()=>{
       ...(d.categoria==='RESIDENCIA'?[
         {
           key:'vencimento',
-          label:'Vencimento do comprovante',
+          label:'Data do comprovante',
           placeholder:'DD/MM/AAAA',
           required:true,
           mask:'date',
@@ -450,7 +450,7 @@ window.PDA_MODULES.ACOMP = (()=>{
         categoryLabel.append(category);
 
         const residenceDateLabel=el('label',undefined,'field');
-        residenceDateLabel.append(el('span','Vencimento do comprovante *'));
+        residenceDateLabel.append(el('span','Data do comprovante *'));
 
         const residenceDate=el('input');
         residenceDate.type='text';
