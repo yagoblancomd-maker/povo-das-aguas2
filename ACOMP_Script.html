@@ -168,7 +168,7 @@ window.PDA_MODULES.ACOMP = (()=>{
                     true
                   );
 
-                  await go('ACOMP',p.id);
+                  await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
                 }
               );
             })
@@ -198,7 +198,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               true
             );
 
-            await go('ACOMP',p.id);
+            await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
             status(result.mensagem||'Documento excluído.');
           });
 
@@ -714,7 +714,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               }
             }
 
-            await go('ACOMP',p.id);
+            await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
 
             if(erros.length){
               status(
@@ -954,10 +954,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               '.'
             );
 
-            await go(
-              'ACOMP',
-              p.id
-            );
+            await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
 
           }catch(e){
             status(
@@ -1009,10 +1006,7 @@ window.PDA_MODULES.ACOMP = (()=>{
               '.'
             );
 
-            await go(
-              'ACOMP',
-              p.id
-            );
+            await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
 
           }catch(e){
             status(
