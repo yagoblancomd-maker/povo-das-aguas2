@@ -489,9 +489,12 @@ function distributionTaskDetail_(q){
     );
 
   const docs=
-    all_('Documentos')
+    where_(
+      'Documentos',
+      'atendimentoId',
+      owner
+    )
       .filter(d=>
-        d.atendimentoId===owner&&
         bool_(d.vigente)
       )
       .map(d=>({
