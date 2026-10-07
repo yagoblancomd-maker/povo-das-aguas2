@@ -14,7 +14,8 @@ window.PDA_MODULES.ACOMP = (()=>{
     PROCESSO_ADMINISTRATIVO:'Processo administrativo',
     PESCA:'Documentos de pesca',
     PROCURACAO:'Procuração',
-    HIPOSSUFICIENCIA:'Declaração de hipossuficiência'
+    HIPOSSUFICIENCIA:'Declaração de hipossuficiência',
+    ANEXO_TAREFA:'Anexo de tarefa'
   };
 
   function readFile_(file){
@@ -1053,6 +1054,74 @@ window.PDA_MODULES.ACOMP = (()=>{
       otherPerson
     );
 
+    if(can('administracao')){
+      const deletePerson=button(
+        'Excluir cadastro',
+        async()=>{
+          const preview=await call(
+            'pessoaExcluirPreview',
+            {id:p.id}
+          );
+
+          const summary=[
+            preview.tarefas+' tarefa(s)',
+            preview.processos+' processo(s)',
+            preview.atendimentos+' atendimento(s)',
+            preview.documentos+' documento(s)'
+          ].join(' · ');
+
+          const first=window.confirm(
+            'Excluir definitivamente o cadastro de '+p.nome+'?\n\n'+
+            summary+
+            '\n\nA pasta da pessoa e os vínculos relacionados também serão apagados.'
+          );
+
+          if(!first)return;
+
+          let confirmarVinculos=false;
+
+          if(preview.exigeConfirmacaoReforcada){
+            confirmarVinculos=window.confirm(
+              'Este cadastro possui processos ou tarefas vinculadas.\n\n'+
+              'Confirmar também a exclusão desses vínculos?'
+            );
+            if(!confirmarVinculos)return;
+          }
+
+          const typed=window.prompt(
+            'Para concluir, digite o CPF do cadastro:\n'+p.cpf
+          );
+
+          if(
+            String(typed||'').replace(/\D/g,'')!==
+            String(p.cpf||'').replace(/\D/g,'')
+          ){
+            status('Exclusão cancelada: o CPF não confere.',true);
+            return;
+          }
+
+          const result=await call(
+            'pessoaExcluirDefinitivo',
+            {
+              id:p.id,
+              versao:p.versao,
+              confirmar:true,
+              confirmarVinculos
+            },
+            true
+          );
+
+          status(result.mensagem||'Cadastro excluído definitivamente.');
+          App.state.selection=null;
+          await go('ACOMP');
+        },
+        true
+      );
+
+      deletePerson.classList.add('acomp-delete-person');
+      actions.append(deletePerson);
+    }
+
     if(
       can('cadastro')&&
       data.podeGerenciarConteudo
@@ -1337,6 +1406,121 @@ window.PDA_MODULES.ACOMP = (()=>{
         ],
         processos
       );
+    }
+
+    const taskSummary=data.tarefasResumo||{abertas:0,concluidas:0};
+    const tasks=details(
+      root,
+      'Tarefas vinculadas ('+
+      (Number(taskSummary.abertas||0)+Number(taskSummary.concluidas||0))+
+      ')'
+    );
+
+    const taskInfo=el('div',undefined,'acomp-task-summary');
+    taskInfo.append(
+      el('span',String(taskSummary.abertas||0)+' aberta(s)'),
+      el('span',String(taskSummary.concluidas||0)+' concluída(s)')
+    );
+    tasks.append(taskInfo);
+
+    const taskList=el('div',undefined,'acomp-task-list');
+
+    const renderTaskRows_=rows=>{
+      taskList.replaceChildren();
+
+      if(!rows.length){
+        taskList.append(
+          el('p','Nenhuma tarefa vinculada nesta situação.','hint')
+        );
+        return;
+      }
+
+      rows.forEach(task=>{
+        const row=el('div',undefined,'acomp-task-row');
+        const copy=el('div');
+        copy.append(
+          el('strong',task.titulo||task.tipoLabel||'Tarefa'),
+          el(
+            'small',
+            [
+              task.tipoLabel,
+              task.responsavelNome||task.responsavel,
+              task.prazo?'Prazo '+task.prazo.split('-').reverse().join('/'):'',
+              task.situacao
+            ].filter(Boolean).join(' · ')
+          )
+        );
+
+        const tags=el('div',undefined,'acomp-task-tags');
+        (task.tags||[]).forEach(tag=>{
+          const chip=el('span',tag.nome||String(tag),'acomp-task-tag');
+          if(tag.cor)chip.style.setProperty('--task-tag-color',tag.cor);
+          tags.append(chip);
+        });
+
+        row.append(copy,tags);
+        taskList.append(row);
+      });
+    };
+
+    renderTaskRows_(data.tarefasAbertas||[]);
+    tasks.append(taskList);
+
+    if(taskSummary.concluidas){
+      let historyLoaded=false;
+      const historyButton=button(
+        'Consultar histórico de tarefas',
+        async()=>{
+          if(historyLoaded)return;
+          historyButton.disabled=true;
+          historyButton.textContent='Carregando histórico...';
+
+          try{
+            const result=await call(
+              'tarefasPessoa',
+              {
+                pessoaId:p.id,
+                historico:true,
+                limit:500
+              }
+            );
+
+            const historyTitle=el(
+              'h4',
+              'Tarefas concluídas ('+(result.tarefas||[]).length+')'
+            );
+
+            const historyList=el('div',undefined,'acomp-task-list history');
+            (result.tarefas||[]).forEach(task=>{
+              const row=el('div',undefined,'acomp-task-row done');
+              row.append(
+                el('strong',task.titulo||task.tipoLabel||'Tarefa'),
+                el(
+                  'small',
+                  [
+                    task.responsavelNome||task.responsavel,
+                    task.concluidaEm?new Date(task.concluidaEm).toLocaleDateString('pt-BR'):'',
+                    task.tipoLabel
+                  ].filter(Boolean).join(' · ')
+                )
+              );
+              historyList.append(row);
+            });
+
+            tasks.append(historyTitle,historyList);
+            historyLoaded=true;
+            historyButton.remove();
+
+          }catch(e){
+            historyButton.disabled=false;
+            historyButton.textContent='Consultar histórico de tarefas';
+            throw e;
+          }
+        },
+        true
+      );
+
+      tasks.append(historyButton);
     }
   };
 })();
