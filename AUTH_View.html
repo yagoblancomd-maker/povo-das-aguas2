@@ -1,10 +1,9 @@
-<section id="pda-auth-overlay" class="pda-auth-overlay" aria-label="Acesso ao Povo das Águas">
+<section id="pda-auth-overlay" class="pda-auth-overlay pda-auth-v2" aria-label="Acesso ao Povo das Águas">
   <div class="pda-auth-shell">
     <header class="pda-auth-brand">
       <div id="pda-auth-logo" class="pda-auth-logo">
         <span class="pda-auth-logo-fallback" aria-hidden="true">PA</span>
       </div>
-
       <div class="pda-auth-brand-copy">
         <span class="pda-auth-institution">CIDIJUS · EMAJ · FURG</span>
         <strong>Povo das Águas</strong>
@@ -12,44 +11,32 @@
     </header>
 
     <div class="pda-auth-layout">
-      <main class="pda-auth-story">
-        <div class="pda-auth-story-copy">
-          <span class="pda-auth-eyebrow">PROJETO DE EXTENSÃO · ACESSO À JUSTIÇA</span>
-          <h1>Justiça que chega até quem vive das águas.</h1>
-          <p class="pda-auth-lead">
-            Um sistema de trabalho para o atendimento jurídico das comunidades pesqueiras:
-            cadastro, documentos, Seguro-Defeso, preparação de ações e acompanhamento.
-          </p>
-
-          <div class="pda-auth-editorial-rule" aria-hidden="true"></div>
-
-          <div class="pda-auth-project-note">
-            <p>
-              O Povo das Águas nasce do contato direto com pessoas, territórios e demandas reais.
-              A tecnologia organiza o trabalho; o centro do projeto continua sendo o atendimento humano.
-            </p>
-            <div class="pda-auth-territories" aria-label="Territórios de atuação">
-              <span>Rio Grande</span>
-              <span>São José do Norte</span>
-              <span>Pelotas</span>
-            </div>
+      <main class="pda-auth-photo-stage" aria-label="Território e comunidades pesqueiras">
+        <div class="pda-auth-photo-main">
+          <div class="pda-auth-photo-copy">
+            <span>POVO DAS ÁGUAS</span>
+            <h1>Território, cuidado e acesso à Justiça.</h1>
           </div>
-
-          <section class="pda-auth-people" aria-label="Pessoas do projeto">
-            <div class="pda-auth-people-head">
-              <span>Equipe do projeto</span>
-              <small>Perfis com foto aparecem aqui quando disponíveis.</small>
-            </div>
-            <div id="pda-auth-faces" class="pda-auth-faces"></div>
-          </section>
         </div>
+
+        <div class="pda-auth-photo-grid" aria-hidden="true">
+          <div class="pda-auth-photo pda-auth-photo-community"></div>
+          <div class="pda-auth-photo pda-auth-photo-channel"></div>
+          <div class="pda-auth-photo pda-auth-photo-boat"></div>
+        </div>
+
+        <div class="pda-auth-faded-text" aria-hidden="true">
+          águas · território · pesca · direitos · presença
+        </div>
+
+        <div id="pda-auth-faces" class="pda-auth-faces" hidden></div>
       </main>
 
       <aside class="pda-auth-card">
         <div class="pda-auth-card-head">
           <span class="pda-auth-card-kicker">ACESSO AO SISTEMA</span>
           <h2 id="pda-auth-title">Entre no Povo das Águas</h2>
-          <p id="pda-auth-subtitle">Entre com seu e-mail e senha.</p>
+          <p id="pda-auth-subtitle">Use seu e-mail e sua senha.</p>
         </div>
 
         <form id="pda-auth-login-form" class="pda-auth-form">
@@ -68,20 +55,24 @@
             </span>
           </label>
 
-          <button class="pda-auth-create" type="submit">
+          <button class="pda-auth-create pda-auth-login-button" type="submit">
             <span>Entrar</span>
             <span aria-hidden="true">→</span>
           </button>
 
+          <button type="button" class="pda-auth-register-highlight" data-auth-page="register">
+            <span>Criar meu acesso</span>
+            <small>Cadastro imediato no sistema</small>
+          </button>
+
           <div class="pda-auth-links">
-            <button type="button" data-auth-page="register">Criar meu acesso</button>
             <button type="button" data-auth-page="recovery">Esqueci minha senha</button>
           </div>
         </form>
 
         <form id="pda-auth-register-form" class="pda-auth-form" hidden>
           <div class="pda-auth-form-note">
-            O acesso é criado imediatamente. Escolha sua função e defina a senha que deseja utilizar.
+            Crie seu acesso e defina a senha que deseja utilizar.
           </div>
 
           <label><span>Nome completo</span><input name="nome" required maxlength="140" autocomplete="name" placeholder="Seu nome completo"></label>
@@ -103,7 +94,7 @@
 
         <form id="pda-auth-recovery-form" class="pda-auth-form" hidden>
           <div class="pda-auth-form-note">
-            Informe o e-mail cadastrado. Você receberá um link para definir uma nova senha.
+            Informe o e-mail cadastrado para receber o link de recuperação.
           </div>
           <label><span>E-mail</span><input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="seu@email.com"></label>
           <button class="pda-auth-create" type="submit"><span>Enviar link de recuperação</span><span aria-hidden="true">→</span></button>
@@ -111,9 +102,7 @@
         </form>
 
         <form id="pda-auth-reset-form" class="pda-auth-form" hidden>
-          <div class="pda-auth-form-note">
-            Escolha a nova senha que deseja utilizar.
-          </div>
+          <div class="pda-auth-form-note">Escolha a nova senha.</div>
           <label>
             <span>Nova senha</span>
             <span class="pda-password-field">
@@ -126,18 +115,12 @@
         </form>
 
         <div id="pda-auth-message" class="pda-auth-message" hidden></div>
-
-        <div class="pda-auth-security">
-          <strong>Acesso protegido</strong>
-          <span>Credenciais e informações de perfil permanecem vinculadas ao Povo das Águas.</span>
-        </div>
       </aside>
     </div>
 
     <footer class="pda-auth-footer">
       <span>Povo das Águas</span>
       <span>CIDIJUS / EMAJ / FURG</span>
-      <span>Extensão universitária e acesso à Justiça</span>
     </footer>
   </div>
 </section>
