@@ -2499,18 +2499,40 @@ f.insertBefore(file,f.firstChild);
  }
 
 
- function base64Blob_(base64,mime){
-  const raw=atob(String(base64||''));
-  const bytes=new Uint8Array(raw.length);
+ function base64Bytes_(base64){
+  const raw=
+    atob(
+      String(base64||'')
+    );
 
-  for(let i=0;i<raw.length;i++){
-    bytes[i]=raw.charCodeAt(i);
+  const bytes=
+    new Uint8Array(
+      raw.length
+    );
+
+  for(
+    let i=0;
+    i<raw.length;
+    i++
+  ){
+    bytes[i]=
+      raw.charCodeAt(i);
   }
 
+  return bytes;
+ }
+
+ function base64Blob_(base64,mime){
   return new Blob(
-    [bytes],
+    [
+      base64Bytes_(
+        base64
+      )
+    ],
     {
-      type:mime||'application/octet-stream'
+      type:
+        mime||
+        'application/octet-stream'
     }
   );
  }
@@ -2518,18 +2540,24 @@ f.insertBefore(file,f.firstChild);
  async function openFileViewer_(source,meta={}){
   const previous=
     document.querySelector(
-      '.pda-file-viewer-overlay'
+      '.pda-file-viewer-dialog'
     );
 
   if(previous){
+    try{
+      if(previous.open){
+        previous.close();
+      }
+    }catch(e){}
+
     previous.remove();
   }
 
-  const overlay=
+  const dialog=
     el(
-      'div',
+      'dialog',
       undefined,
-      'pda-file-viewer-overlay'
+      'pda-file-viewer-dialog'
     );
 
   const modal=
@@ -2547,6 +2575,7 @@ f.insertBefore(file,f.firstChild);
     );
 
   const copy=el('div');
+
   const title=
     el(
       'strong',
@@ -2586,13 +2615,26 @@ f.insertBefore(file,f.firstChild);
       'pda-file-viewer-body'
     );
 
-  body.append(
+  const waiting=
     el(
       'div',
-      'Carregando documento…',
-      'pda-file-viewer-loading'
+      undefined,
+      'pda-file-viewer-waiting'
+    );
+
+  waiting.append(
+    el(
+      'strong',
+      meta.nome||
+      'Documento'
+    ),
+    el(
+      'small',
+      'Preparando a leitura dentro da plataforma.'
     )
   );
+
+  body.append(waiting);
 
   const foot=
     el(
@@ -2607,12 +2649,16 @@ f.insertBefore(file,f.firstChild);
     foot
   );
 
-  overlay.append(modal);
-  document.body.append(overlay);
+  dialog.append(modal);
+  document.body.append(dialog);
 
   let objectUrl='';
+  let pdfDocument=null;
+  let renderToken=0;
 
   const dismiss=()=>{
+    renderToken++;
+
     if(objectUrl){
       URL.revokeObjectURL(
         objectUrl
@@ -2620,25 +2666,48 @@ f.insertBefore(file,f.firstChild);
       objectUrl='';
     }
 
-    overlay.remove();
+    if(
+      pdfDocument&&
+      typeof pdfDocument.destroy===
+        'function'
+    ){
+      try{
+        pdfDocument.destroy();
+      }catch(e){}
+    }
+
+    if(dialog.open){
+      dialog.close();
+    }
   };
 
   close.onclick=dismiss;
 
-  overlay.addEventListener(
-    'click',
+  dialog.addEventListener(
+    'cancel',
     event=>{
-      if(event.target===overlay){
-        dismiss();
-      }
+      event.preventDefault();
+      dismiss();
     }
   );
+
+  dialog.addEventListener(
+    'close',
+    ()=>{
+      dialog.remove();
+    },
+    {once:true}
+  );
+
+  dialog.showModal();
 
   try{
     const result=
       typeof source==='function'
         ?await source()
-        :await Promise.resolve(source);
+        :await Promise.resolve(
+          source
+        );
 
     const mime=
       String(
@@ -2653,10 +2722,17 @@ f.insertBefore(file,f.firstChild);
 
     title.textContent=name;
 
+    const bytes=
+      base64Bytes_(
+        result.base64
+      );
+
     const blob=
-      base64Blob_(
-        result.base64,
-        mime
+      new Blob(
+        [bytes],
+        {
+          type:mime
+        }
       );
 
     objectUrl=
@@ -2665,35 +2741,320 @@ f.insertBefore(file,f.firstChild);
       );
 
     body.replaceChildren();
+    foot.replaceChildren();
 
-    if(mime.startsWith('image/')){
+    if(
+      mime==='application/pdf'||
+      mime.includes('pdf')
+    ){
+      if(
+        !window.pdfjsLib||
+        !window.pdfjsLib.getDocument
+      ){
+        throw new Error(
+          'O visualizador de PDF não foi carregado. Atualize a página e tente novamente.'
+        );
+      }
+
+      pdfDocument=
+        await window.pdfjsLib
+          .getDocument({
+            data:bytes
+          })
+          .promise;
+
+      const shell=
+        el(
+          'div',
+          undefined,
+          'pda-pdf-reader'
+        );
+
+      const toolbar=
+        el(
+          'div',
+          undefined,
+          'pda-pdf-toolbar'
+        );
+
+      const previousPage=
+        button(
+          '←',
+          ()=>{},
+          true
+        );
+
+      previousPage.title=
+        'Página anterior';
+
+      const pageLabel=
+        el(
+          'span',
+          '',
+          'pda-pdf-page-label'
+        );
+
+      const nextPage=
+        button(
+          '→',
+          ()=>{},
+          true
+        );
+
+      nextPage.title=
+        'Próxima página';
+
+      const zoomOut=
+        button(
+          '−',
+          ()=>{},
+          true
+        );
+
+      zoomOut.title=
+        'Reduzir';
+
+      const zoomIn=
+        button(
+          '+',
+          ()=>{},
+          true
+        );
+
+      zoomIn.title=
+        'Ampliar';
+
+      toolbar.append(
+        previousPage,
+        pageLabel,
+        nextPage,
+        zoomOut,
+        zoomIn
+      );
+
+      const canvasWrap=
+        el(
+          'div',
+          undefined,
+          'pda-pdf-canvas-wrap'
+        );
+
+      const canvas=
+        el('canvas');
+
+      canvas.className=
+        'pda-pdf-canvas';
+
+      canvasWrap.append(canvas);
+      shell.append(
+        toolbar,
+        canvasWrap
+      );
+
+      body.append(shell);
+
+      let pageNumber=1;
+      let scale=1.18;
+
+      const renderPage_=async()=>{
+        const token=
+          ++renderToken;
+
+        previousPage.disabled=
+          pageNumber<=1;
+
+        nextPage.disabled=
+          pageNumber>=
+          pdfDocument.numPages;
+
+        pageLabel.textContent=
+          'Página '+
+          pageNumber+
+          ' de '+
+          pdfDocument.numPages;
+
+        const page=
+          await pdfDocument
+            .getPage(
+              pageNumber
+            );
+
+        if(
+          token!==renderToken
+        ){
+          return;
+        }
+
+        const viewport=
+          page.getViewport({
+            scale
+          });
+
+        const ratio=
+          Math.max(
+            1,
+            Math.min(
+              2,
+              window.devicePixelRatio||
+              1
+            )
+          );
+
+        canvas.width=
+          Math.floor(
+            viewport.width*
+            ratio
+          );
+
+        canvas.height=
+          Math.floor(
+            viewport.height*
+            ratio
+          );
+
+        canvas.style.width=
+          Math.floor(
+            viewport.width
+          )+
+          'px';
+
+        canvas.style.height=
+          Math.floor(
+            viewport.height
+          )+
+          'px';
+
+        const context=
+          canvas.getContext(
+            '2d',
+            {
+              alpha:false
+            }
+          );
+
+        context.setTransform(
+          ratio,
+          0,
+          0,
+          ratio,
+          0,
+          0
+        );
+
+        await page.render({
+          canvasContext:context,
+          viewport
+        }).promise;
+      };
+
+      previousPage.onclick=
+        ()=>{
+          if(pageNumber<=1){
+            return;
+          }
+
+          pageNumber--;
+          renderPage_()
+            .catch(error=>
+              status(
+                error.message||
+                String(error),
+                true
+              )
+            );
+        };
+
+      nextPage.onclick=
+        ()=>{
+          if(
+            pageNumber>=
+            pdfDocument.numPages
+          ){
+            return;
+          }
+
+          pageNumber++;
+          renderPage_()
+            .catch(error=>
+              status(
+                error.message||
+                String(error),
+                true
+              )
+            );
+        };
+
+      zoomOut.onclick=
+        ()=>{
+          scale=
+            Math.max(
+              .62,
+              scale-.14
+            );
+
+          renderPage_()
+            .catch(error=>
+              status(
+                error.message||
+                String(error),
+                true
+              )
+            );
+        };
+
+      zoomIn.onclick=
+        ()=>{
+          scale=
+            Math.min(
+              2.8,
+              scale+.14
+            );
+
+          renderPage_()
+            .catch(error=>
+              status(
+                error.message||
+                String(error),
+                true
+              )
+            );
+        };
+
+      await renderPage_();
+
+    }else if(
+      mime.startsWith(
+        'image/'
+      )
+    ){
       const image=el('img');
+
       image.src=objectUrl;
       image.alt=name;
       image.className=
         'pda-file-viewer-image';
+
       body.append(image);
 
     }else if(
-      mime==='application/pdf'||
-      mime.includes('pdf')
+      mime.startsWith(
+        'text/'
+      )
     ){
-      const frame=el('iframe');
-      frame.src=objectUrl;
-      frame.title=name;
-      frame.className=
-        'pda-file-viewer-frame';
-      body.append(frame);
+      const text=
+        new TextDecoder(
+          'utf-8'
+        )
+          .decode(bytes);
 
-    }else if(
-      mime.startsWith('text/')
-    ){
-      const frame=el('iframe');
-      frame.src=objectUrl;
-      frame.title=name;
-      frame.className=
-        'pda-file-viewer-frame';
-      body.append(frame);
+      const pre=
+        el(
+          'pre',
+          text,
+          'pda-file-viewer-text'
+        );
+
+      body.append(pre);
 
     }else{
       const unsupported=
@@ -2706,11 +3067,11 @@ f.insertBefore(file,f.firstChild);
       unsupported.append(
         el(
           'strong',
-          'Arquivo disponível pela plataforma'
+          'Arquivo protegido no sistema'
         ),
         el(
           'p',
-          'Este formato não possui reprodução nativa no navegador. O arquivo permanece protegido e pode ser baixado sem sair da plataforma.'
+          'Este formato não possui reprodução nativa no navegador. O download continua sendo feito pela própria plataforma.'
         )
       );
 
@@ -2722,19 +3083,30 @@ f.insertBefore(file,f.firstChild);
         'Baixar pela plataforma',
         ()=>{
           const anchor=
-            document.createElement('a');
+            document.createElement(
+              'a'
+            );
 
-          anchor.href=objectUrl;
-          anchor.download=name;
-          anchor.rel='noopener';
-          document.body.append(anchor);
+          anchor.href=
+            objectUrl;
+
+          anchor.download=
+            name;
+
+          anchor.rel=
+            'noopener';
+
+          document.body.append(
+            anchor
+          );
+
           anchor.click();
           anchor.remove();
         },
         true
       );
 
-    foot.replaceChildren(
+    foot.append(
       el(
         'span',
         [
@@ -2761,97 +3133,8 @@ f.insertBefore(file,f.firstChild);
     throw error;
   }
 
-  return overlay;
+  return dialog;
  }
-
- function drawerDocumentsTable_(rows,pessoaId){
-  const wrap=
-    el(
-      'div',
-      undefined,
-      'scroll pda-drawer-table'
-    );
-
-  const tableNode=el('table');
-  const thead=el('thead');
-  const header=el('tr');
-
-  [
-    'Documento',
-    'Arquivo',
-    'Conferido',
-    'Ações'
-  ].forEach(label=>
-    header.append(
-      el(
-        'th',
-        label
-      )
-    )
-  );
-
-  thead.append(header);
-
-  const tbody=el('tbody');
-
-  rows.forEach(document=>{
-    const tr=el('tr');
-
-    tr.append(
-      el(
-        'td',
-        document.categoria||
-        'Documento'
-      ),
-      el(
-        'td',
-        document.nome||
-        'Arquivo'
-      ),
-      el(
-        'td',
-        (
-          document.conferido===true||
-          document.conferido==='true'
-        )
-          ?'Sim'
-          :'Não'
-      )
-    );
-
-    const actions=el('td');
-    const view=
-      button(
-        'Visualizar',
-        ()=>openFileViewer_(
-          ()=>call(
-            'documentoConteudo',
-            {
-              id:document.id,
-              pessoaId
-            }
-          ),
-          {
-            nome:document.nome
-          }
-        ),
-        true
-      );
-
-    actions.append(view);
-    tr.append(actions);
-    tbody.append(tr);
-  });
-
-  tableNode.append(
-    thead,
-    tbody
-  );
-
-  wrap.append(tableNode);
-  return wrap;
- }
-
 
  let activePersonDrawer=null;
 
