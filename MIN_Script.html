@@ -138,9 +138,21 @@ window.PDA_MODULES.MIN = (()=>{
         ],
         iniciais,
         d=>[
-          link(
-            d.url,
-            'Abrir PDF'
+          button(
+            'Visualizar',
+            ()=>App.openFileViewer(
+              ()=>call(
+                'documentoConteudo',
+                {
+                  id:d.id,
+                  pessoaId:p.id
+                }
+              ),
+              {
+                nome:d.nome
+              }
+            ),
+            true
           )
         ]
       );
