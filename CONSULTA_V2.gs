@@ -156,12 +156,31 @@ function personLiteRow_(person,indexes){
 
 function personListLite_(q){
   q=q||{};
+  const term=String(q.busca||'').trim().toLowerCase();
+
+  /*
+   * Consultar Cadastros não carrega a base inteira. Sem filtro, devolve
+   * resposta vazia antes de tocar Pessoas, Usuários, Processos ou Tarefas.
+   */
+  if(!term){
+    const limit=Math.min(100,Math.max(10,Number(q.limit)||30));
+    const offset=Math.max(0,Number(q.offset)||0);
+
+    return {
+      pessoas:[],
+      total:0,
+      offset,
+      limit,
+      hasMore:false,
+      aguardandoFiltro:true
+    };
+  }
+
   /*
    * A lista não lê Documentos nem Atendimentos. Esses dados pesados só são
    * consultados quando o usuário abre o drawer de uma pessoa.
    */
   const indexes=personListIndexes_();
-  const term=String(q.busca||'').trim().toLowerCase();
   const typedCpf=term.replace(/\D/g,'');
   const cidade=String(q.cidade||'').trim().toLowerCase();
   const jurisdicao=String(q.jurisdicao||'').trim().toLowerCase();
