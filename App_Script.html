@@ -3627,8 +3627,11 @@ f.insertBefore(file,f.firstChild);
  }
 
  async function createTaskForPerson_(person,onSaved){
-  if(!can('gestao_distribuicao')){
-    throw new Error('Você não possui permissão para criar e distribuir tarefas.');
+  if(
+    !can('gestao_distribuicao')&&
+    !can('criar_tarefa_entidade')
+  ){
+    throw new Error('Você não possui permissão para criar tarefas.');
   }
 
   const options=await call('tarefaCriarOpcoes');
@@ -4424,7 +4427,8 @@ f.insertBefore(file,f.firstChild);
     );
 
   createTask.hidden=
-    !can('gestao_distribuicao');
+    !can('gestao_distribuicao')&&
+    !can('criar_tarefa_entidade');
 
   deleteButton=
     button(
