@@ -418,7 +418,7 @@ window.PDA_MODULES.DIST = (()=>{
   }
 
   async function openGeneralDialog_(root,task,refresh){
-    const detail=await call(
+    let detail=await call(
       'tarefaGeralDetalhe',
       {id:task.id}
     );
@@ -452,16 +452,22 @@ window.PDA_MODULES.DIST = (()=>{
 
     const overview=el('div',undefined,'dist-general-overview');
 
-    [
-      ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
-      ['Prioridade',priority_(detail.tarefa.prioridade)],
-      ['Prazo',date_(detail.tarefa.prazo)],
-      ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
-    ].forEach(([label,value])=>{
-      const item=el('div');
-      item.append(el('span',label),el('strong',value||'—'));
-      overview.append(item);
-    });
+    const renderOverview=()=>{
+      overview.replaceChildren();
+
+      [
+        ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
+        ['Prioridade',priority_(detail.tarefa.prioridade)],
+        ['Prazo',date_(detail.tarefa.prazo)],
+        ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
+      ].forEach(([label,value])=>{
+        const item=el('div');
+        item.append(el('span',label),el('strong',value||'—'));
+        overview.append(item);
+      });
+    };
+
+    renderOverview();
 
     body.append(
       overview,
@@ -516,9 +522,16 @@ window.PDA_MODULES.DIST = (()=>{
               },
               true
             );
+
+            detail=await call(
+              'tarefaGeralDetalhe',
+              {id:detail.tarefa.id}
+            );
+
+            renderOverview();
             status('Responsável atualizado.');
-            dialog.close();
-            await refresh();
+
+            refresh().catch(()=>{});
           }
         )
       );
@@ -551,14 +564,16 @@ window.PDA_MODULES.DIST = (()=>{
         addFile.files
       );
 
-      status('PDF(s) anexado(s).');
-      dialog.close();
-      await refresh();
-      await openGeneralDialog_(
-        root,
-        detail.tarefa,
-        refresh
+      detail=await call(
+        'tarefaGeralDetalhe',
+        {id:detail.tarefa.id}
       );
+
+      renderAttachments_(fileGrid,detail);
+      addFile.value='';
+      status('PDF(s) anexado(s).');
+
+      refresh().catch(()=>{});
     });
 
     filesHead.append(upload,addFile);
@@ -598,14 +613,16 @@ window.PDA_MODULES.DIST = (()=>{
             true
           );
 
-          status('Mensagem enviada.');
-          dialog.close();
-          await refresh();
-          await openGeneralDialog_(
-            root,
-            detail.tarefa,
-            refresh
+          detail=await call(
+            'tarefaGeralDetalhe',
+            {id:detail.tarefa.id}
           );
+
+          renderMessages_(messages,detail);
+          textarea.value='';
+          status('Mensagem enviada.');
+
+          refresh().catch(()=>{});
         }
       )
     );
