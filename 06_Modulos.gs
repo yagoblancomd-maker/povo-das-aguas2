@@ -344,7 +344,15 @@ const SERVER_CACHEABLE_READS=new Set([
   'tarefasMinhasHistorico',
   'tarefasPessoa',
   'tarefasTags',
-  'distribuicaoRanking'
+  'distribuicaoRanking',
+  'pessoasLeve',
+  'pessoaResumo',
+  'pessoaFichaMeta',
+  'pessoaDocumentos',
+  'pessoaProcessos',
+  'pessoaAtendimentos',
+  'pessoaHistorico',
+  'tarefaCriarOpcoes'
 ]);
 
 function serverCachedRead_(action,q,producer){
@@ -444,7 +452,15 @@ function apiAuthenticated_(action,q,sessionToken){
       };
     },
     pessoas:()=>personSearch_(q),
+    pessoasLeve:()=>personListLite_(q),
     pessoa:()=>get_('Pessoas',q.id),
+    pessoaResumo:()=>personQuickSummary_(q),
+    pessoaFichaMeta:()=>personFichaMeta_(q),
+    pessoaDocumentos:()=>personDocumentsPage_(q),
+    pessoaProcessos:()=>personProcessesPage_(q),
+    pessoaAtendimentos:()=>personAttendancesPage_(q),
+    pessoaHistorico:()=>personHistoryPage_(q),
+    tarefaCriarOpcoes:()=>taskCreateOptions_(),
     ficha:()=>dossier_(q),
     painel:()=>dashboard_(),
     distribuicaoFila:()=>distributionQueue_(),
@@ -551,6 +567,7 @@ function apiAuthenticated_(action,q,sessionToken){
       tarefasPessoa:'consulta',
       tarefasTags:'consulta',
       distribuicaoRanking:'gestao_distribuicao',
+      tarefaCriarOpcoes:'gestao_distribuicao',
       pessoaExcluirPreview:'administracao',
       tarefaDistribuicaoDetalhe:'distribuicao',
       tarefaGeralDetalhe:'consulta',
