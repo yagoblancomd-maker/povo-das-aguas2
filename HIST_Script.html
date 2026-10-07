@@ -134,7 +134,8 @@ window.PDA_MODULES.HIST=(()=>{
       const request=++seq;
       if(offset===0){
         rows=[];
-        list.replaceChildren(el('p','Carregando…','hint'));
+        list.replaceChildren();
+        list.classList.add('is-syncing');
       }else{
         more.disabled=true;
         more.textContent='Carregando…';
@@ -158,6 +159,7 @@ window.PDA_MODULES.HIST=(()=>{
 
       total=Number(data.total||0);
       hasMore=!!data.hasMore;
+      list.classList.remove('is-syncing');
       render_();
     };
 
