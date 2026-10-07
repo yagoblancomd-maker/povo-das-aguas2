@@ -186,7 +186,18 @@ function personListLite_(q){
   const jurisdicao=String(q.jurisdicao||'').trim().toLowerCase();
   const entidade=String(q.entidade||'').trim().toLowerCase();
 
+  const currentUser=activeUser_();
+
   let rows=indexes.people.filter(person=>{
+    if(
+      !personInUserScope_(
+        currentUser,
+        person
+      )
+    ){
+      return false;
+    }
+
     const cpf=String(person.cpf||'').replace(/\D/g,'');
     const searchable=[
       person.nome,
@@ -234,8 +245,7 @@ function personListLite_(q){
 
 function personQuickSummary_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.id,
         'pessoa'
@@ -385,6 +395,10 @@ function personQuickSummary_(q){
       hasPermission_(
         user,
         'gestao_distribuicao'
+      )||
+      hasPermission_(
+        user,
+        'criar_tarefa_entidade'
       ),
     podeExcluir:
       hasPermission_(
@@ -431,7 +445,7 @@ function personDocumentBelongs_(document,personId){
 
 function personDocumentContent_(q){
   const personId=String(required_(q.pessoaId,'pessoa')).trim();
-  get_('Pessoas',personId);
+  getScopedPerson_(personId);
 
   const document=get_(
     'Documentos',
@@ -500,10 +514,10 @@ function personDrawerInitial_(q){
     )
   ).trim();
 
-  const pessoa=get_(
-    'Pessoas',
-    pessoaId
-  );
+  const pessoa=
+    getScopedPerson_(
+      pessoaId
+    );
 
   return {
     pessoa,
@@ -530,8 +544,7 @@ function personDrawerInitial_(q){
 
 function personDocumentsPage_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.pessoaId,
         'pessoa'
@@ -638,8 +651,7 @@ function personDocumentsPage_(q){
 
 function personProcessesPage_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.pessoaId,
         'pessoa'
@@ -701,8 +713,7 @@ function personProcessesPage_(q){
 
 function personAttendancesPage_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.pessoaId,
         'pessoa'
@@ -764,8 +775,7 @@ function personAttendancesPage_(q){
 
 function personHistoryPage_(q){
   const person=
-    get_(
-      'Pessoas',
+    getScopedPerson_(
       required_(
         q.pessoaId,
         'pessoa'
@@ -888,6 +898,23 @@ function personHistoryPage_(q){
 }
 
 function taskCreateOptions_(){
+  const user=activeUser_();
+
+  if(
+    !hasPermission_(
+      user,
+      'gestao_distribuicao'
+    )&&
+    !hasPermission_(
+      user,
+      'criar_tarefa_entidade'
+    )
+  ){
+    fail_(
+      'Você não possui permissão para criar tarefas.'
+    );
+  }
+
   return {
     usuarios:generalTaskAssignableUsers_(),
     tags:taskTagCatalog_()
