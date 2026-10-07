@@ -822,9 +822,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
   return async function(ctx){
     const root=ctx.root;
+    const content=el('div',undefined,'tasks-live-content');
+    root.append(content);
 
     const render=async()=>{
-      root.replaceChildren();
+      content.setAttribute('aria-busy','true');
 
       const data=await call('tarefasMinhas');
       if(!alive(ctx))return;
@@ -867,7 +869,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
       });
 
       head.append(copy,summary);
-      root.append(head);
+      content.append(head);
 
       const openDistribution=async task=>{
         const detail=await call(
@@ -913,7 +915,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
       }
 
       internal.append(internalHead,internalGrid);
-      root.append(internal);
+      content.append(internal);
 
       const distribution=el('section',undefined,'tasks-section');
       const distributionHead=el('div',undefined,'tasks-section-head');
@@ -950,7 +952,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
         distributionGrid
       );
 
-      root.append(distribution);
+      content.append(distribution);
 
       if(generalDone.length||distributionDone.length){
         const doneSection=el('section',undefined,'tasks-section');
@@ -976,8 +978,10 @@ window.PDA_MODULES.TAREFAS = (()=>{
         );
 
         doneSection.append(doneHead,doneGrid);
-        root.append(doneSection);
+        content.append(doneSection);
       }
+
+      content.removeAttribute('aria-busy');
     };
 
     await render();
