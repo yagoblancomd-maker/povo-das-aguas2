@@ -19,8 +19,8 @@ function distributionAutoEnabled_(){
   }
 }
 
-function distributionAutoAssignee_(tasks){
-  const users=distributionUsers_();
+function distributionAutoAssignee_(tasks,eligibleUsers){
+  const users=eligibleUsers||distributionUsers_();
   if(!users.length)return null;
 
   const open=(tasks||all_('Tarefas')).filter(task=>
@@ -74,6 +74,14 @@ function distributionAutoSave_(ctx,q){
 
 function distributionAutoRun_(ctx){
   const staged=all_('Tarefas').map(task=>Object.assign({},task));
+  const users=distributionUsers_();
+  const usersByEmail=new Map(
+    users.map(user=>[
+      String(user.email||'').toLowerCase(),
+      user
+    ])
+  );
+
   const pending=staged
     .filter(task=>
       task.tipo===DISTRIBUTION_TASK_TYPE&&
@@ -82,20 +90,23 @@ function distributionAutoRun_(ctx){
     )
     .sort((a,b)=>String(a.criadoEm||'').localeCompare(String(b.criadoEm||'')));
 
-  let assigned=0;
+  const alteradas=[];
 
   pending.forEach(task=>{
-    const user=distributionAutoAssignee_(staged);
+    const user=distributionAutoAssignee_(staged,users);
     if(!user)return;
+
+    const assignedAt=now_();
+    const email=String(user.email||'').toLowerCase();
 
     const updated=change_(
       ctx,
       'Tarefas',
       task.id,
       Object.assign({},task,{
-        responsavel:String(user.email||'').toLowerCase(),
+        responsavel:email,
         situacao:DISTRIBUTION_TASK_ASSIGNED,
-        atribuidaEm:now_(),
+        atribuidaEm:assignedAt,
         modoDistribuicao:'AUTOMATICA',
         observacoes:String(task.observacoes||'')+
           (task.observacoes?'\n':'')+
@@ -106,13 +117,25 @@ function distributionAutoRun_(ctx){
 
     const index=staged.findIndex(item=>item.id===task.id);
     if(index>=0)staged[index]=updated;
-    assigned++;
+
+    const resolved=usersByEmail.get(email)||user;
+    alteradas.push({
+      id:updated.id,
+      versao:updated.versao,
+      responsavel:email,
+      responsavelNome:resolved.nome||email,
+      situacao:updated.situacao,
+      atribuidaEm:updated.atribuidaEm,
+      dataDistribuicao:updated.atribuidaEm,
+      modoDistribuicao:updated.modoDistribuicao
+    });
   });
 
   return {
-    atribuidas:assigned,
-    mensagem:assigned
-      ?assigned+' tarefa(s) distribuída(s) automaticamente.'
+    atribuidas:alteradas.length,
+    alteradas,
+    mensagem:alteradas.length
+      ?alteradas.length+' tarefa(s) distribuída(s) automaticamente.'
       :'Não havia tarefas pendentes para distribuição automática.'
   };
 }
