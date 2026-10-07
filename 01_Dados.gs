@@ -399,6 +399,15 @@ function commit_(ctx,result){
     ctx.changes.slice();
 
   ctx.changes.forEach(c=>{
+    /*
+     * Leituras de tarefa são estado efêmero por usuário. Não geram linha
+     * de auditoria a cada abertura, reduzindo gravações e crescimento da aba
+     * Histórico sem perder auditoria das alterações de negócio.
+     */
+    if(c.entity==='TarefaLeituras'){
+      return;
+    }
+
     const target=
       c.after||
       c.before;
