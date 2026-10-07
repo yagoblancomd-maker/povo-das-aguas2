@@ -1,6 +1,8 @@
 let DATA_CACHE = {};
 let DATA_INDEX_CACHE_={};
 let ROW_INDEX_CACHE_={};
+let ENTITY_SHEET_CACHE_={};
+let ENTITY_SCHEMA_OK_={};
 let SPREADSHEET_CACHE_=null;
 let SPREADSHEET_CACHE_ID_='';
 
@@ -8,6 +10,8 @@ function resetData_(){
   DATA_CACHE={};
   DATA_INDEX_CACHE_={};
   ROW_INDEX_CACHE_={};
+  ENTITY_SHEET_CACHE_={};
+  ENTITY_SCHEMA_OK_={};
   SPREADSHEET_CACHE_=null;
   SPREADSHEET_CACHE_ID_='';
 }
@@ -56,8 +60,20 @@ function headers_(entity){
 function ensureEntitySchema_(entity){
   if(!SCHEMA[entity])fail_('Entidade inválida.');
 
-  const sh=ss_().getSheetByName(entity);
+  if(
+    ENTITY_SCHEMA_OK_[entity]&&
+    ENTITY_SHEET_CACHE_[entity]
+  ){
+    return ENTITY_SHEET_CACHE_[entity];
+  }
+
+  const sh=
+    ENTITY_SHEET_CACHE_[entity]||
+    ss_().getSheetByName(entity);
+
   if(!sh)fail_('Aba não encontrada: '+entity+'.');
+
+  ENTITY_SHEET_CACHE_[entity]=sh;
 
   const expected=headers_(entity);
   const lastColumn=sh.getLastColumn();
@@ -67,12 +83,14 @@ function ensureEntitySchema_(entity){
     sh.setFrozenRows(1);
     sh.getRange(1,1,1,expected.length).setBackground('#12364a').setFontColor('#ffffff');
     sh.getRange(1,1,sh.getMaxRows(),expected.length).setNumberFormat('@');
+    ENTITY_SCHEMA_OK_[entity]=true;
     return sh;
   }
 
   const current=sh.getRange(1,1,1,lastColumn).getDisplayValues()[0];
 
   if(JSON.stringify(current)===JSON.stringify(expected)){
+    ENTITY_SCHEMA_OK_[entity]=true;
     return sh;
   }
 
@@ -89,6 +107,8 @@ function ensureEntitySchema_(entity){
   sh.getRange(1,current.length+1,sh.getMaxRows(),missing.length).setNumberFormat('@');
   SpreadsheetApp.flush();
   resetData_();
+  ENTITY_SHEET_CACHE_[entity]=sh;
+  ENTITY_SCHEMA_OK_[entity]=true;
   return sh;
 }
 
