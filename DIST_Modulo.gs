@@ -47,9 +47,31 @@ function ensureDistributionTask_(ctx,p){
     return null;
   }
 
+  const stagedTasks=
+    all_('Tarefas')
+      .map(task=>Object.assign({},task));
+
+  (ctx.changes||[])
+    .filter(change=>
+      change.entity==='Tarefas'&&
+      change.after
+    )
+    .forEach(change=>{
+      const index=
+        stagedTasks.findIndex(task=>
+          task.id===change.after.id
+        );
+
+      if(index>=0){
+        stagedTasks[index]=change.after;
+      }else{
+        stagedTasks.push(change.after);
+      }
+    });
+
   const autoUser=
     distributionAutoEnabled_()
-      ?distributionAutoAssignee_()
+      ?distributionAutoAssignee_(stagedTasks)
       :null;
 
   return change_(
