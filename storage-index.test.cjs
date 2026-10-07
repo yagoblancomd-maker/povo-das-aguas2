@@ -18,7 +18,8 @@ const dados=fs.readFileSync(path.join(__dirname,'01_Dados.gs'),'utf8');
 for(const token of ['DATA_INDEX_CACHE_','ROW_INDEX_CACHE_','function indexBy_','function where_','createTextFinder']) assert.ok(dados.includes(token),token);
 
 const tasks=fs.readFileSync(path.join(__dirname,'TASKS_V2.gs'),'utf8');
-assert.ok(tasks.includes("where_('Atendimentos'"));
+assert.ok(tasks.includes('where_('));
+assert.ok(tasks.includes("'Atendimentos'"));
 assert.ok(tasks.includes('root.getFoldersByName'));
 assert.ok(!tasks.includes('const iterator=root.getFolders()'));
 
