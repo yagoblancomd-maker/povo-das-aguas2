@@ -234,8 +234,16 @@ function aquecerDadosModulos(codes,sessionToken){
         ],
         PROC:[
           'processos',
-          {},
-          ()=>processList_()
+          {
+            busca:'',
+            offset:0,
+            limit:50
+          },
+          ()=>processList_({
+            busca:'',
+            offset:0,
+            limit:50
+          })
         ],
         HIST:[
           'historicoGeral',
@@ -498,7 +506,7 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralDetalhe:()=>generalTaskDetail_(q),
     tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
     notificacoesTarefas:()=>taskNotifications_(),
-    processos:()=>processList_(),
+    processos:()=>processList_(q),
     adminUsuarios:()=>adminUsersData_(),
     adminTags:()=>adminTagsData_(),
     adminIntegracoes:()=>adminIntegrationsData_(),
