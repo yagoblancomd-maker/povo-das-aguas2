@@ -94,7 +94,7 @@ assert.match(auth,/Criar meu acesso/);
 assert.doesNotMatch(auth,/Entrar com Google|Fazer login com Google|Google Sign-In/i);
 
 const admin=read('ADM_Script.html');
-assert.match(admin,/adm-users-layout/);
+assert.match(admin,/adm-users-v3-layout/);
 assert.match(admin,/Tags de tarefas/);
 assert.match(admin,/tarefaTagSalvar/);
 
