@@ -976,6 +976,292 @@ function distributionTaskAssign_(ctx,q){
   );
 }
 
+
+function distributionClaimNext_(ctx){
+  const user=
+    activeUser_();
+
+  if(
+    !hasPermission_(
+      user,
+      'distribuicao'
+    )
+  ){
+    fail_(
+      'Você não possui permissão para assumir distribuições processuais.'
+    );
+  }
+
+  const task=
+    all_('Tarefas')
+      .filter(item=>
+        item.tipo===DISTRIBUTION_TASK_TYPE&&
+        item.situacao!==DISTRIBUTION_TASK_DONE&&
+        !String(item.responsavel||'').trim()
+      )
+      .sort((a,b)=>
+        String(
+          a.criadoEm||
+          ''
+        ).localeCompare(
+          String(
+            b.criadoEm||
+            ''
+          )
+        )
+      )[0]||
+    null;
+
+  if(!task){
+    return {
+      atribuida:false,
+      mensagem:
+        'Não há distribuições processuais sem responsável neste momento.'
+    };
+  }
+
+  const updated=
+    distributionTaskAssign_(
+      ctx,
+      {
+        id:task.id,
+        responsavel:user.email
+      }
+    );
+
+  return {
+    atribuida:true,
+    id:updated.id,
+    responsavel:updated.responsavel,
+    situacao:updated.situacao,
+    atribuidaEm:updated.atribuidaEm,
+    mensagem:
+      'Uma distribuição processual foi atribuída a você.'
+  };
+}
+
+function taskBatchAssign_(ctx,q){
+  const ids=
+    Array.isArray(q.ids)
+      ?[
+          ...new Set(
+            q.ids
+              .map(id=>String(id||'').trim())
+              .filter(Boolean)
+          )
+        ]
+      :[];
+
+  const assignees=
+    Array.isArray(q.responsaveis)
+      ?[
+          ...new Set(
+            q.responsaveis
+              .map(email=>
+                String(email||'')
+                  .trim()
+                  .toLowerCase()
+              )
+              .filter(Boolean)
+          )
+        ]
+      :[];
+
+  if(!ids.length){
+    fail_(
+      'Selecione ao menos uma tarefa.'
+    );
+  }
+
+  if(ids.length>200){
+    fail_(
+      'A distribuição em lote aceita no máximo 200 tarefas por operação.'
+    );
+  }
+
+  if(!assignees.length){
+    fail_(
+      'Selecione ao menos um usuário responsável.'
+    );
+  }
+
+  const users=
+    all_('Usuarios');
+
+  const usersByEmail=
+    new Map(
+      users.map(user=>[
+        String(user.email||'').toLowerCase(),
+        user
+      ])
+    );
+
+  const selectedUsers=
+    assignees.map(email=>{
+      const user=
+        usersByEmail.get(email);
+
+      if(
+        !user||
+        !bool_(user.ativo)
+      ){
+        fail_(
+          'Usuário não localizado ou inativo: '+
+          email
+        );
+      }
+
+      return user;
+    });
+
+  const tasks=
+    ids.map(id=>
+      get_(
+        'Tarefas',
+        id
+      )
+    );
+
+  const includesDistribution=
+    tasks.some(task=>
+      task.tipo===DISTRIBUTION_TASK_TYPE
+    );
+
+  if(includesDistribution){
+    selectedUsers.forEach(user=>{
+      if(
+        !hasPermission_(
+          user,
+          'distribuicao'
+        )
+      ){
+        fail_(
+          'Quando houver distribuição processual selecionada, todos os usuários escolhidos devem possuir permissão de distribuição.'
+        );
+      }
+    });
+  }
+
+  const now=
+    now_();
+
+  const altered=[];
+
+  tasks.forEach((task,index)=>{
+    if(
+      task.situacao===GENERAL_TASK_DONE||
+      task.situacao===DISTRIBUTION_TASK_DONE
+    ){
+      return;
+    }
+
+    const user=
+      selectedUsers[
+        index%
+        selectedUsers.length
+      ];
+
+    let updated;
+
+    if(
+      task.tipo===DISTRIBUTION_TASK_TYPE
+    ){
+      updated=
+        change_(
+          ctx,
+          'Tarefas',
+          task.id,
+          Object.assign(
+            {},
+            task,
+            {
+              responsavel:
+                String(user.email||'')
+                  .toLowerCase(),
+              situacao:
+                DISTRIBUTION_TASK_ASSIGNED,
+              atribuidaEm:now,
+              concluidaEm:'',
+              processoId:'',
+              prazo:
+                task.prazo||
+                taskDatePlusDays_(
+                  task.criadoEm||
+                  now,
+                  4
+                ),
+              prioridade:
+                task.prioridade||
+                'ALTA',
+              tags:
+                task.tags||
+                JSON.stringify(
+                  ['PROCESSO']
+                ),
+              modoDistribuicao:
+                'LOTE'
+            }
+          ),
+          task.versao
+        );
+
+    }else if(
+      task.tipo===GENERAL_TASK_TYPE
+    ){
+      updated=
+        change_(
+          ctx,
+          'Tarefas',
+          task.id,
+          generalTaskData_(
+            task,
+            {
+              responsavel:
+                String(user.email||'')
+                  .toLowerCase(),
+              atribuidaEm:now
+            }
+          ),
+          task.versao
+        );
+
+    }else{
+      return;
+    }
+
+    altered.push({
+      id:updated.id,
+      versao:updated.versao,
+      responsavel:
+        updated.responsavel,
+      responsavelNome:
+        user.nome||
+        user.email,
+      situacao:
+        updated.situacao,
+      atribuidaEm:
+        updated.atribuidaEm,
+      dataDistribuicao:
+        updated.atribuidaEm,
+      modoDistribuicao:
+        updated.modoDistribuicao||
+        'LOTE'
+    });
+  });
+
+  return {
+    alteradas:altered,
+    quantidade:altered.length,
+    mensagem:
+      altered.length+
+      (
+        altered.length===1
+          ?' tarefa distribuída em lote.'
+          :' tarefas distribuídas em lote.'
+      )
+  };
+}
+
 function normalizeTrf4ProcessNumber_(value){
   const digits=
     String(
