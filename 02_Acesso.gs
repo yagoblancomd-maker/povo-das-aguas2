@@ -191,6 +191,142 @@ function authorize_(permission){
   return user.email;
 }
 
+function normalizeEntityScope_(value){
+  return String(value||'')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase();
+}
+
+function isColonyUser_(user){
+  return String(
+    user&&user.perfil||
+    ''
+  ).toUpperCase()==='COLONIA_PESCADOR';
+}
+
+function colonyUserEntity_(user){
+  return String(
+    user&&user.entidade||
+    ''
+  ).trim();
+}
+
+function personInUserScope_(user,person){
+  if(!isColonyUser_(user)){
+    return true;
+  }
+
+  const entity=
+    colonyUserEntity_(
+      user
+    );
+
+  if(!entity){
+    return false;
+  }
+
+  return (
+    normalizeEntityScope_(
+      person&&person.entidade
+    )===
+    normalizeEntityScope_(
+      entity
+    )
+  );
+}
+
+function authorizePersonScope_(person){
+  const user=
+    activeUser_();
+
+  if(
+    !personInUserScope_(
+      user,
+      person
+    )
+  ){
+    fail_(
+      'Este cadastro não pertence à entidade vinculada ao seu usuário.'
+    );
+  }
+
+  return user;
+}
+
+function getScopedPerson_(id){
+  const person=
+    get_(
+      'Pessoas',
+      id
+    );
+
+  authorizePersonScope_(
+    person
+  );
+
+  return person;
+}
+
+function filterPeopleByUserScope_(rows,user){
+  const current=
+    user||
+    activeUser_();
+
+  return (
+    Array.isArray(rows)
+      ?rows
+      :[]
+  )
+    .filter(person=>
+      personInUserScope_(
+        current,
+        person
+      )
+    );
+}
+
+function processInUserScope_(user,process){
+  if(!isColonyUser_(user)){
+    return true;
+  }
+
+  if(!process||!process.pessoaId){
+    return false;
+  }
+
+  const person=
+    findById_(
+      'Pessoas',
+      process.pessoaId
+    );
+
+  return !!person&&
+    personInUserScope_(
+      user,
+      person
+    );
+}
+
+function authorizeProcessScope_(process){
+  const user=
+    activeUser_();
+
+  if(
+    !processInUserScope_(
+      user,
+      process
+    )
+  ){
+    fail_(
+      'Este processo não pertence à entidade vinculada ao seu usuário.'
+    );
+  }
+
+  return user;
+}
+
 function personCreatorEmail_(p){
   const explicit=String(p&&p.criadoPor||'').trim().toLowerCase();
   if(explicit)return explicit;
@@ -219,6 +355,15 @@ function personCreatorEmail_(p){
 }
 
 function canRetifyPerson_(user,p){
+  if(
+    !personInUserScope_(
+      user,
+      p
+    )
+  ){
+    return false;
+  }
+
   if(hasPermission_(user,'retificacao')){
     return true;
   }
@@ -243,6 +388,15 @@ function authorizePersonRetification_(p){
 }
 
 function canWritePersonContent_(user,p){
+  if(
+    !personInUserScope_(
+      user,
+      p
+    )
+  ){
+    return false;
+  }
+
   if(
     hasPermission_(
       user,
