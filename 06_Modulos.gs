@@ -339,7 +339,12 @@ const SERVER_CACHEABLE_READS=new Set([
   'processos',
   'admin',
   'tarefasAbertasGestao',
-  'tarefasMinhasAbertas'
+  'tarefasMinhasAbertas',
+  'tarefasHistorico',
+  'tarefasMinhasHistorico',
+  'tarefasPessoa',
+  'tarefasTags',
+  'distribuicaoRanking'
 ]);
 
 function serverCachedRead_(action,q,producer){
