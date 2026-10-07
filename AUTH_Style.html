@@ -486,4 +486,257 @@ body.auth-pending{
     animation:none!important
   }
 }
+
+
+/* =========================================================
+   LOGIN V2 — FOTOGRAFIA, ÁGUA E PERTENCIMENTO
+   ========================================================= */
+.pda-auth-v2{
+  min-height:100vh;
+  color:#fff;
+  background:
+    linear-gradient(115deg,rgba(3,34,49,.74),rgba(3,34,49,.18)),
+    var(--pda-photo-channel);
+  background-size:cover;
+  background-position:center
+}
+.pda-auth-v2::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(3,27,39,.18),rgba(3,27,39,.48)),
+    radial-gradient(circle at 80% 8%,rgba(255,255,255,.13),transparent 26%)
+}
+.pda-auth-v2 .pda-auth-shell{
+  position:relative;
+  z-index:1;
+  width:min(1420px,calc(100% - 40px));
+  min-height:100vh;
+  padding:22px 0 18px
+}
+.pda-auth-v2 .pda-auth-brand{
+  min-height:72px;
+  padding:0 0 12px;
+  border:0;
+  color:#fff
+}
+.pda-auth-v2 .pda-auth-logo{
+  width:60px;
+  height:60px;
+  border:1px solid rgba(255,255,255,.34);
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(0,0,0,.22)
+}
+.pda-auth-v2 .pda-auth-brand-copy .pda-auth-institution{
+  color:#cbe5e8
+}
+.pda-auth-v2 .pda-auth-brand-copy strong{
+  color:#fff;
+  font-family:var(--pda-display,"Iowan Old Style",Palatino,Georgia,serif);
+  font-size:26px
+}
+.pda-auth-v2 .pda-auth-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) minmax(350px,.58fr);
+  gap:24px;
+  align-items:stretch;
+  min-height:calc(100vh - 145px);
+  padding:10px 0 16px
+}
+.pda-auth-photo-stage{
+  position:relative;
+  display:grid;
+  grid-template-rows:minmax(340px,1fr) 165px;
+  gap:10px;
+  min-width:0;
+  overflow:hidden;
+  border-radius:24px;
+  box-shadow:0 24px 70px rgba(0,0,0,.28)
+}
+.pda-auth-photo-main{
+  position:relative;
+  overflow:hidden;
+  border-radius:24px 24px 10px 10px;
+  background:
+    linear-gradient(90deg,rgba(3,31,44,.76) 0%,rgba(3,31,44,.30) 48%,rgba(3,31,44,.05) 100%),
+    var(--pda-photo-net);
+  background-size:cover;
+  background-position:center 48%
+}
+.pda-auth-photo-main::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0;
+  height:45%;
+  background:linear-gradient(180deg,transparent,rgba(2,25,36,.48))
+}
+.pda-auth-photo-copy{
+  position:absolute;
+  z-index:2;
+  left:34px;
+  bottom:30px;
+  max-width:590px
+}
+.pda-auth-photo-copy>span{
+  display:block;
+  margin-bottom:8px;
+  color:#d5eef0;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.18em
+}
+.pda-auth-photo-copy h1{
+  margin:0;
+  color:#fff;
+  font-family:var(--pda-display,"Iowan Old Style",Palatino,Georgia,serif);
+  font-size:clamp(38px,4.4vw,68px);
+  font-weight:500;
+  line-height:.95;
+  letter-spacing:-.045em;
+  text-shadow:0 3px 22px rgba(0,0,0,.46)
+}
+.pda-auth-photo-grid{
+  display:grid;
+  grid-template-columns:1.05fr .95fr 1fr;
+  gap:10px
+}
+.pda-auth-photo{
+  min-height:160px;
+  overflow:hidden;
+  border-radius:10px;
+  background-size:cover;
+  background-position:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.13)
+}
+.pda-auth-photo-community{
+  background-image:
+    linear-gradient(rgba(3,32,45,.08),rgba(3,32,45,.22)),
+    var(--pda-photo-community)
+}
+.pda-auth-photo-channel{
+  background-image:
+    linear-gradient(rgba(3,32,45,.04),rgba(3,32,45,.18)),
+    var(--pda-photo-channel)
+}
+.pda-auth-photo-boat{
+  background-image:
+    linear-gradient(rgba(3,32,45,.04),rgba(3,32,45,.20)),
+    var(--pda-photo-boat)
+}
+.pda-auth-faded-text{
+  position:absolute;
+  z-index:3;
+  right:22px;
+  bottom:179px;
+  color:rgba(255,255,255,.24);
+  font-family:var(--pda-display,"Iowan Old Style",Palatino,Georgia,serif);
+  font-size:15px;
+  font-style:italic;
+  letter-spacing:.02em;
+  text-shadow:0 1px 8px rgba(0,0,0,.25)
+}
+.pda-auth-v2 .pda-auth-card{
+  align-self:center;
+  width:100%;
+  max-width:none;
+  padding:28px 26px 24px;
+  border:1px solid rgba(255,255,255,.48);
+  border-radius:18px;
+  color:#173f51;
+  background:rgba(255,253,249,.96);
+  box-shadow:0 24px 60px rgba(2,25,36,.26);
+  backdrop-filter:blur(12px)
+}
+.pda-auth-v2 .pda-auth-card-head{
+  margin-bottom:18px
+}
+.pda-auth-v2 .pda-auth-card-head h2{
+  font-size:30px
+}
+.pda-auth-v2 .pda-auth-card-head p{
+  font-size:11px
+}
+.pda-auth-login-button{
+  min-height:46px!important
+}
+.pda-auth-register-highlight{
+  display:grid!important;
+  width:100%!important;
+  min-height:58px!important;
+  justify-items:start!important;
+  margin-top:2px!important;
+  padding:11px 13px!important;
+  border:1px solid #d9ad6b!important;
+  border-radius:10px!important;
+  color:#6f4520!important;
+  text-align:left!important;
+  background:linear-gradient(135deg,#fff4dc,#f7e4bd)!important;
+  box-shadow:none!important
+}
+.pda-auth-register-highlight span{
+  font-size:12px;
+  font-weight:850
+}
+.pda-auth-register-highlight small{
+  margin-top:2px;
+  color:#8a673d;
+  font-size:8px;
+  font-weight:650
+}
+.pda-auth-register-highlight:hover{
+  transform:translateY(-1px)!important;
+  border-color:#c78c3f!important;
+  background:linear-gradient(135deg,#fff0d0,#f4dcaa)!important
+}
+.pda-auth-v2 .pda-auth-links{
+  justify-content:flex-start;
+  margin-top:0
+}
+.pda-auth-v2 .pda-auth-footer{
+  color:rgba(255,255,255,.72);
+  border:0
+}
+@media(max-width:980px){
+  .pda-auth-v2 .pda-auth-layout{
+    grid-template-columns:1fr;
+  }
+  .pda-auth-photo-stage{
+    grid-template-rows:340px 130px
+  }
+  .pda-auth-photo{
+    min-height:125px
+  }
+  .pda-auth-v2 .pda-auth-card{
+    max-width:620px;
+    justify-self:center
+  }
+}
+@media(max-width:620px){
+  .pda-auth-v2 .pda-auth-shell{
+    width:calc(100% - 20px);
+    padding-top:10px
+  }
+  .pda-auth-photo-stage{
+    grid-template-rows:260px 100px
+  }
+  .pda-auth-photo-copy{
+    left:20px;
+    bottom:20px
+  }
+  .pda-auth-photo-copy h1{
+    font-size:37px
+  }
+  .pda-auth-photo{
+    min-height:96px
+  }
+  .pda-auth-faded-text{
+    display:none
+  }
+  .pda-auth-v2 .pda-auth-card{
+    padding:22px 18px
+  }
+}
 </style>
