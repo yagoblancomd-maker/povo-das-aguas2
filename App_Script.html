@@ -3891,7 +3891,6 @@ f.insertBefore(file,f.firstChild);
   };
 
   renderSummary();
-  prefetchLinked_();
 
   const openFull=
     button(
@@ -4218,26 +4217,6 @@ f.insertBefore(file,f.firstChild);
         );
 
       }else{
-        let bundle=null;
-
-        if(
-          key==='dados'||
-          key==='documentos'||
-          key==='atendimentos'||
-          key==='processos'
-        ){
-          bundle=
-            initialBundle||
-            await loadBundle_();
-
-          if(
-            !bundle||
-            activePersonDrawer!==overlay
-          ){
-            return;
-          }
-        }
-
         if(
           activePersonDrawer!==overlay
         ){
@@ -4245,7 +4224,15 @@ f.insertBefore(file,f.firstChild);
         }
 
         if(key==='dados'){
-          const data=bundle.pessoa||{};
+          const data=
+            await call(
+              'pessoa',
+              {id},
+              false,
+              {noLoader:true}
+            )||{};
+
+          if(activePersonDrawer!==overlay)return;
 
           node=
             el(
@@ -4292,11 +4279,22 @@ f.insertBefore(file,f.firstChild);
 
         }else if(key==='documentos'){
           const first=
-            bundle.documentos||
+            await call(
+              'pessoaDocumentos',
+              {
+                pessoaId:id,
+                limit:20,
+                offset:0
+              },
+              false,
+              {noLoader:true}
+            )||
             {
               documentos:[],
               hasMore:false
             };
+
+          if(activePersonDrawer!==overlay)return;
 
           const config={
             key:'documentos',
@@ -4332,11 +4330,22 @@ f.insertBefore(file,f.firstChild);
 
         }else if(key==='atendimentos'){
           const first=
-            bundle.atendimentos||
+            await call(
+              'pessoaAtendimentos',
+              {
+                pessoaId:id,
+                limit:20,
+                offset:0
+              },
+              false,
+              {noLoader:true}
+            )||
             {
               atendimentos:[],
               hasMore:false
             };
+
+          if(activePersonDrawer!==overlay)return;
 
           const config={
             key:'atendimentos',
@@ -4394,11 +4403,22 @@ f.insertBefore(file,f.firstChild);
 
         }else if(key==='processos'){
           const first=
-            bundle.processos||
+            await call(
+              'pessoaProcessos',
+              {
+                pessoaId:id,
+                limit:20,
+                offset:0
+              },
+              false,
+              {noLoader:true}
+            )||
             {
               processos:[],
               hasMore:false
             };
+
+          if(activePersonDrawer!==overlay)return;
 
           const config={
             key:'processos',
@@ -4449,7 +4469,39 @@ f.insertBefore(file,f.firstChild);
             );
 
         }else if(key==='tarefas'){
-          prefetchLinked_();
+          if(!tasksOpenPromise){
+            tasksOpenPromise=
+              readRequest_(
+                'tarefasPessoa',
+                {
+                  pessoaId:id,
+                  historico:false,
+                  limit:100,
+                  offset:0
+                }
+              )
+                .catch(()=>{
+                  tasksOpenPromise=null;
+                  return null;
+                });
+          }
+
+          if(!tasksDonePromise){
+            tasksDonePromise=
+              readRequest_(
+                'tarefasPessoa',
+                {
+                  pessoaId:id,
+                  historico:true,
+                  limit:100,
+                  offset:0
+                }
+              )
+                .catch(()=>{
+                  tasksDonePromise=null;
+                  return null;
+                });
+          }
 
           const pair=
             await Promise.all([
@@ -4561,7 +4613,21 @@ f.insertBefore(file,f.firstChild);
           }
 
         }else{
-          prefetchLinked_();
+          if(!historyPromise){
+            historyPromise=
+              readRequest_(
+                'pessoaHistorico',
+                {
+                  pessoaId:id,
+                  limit:30,
+                  offset:0
+                }
+              )
+                .catch(()=>{
+                  historyPromise=null;
+                  return null;
+                });
+          }
 
           const first=
             await historyPromise||
@@ -4687,26 +4753,40 @@ f.insertBefore(file,f.firstChild);
   renderTabs();
 
   /*
-   * O drawer abre imediatamente com o resumo disponível e, no mesmo
-   * instante, inicia uma única carga de todas as informações vinculadas.
-   * As abas passam a estar prontas sem disparar várias execuções concorrentes.
+   * A abertura do drawer não dispara mais Documentos, Atendimentos,
+   * Processos, Tarefas e Histórico ao mesmo tempo. Quando a listagem
+   * não forneceu resumo, busca-se somente o resumo da pessoa; cada aba
+   * consulta seus próprios dados apenas quando for aberta.
    */
-  loadBundle_()
-    .catch(error=>{
-      if(
-        activePersonDrawer===overlay&&
-        !options.summary
-      ){
-        summaryBox.replaceChildren(
-          el(
-            'p',
-            error.message||
-            String(error),
-            'warn'
-          )
-        );
-      }
-    });
+  if(!options.summary){
+    call(
+      'pessoaResumo',
+      {id},
+      false,
+      {noLoader:true}
+    )
+      .then(summary=>{
+        if(
+          activePersonDrawer===overlay&&
+          summary
+        ){
+          person=Object.assign({},person,summary);
+          renderSummary();
+        }
+      })
+      .catch(error=>{
+        if(activePersonDrawer===overlay){
+          summaryBox.replaceChildren(
+            el(
+              'p',
+              error.message||
+              String(error),
+              'warn'
+            )
+          );
+        }
+      });
+  }
 
   return overlay;
  }
