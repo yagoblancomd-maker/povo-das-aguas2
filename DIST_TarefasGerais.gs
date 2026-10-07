@@ -1765,19 +1765,30 @@ function taskNotifications_(){
           maps
         )
       )
-      .sort((a,b)=>
-        String(
+      .sort((a,b)=>{
+        if(
+          !!a.novaManifestacao!==
+          !!b.novaManifestacao
+        ){
+          return a.novaManifestacao
+            ?-1
+            :1;
+        }
+
+        return String(
+          b.ultimaMovimentacaoEm||
           b.atribuidaEm||
           b.criadoEm||
           ''
         ).localeCompare(
           String(
+            a.ultimaMovimentacaoEm||
             a.atribuidaEm||
             a.criadoEm||
             ''
           )
-        )
-      );
+        );
+      });
 
   const isNew=task=>{
     const when=
