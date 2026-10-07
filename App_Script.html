@@ -11,6 +11,11 @@ const App=(()=>{
  let bulkModuleCodes=new Set();
  let dataWarmupPromise=null;
  let warmupScheduled=false;
+ let processingState=null;
+ let processingTimer=null;
+ let processingHideTimer=null;
+ let processingPhraseTimer=null;
+ let processingPhraseIndex=0;
  const MODULE_CACHE=new Map();
  const MODULE_REQUESTS=new Map();
  const READ_CACHE=new Map();
@@ -3982,6 +3987,71 @@ f.insertBefore(file,f.firstChild);
   });
   t.append(thead,body);
   wrap.append(t);
+  return wrap;
+ }
+
+ function drawerDocumentsTable_(rows,personId){
+  const wrap=el('div',undefined,'scroll pda-drawer-table');
+  const table=el('table');
+  const thead=el('thead');
+  const head=el('tr');
+
+  ['Documento','Categoria','Data','Ação']
+    .forEach(label=>head.append(el('th',label)));
+
+  thead.append(head);
+
+  const body=el('tbody');
+
+  rows.forEach(row=>{
+    const tr=el('tr');
+
+    tr.append(
+      el('td',String(row.nome||'Documento')),
+      el('td',String(row.categoria||'—')),
+      el(
+        'td',
+        String(
+          row.criadoEm||
+          row.alteradoEm||
+          ''
+        )
+          .slice(0,10)
+          .split('-')
+          .reverse()
+          .join('/')||
+        '—'
+      )
+    );
+
+    const action=el('td');
+    const view=button(
+      'Visualizar',
+      ()=>openFileViewer_(
+        ()=>call(
+          'documentoConteudo',
+          {
+            pessoaId:personId,
+            id:row.id
+          },
+          false,
+          {noLoader:true}
+        ),
+        {
+          nome:row.nome||
+          'Documento'
+        }
+      ),
+      true
+    );
+
+    action.append(view);
+    tr.append(action);
+    body.append(tr);
+  });
+
+  table.append(thead,body);
+  wrap.append(table);
   return wrap;
  }
 
