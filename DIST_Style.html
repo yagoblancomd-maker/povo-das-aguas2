@@ -553,4 +553,212 @@
     grid-template-columns:1fr
   }
 }
+
+
+/* =========================================================
+   DISTRIBUIÇÃO — FILA OPERACIONAL COMPACTA
+   ========================================================= */
+.dist-grid,
+.dist-general-grid{
+  grid-template-columns:1fr!important;
+  gap:5px!important
+}
+.dist-task-card{
+  display:grid!important;
+  grid-template-columns:minmax(190px,1fr) minmax(360px,2fr) minmax(330px,1.55fr) auto;
+  grid-template-areas:
+    "top info assign actions"
+    "tags info assign actions";
+  gap:4px 10px!important;
+  align-items:center!important;
+  min-height:82px!important;
+  padding:8px 10px!important;
+  border-radius:9px!important
+}
+.dist-task-top{
+  grid-area:top;
+  align-items:center!important;
+  margin:0!important
+}
+.dist-task-top strong{
+  font-size:9.5px!important
+}
+.dist-task-top small{
+  margin-top:1px!important;
+  font-size:7px!important
+}
+.dist-task-status{
+  padding:3px 5px!important;
+  font-size:6.4px!important
+}
+.dist-task-info{
+  grid-area:info;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:3px 6px!important;
+  margin:0!important
+}
+.dist-task-info>div{
+  padding:2px 3px!important;
+  border-radius:0!important;
+  background:transparent!important
+}
+.dist-task-info span{
+  font-size:6.4px!important
+}
+.dist-task-info strong{
+  margin-top:0!important;
+  font-size:7.6px!important
+}
+.dist-task-tags{
+  grid-area:tags;
+  align-self:center!important;
+  margin:0!important;
+  gap:3px!important
+}
+.dist-task-tag{
+  min-height:18px!important;
+  padding:2px 5px!important;
+  font-size:6.3px!important
+}
+.dist-assign-row{
+  grid-area:assign;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:5px!important;
+  align-items:end!important
+}
+.dist-assign-row .field>span{
+  font-size:6.5px!important
+}
+.dist-assign-row select{
+  min-height:29px!important;
+  padding:4px 6px!important;
+  font-size:7.5px!important
+}
+.dist-assign-row button{
+  min-height:29px!important;
+  padding:5px 7px!important;
+  white-space:nowrap!important;
+  font-size:7px!important
+}
+.dist-card-quick-actions{
+  grid-area:actions;
+  display:flex!important;
+  align-items:center!important;
+  margin:0!important;
+  padding:0!important
+}
+.dist-card-quick-actions button{
+  min-height:28px!important;
+  padding:5px 7px!important;
+  white-space:nowrap!important;
+  font-size:7px!important
+}
+
+.dist-general-card{
+  display:grid!important;
+  grid-template-columns:minmax(250px,1.25fr) minmax(390px,1.8fr) minmax(90px,.55fr) auto;
+  grid-template-areas:"gtop gmeta gtags gactions";
+  gap:8px 11px!important;
+  align-items:center!important;
+  min-height:70px!important;
+  padding:8px 10px!important;
+  border-radius:9px!important
+}
+.dist-general-top{
+  grid-area:gtop;
+  align-items:center!important
+}
+.dist-general-top strong{
+  font-size:9.5px!important
+}
+.dist-general-top small{
+  margin-top:1px!important;
+  font-size:6.8px!important
+}
+.dist-general-description{
+  display:none!important
+}
+.dist-general-meta{
+  grid-area:gmeta;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:3px 6px!important;
+  margin:0!important
+}
+.dist-general-meta>div{
+  padding:2px 3px!important;
+  background:transparent!important
+}
+.dist-general-meta span{
+  font-size:6.4px!important
+}
+.dist-general-meta strong{
+  margin-top:0!important;
+  font-size:7.7px!important
+}
+.dist-general-card>.dist-task-tags{
+  grid-area:gtags
+}
+.dist-general-card>.actions{
+  grid-area:gactions;
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  justify-content:flex-end!important;
+  gap:4px!important;
+  margin:0!important;
+  padding:0!important
+}
+.dist-general-card>.actions button{
+  min-height:28px!important;
+  padding:5px 7px!important;
+  white-space:nowrap!important;
+  font-size:7px!important
+}
+
+@media(max-width:1280px){
+  .dist-task-card{
+    grid-template-columns:minmax(210px,1fr) minmax(360px,1.7fr)!important;
+    grid-template-areas:
+      "top info"
+      "assign assign"
+      "tags actions"!important
+  }
+  .dist-general-card{
+    grid-template-columns:minmax(220px,1fr) minmax(360px,1.7fr)!important;
+    grid-template-areas:
+      "gtop gmeta"
+      "gtags gactions"!important
+  }
+}
+@media(max-width:760px){
+  .dist-task-card,
+  .dist-general-card{
+    grid-template-columns:1fr!important
+  }
+  .dist-task-card{
+    grid-template-areas:
+      "top"
+      "info"
+      "tags"
+      "assign"
+      "actions"!important
+  }
+  .dist-general-card{
+    grid-template-areas:
+      "gtop"
+      "gmeta"
+      "gtags"
+      "gactions"!important
+  }
+  .dist-task-info,
+  .dist-general-meta{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+  .dist-assign-row{
+    grid-template-columns:1fr!important
+  }
+  .dist-card-quick-actions,
+  .dist-general-card>.actions{
+    justify-content:flex-start!important
+  }
+}
 </style>
