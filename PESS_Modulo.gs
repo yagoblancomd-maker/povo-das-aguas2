@@ -133,6 +133,21 @@ function personSave_(ctx,q){
       );
 
   if(other){
+    const actor=
+      activeUser_();
+
+    if(
+      isColonyUser_(actor)&&
+      !personInUserScope_(
+        actor,
+        other
+      )
+    ){
+      fail_(
+        'Não é possível criar outro cadastro para este CPF. Se necessário, contate a equipe do projeto.'
+      );
+    }
+
     const state=
       personRegistrationStateGet_(
         other.id
