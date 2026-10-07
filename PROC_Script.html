@@ -212,6 +212,31 @@ window.PDA_MODULES.PROC = (()=>{
 
     const load_=async(offset,append=false)=>{
       const request=++requestSeq;
+      const term=String(search.value||'').trim();
+
+      if(!term){
+        rows=[];
+        total=0;
+        hasMore=false;
+        selected=null;
+        count.textContent='';
+        list.replaceChildren(
+          el(
+            'p',
+            'Digite número do processo, nome, CPF ou jurisdição para pesquisar.',
+            'proc-empty'
+          )
+        );
+        detail.replaceChildren(
+          el(
+            'p',
+            'Os processos somente serão carregados após informar um filtro.',
+            'hint'
+          )
+        );
+        more.hidden=true;
+        return;
+      }
 
       if(!append){
         rows=[];
@@ -232,7 +257,7 @@ window.PDA_MODULES.PROC = (()=>{
         await call(
           'processos',
           {
-            busca:search.value,
+            busca:term,
             offset,
             limit:50
           },
