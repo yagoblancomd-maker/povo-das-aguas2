@@ -89,8 +89,21 @@ assert.match(appStyle,/--pda-paper:#f3f0e8/);
 assert.match(appStyle,/--pda-sea:#1b5f67/);
 
 const authStyle=read('AUTH_Style.html');
-assert.match(authStyle,/font-family:Georgia/);
+assert.match(authStyle,/Palatino Linotype/);
 assert.doesNotMatch(authStyle,/aurora|bubble|fisher-scene/);
+
+const appScript=read('App_Script.html');
+assert.match(appScript,/const PROCESSING_PROFILES=Object\.freeze/);
+assert.match(appScript,/notificacoesTarefasMarcarLidas/);
+assert.match(appScript,/NAV_HELP=Object\.freeze/);
+
+const index=read('Index.html');
+assert.match(index,/id="navContextHelp"/);
+
+const finalStyle=read('App_Style.html');
+assert.match(finalStyle,/\.pda-sidebar\{[\s\S]*?z-index:1200!important/);
+assert.match(finalStyle,/\.app-notification-panel\{[\s\S]*?z-index:1700!important/);
+assert.match(finalStyle,/Iowan Old Style/);
 
 const dashboard=read('PAINEL_Style.html');
 assert.match(dashboard,/var\(--pda-photo-net\)/);
