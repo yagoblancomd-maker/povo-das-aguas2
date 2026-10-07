@@ -311,6 +311,10 @@ function processDetail_(q){
       )
     );
 
+  authorizeProcessScope_(
+    process
+  );
+
   const person=
     findById_(
       'Pessoas',
@@ -451,6 +455,10 @@ function processDatajudSync_(ctx,q){
         'processo'
       )
     );
+
+  authorizeProcessScope_(
+    process
+  );
 
   const now=now_();
   let remote;
