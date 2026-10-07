@@ -440,6 +440,49 @@ function taskMovementMaps_(tasks,messages,attachments,email){
   };
 }
 
+function taskReadSave_(ctx,taskId,email,seenAt){
+  const normalized=
+    String(
+      email||
+      ctx.email||
+      ''
+    ).toLowerCase();
+
+  const rowId=
+    id_(
+      'TREAD',
+      normalized+
+      '|'+
+      taskId
+    );
+
+  const previous=
+    (
+      where_(
+        'TarefaLeituras',
+        'id',
+        rowId
+      )[0]
+    )||
+    null;
+
+  return change_(
+    ctx,
+    'TarefaLeituras',
+    rowId,
+    {
+      tarefaId:taskId,
+      usuario:normalized,
+      ultimoVistoEm:
+        seenAt||
+        now_()
+    },
+    previous
+      ?previous.versao
+      :undefined
+  );
+}
+
 function taskViewMark_(ctx,q){
   ensureGeneralTaskSchema_();
 
@@ -499,44 +542,13 @@ function taskViewMark_(ctx,q){
     );
   }
 
-  const email=
-    String(
-      user.email||
-      ctx.email||
-      ''
-    ).toLowerCase();
-
-  const rowId=
-    id_(
-      'TREAD',
-      email+
-      '|'+
-      task.id
-    );
-
-  const previous=
-    (
-      where_(
-        'TarefaLeituras',
-        'id',
-        rowId
-      )[0]
-    )||
-    null;
-
   const saved=
-    change_(
+    taskReadSave_(
       ctx,
-      'TarefaLeituras',
-      rowId,
-      {
-        tarefaId:task.id,
-        usuario:email,
-        ultimoVistoEm:now_()
-      },
-      previous
-        ?previous.versao
-        :undefined
+      task.id,
+      user.email||
+      ctx.email,
+      now_()
     );
 
   return {
@@ -1428,6 +1440,13 @@ function generalTaskMessageSend_(ctx,q){
       }
     );
 
+  taskReadSave_(
+    ctx,
+    task.id,
+    ctx.email,
+    now_()
+  );
+
   return {
     mensagem:message
   };
@@ -1519,12 +1538,14 @@ function generalTaskAttachmentAdd_(ctx,q){
     filePayload_(q);
 
   const duplicate=
-    all_('TarefaAnexos')
+    where_(
+      'TarefaAnexos',
+      'tarefaId',
+      task.id
+    )
       .find(attachment=>
-        attachment.tarefaId===
-          task.id&&
         attachment.hash===
-          payload.digest
+        payload.digest
       );
 
   if(duplicate){
@@ -1664,6 +1685,13 @@ function generalTaskAttachmentAdd_(ctx,q){
         documentoId:documento?documento.id:''
       }
     );
+
+  taskReadSave_(
+    ctx,
+    task.id,
+    ctx.email,
+    now_()
+  );
 
   return {
     anexo:attachment,
