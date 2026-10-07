@@ -27,6 +27,10 @@ const App=(()=>{
   'tarefasMinhasAbertas',
   'processos',
   'admin',
+  'adminUsuarios',
+  'adminTags',
+  'adminIntegracoes',
+  'adminConfiguracoes',
   'pessoasLeve',
   'pessoaResumo',
   'pessoaFichaMeta',
@@ -42,7 +46,7 @@ const App=(()=>{
   TAREFAS:['tarefasMinhasAbertas',{}],
   DIST:['tarefasAbertasGestao',{}],
   PROC:['processos',{}],
-  ADM:['admin',{}]
+  ADM:['adminUsuarios',{}]
  });
  const el=(tag,text,cls)=>{const n=document.createElement(tag);
 if(text!==undefined)n.textContent=text;
