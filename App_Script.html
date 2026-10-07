@@ -3709,8 +3709,64 @@ f.insertBefore(file,f.firstChild);
   const tabCache=new Map();
   let initialBundle=null;
   let initialBundlePromise=null;
+  let tasksOpenPromise=null;
+  let tasksDonePromise=null;
+  let historyPromise=null;
   let generateMenu=null;
   let deleteButton=null;
+
+
+  const prefetchLinked_=()=>{
+    if(!tasksOpenPromise){
+      tasksOpenPromise=
+        readRequest_(
+          'tarefasPessoa',
+          {
+            pessoaId:id,
+            historico:false,
+            limit:100,
+            offset:0
+          }
+        )
+          .catch(error=>{
+            tasksOpenPromise=null;
+            throw error;
+          });
+    }
+
+    if(!tasksDonePromise){
+      tasksDonePromise=
+        readRequest_(
+          'tarefasPessoa',
+          {
+            pessoaId:id,
+            historico:true,
+            limit:100,
+            offset:0
+          }
+        )
+          .catch(error=>{
+            tasksDonePromise=null;
+            throw error;
+          });
+    }
+
+    if(!historyPromise){
+      historyPromise=
+        readRequest_(
+          'pessoaHistorico',
+          {
+            pessoaId:id,
+            limit:30,
+            offset:0
+          }
+        )
+          .catch(error=>{
+            historyPromise=null;
+            throw error;
+          });
+    }
+  };
 
   const renderSummary=()=>{
     headCopy
@@ -3774,6 +3830,7 @@ f.insertBefore(file,f.firstChild);
   };
 
   renderSummary();
+  prefetchLinked_();
 
   const openFull=
     button(
@@ -3795,9 +3852,9 @@ f.insertBefore(file,f.firstChild);
         person,
         async()=>{
           tabCache.delete('tarefas');
-          initialBundle=null;
-          initialBundlePromise=null;
-          loadBundle_().catch(()=>{});
+          tasksOpenPromise=null;
+          tasksDonePromise=null;
+          prefetchLinked_();
         }
       )
     );
@@ -4011,6 +4068,28 @@ f.insertBefore(file,f.firstChild);
     return list;
   };
 
+
+  const drawerTabPlaceholder_=()=>{
+    const wrap=
+      el(
+        'div',
+        undefined,
+        'pda-drawer-tab-skeleton'
+      );
+
+    for(let i=0;i<4;i++){
+      wrap.append(
+        el(
+          'span',
+          undefined,
+          'pda-drawer-tab-skeleton-line line-'+i
+        )
+      );
+    }
+
+    return wrap;
+  };
+
   const renderTabs=()=>{
     fullArea.replaceChildren();
 
@@ -4048,15 +4127,13 @@ f.insertBefore(file,f.firstChild);
           );
         });
 
-      panel.replaceChildren(
-        el(
-          'p',
-          key==='resumo'
-            ?'Preparando resumo…'
-            :'Carregando informações…',
-          'hint'
-        )
-      );
+      if(key==='resumo'){
+        panel.replaceChildren();
+      }else{
+        panel.replaceChildren(
+          drawerTabPlaceholder_()
+        );
+      }
 
       if(tabCache.has(key)){
         panel.replaceChildren(
@@ -4290,15 +4367,23 @@ f.insertBefore(file,f.firstChild);
             );
 
         }else if(key==='tarefas'){
+          prefetchLinked_();
+
+          const pair=
+            await Promise.all([
+              tasksOpenPromise,
+              tasksDonePromise
+            ]);
+
           const open=
-            bundle.tarefasAbertas||
+            pair[0]||
             {
               tarefas:[],
               total:0
             };
 
           const done=
-            bundle.tarefasConcluidas||
+            pair[1]||
             {
               tarefas:[],
               total:0,
@@ -4394,8 +4479,10 @@ f.insertBefore(file,f.firstChild);
           }
 
         }else{
+          prefetchLinked_();
+
           const first=
-            bundle.historico||
+            await historyPromise||
             {
               historico:[],
               hasMore:false
