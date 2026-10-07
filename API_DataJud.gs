@@ -188,20 +188,20 @@ function datajudNormalizeMovement_(movement){
 }
 
 const DATAJUD_PROCESS_TAG_RULES=Object.freeze([
-  {tag:'BAIXA DEFINITIVA',codes:['22'],terms:['BAIXA DEFINITIVA','ARQUIVAMENTO DEFINITIVO']},
-  {tag:'TRÂNSITO EM JULGADO',codes:['848'],terms:['TRANSITO EM JULGADO']},
-  {tag:'REDISTRIBUIÇÃO',codes:['36'],terms:['REDISTRIBUICAO']},
-  {tag:'DISTRIBUIÇÃO',codes:['26'],terms:['DISTRIBUICAO']},
-  {tag:'TUTELA',codes:['889'],terms:['ANTECIPACAO DE TUTELA','TUTELA','LIMINAR']},
-  {tag:'PROCEDÊNCIA PARCIAL',codes:['221'],terms:['PROCEDENCIA EM PARTE','PROCEDENCIA PARCIAL']},
-  {tag:'IMPROCEDÊNCIA',codes:[],terms:['IMPROCEDENCIA']},
-  {tag:'PROCEDÊNCIA',codes:[],terms:['PROCEDENCIA']},
-  {tag:'SENTENÇA/JULGAMENTO',codes:[],terms:['SENTENCA','PROCEDENCIA','IMPROCEDENCIA','EXTINCAO','JULGAMENTO']},
-  {tag:'DECISÃO',codes:[],terms:['DECISAO','DESPACHO DECISORIO']},
-  {tag:'RECURSO',codes:[],terms:['RECURSO','APELACAO','AGRAVO','EMBARGOS']},
-  {tag:'RPV/PAGAMENTO',codes:[],terms:['RPV','REQUISICAO DE PEQUENO VALOR','PRECATORIO','PAGAMENTO']},
-  {tag:'MUDANÇA DE CLASSE',codes:['10966'],terms:['MUDANCA DE CLASSE PROCESSUAL']},
-  {tag:'CONCLUSÃO',codes:['51'],terms:['CONCLUSAO']}
+  {tag:'BAIXA DEFINITIVA',priority:100,codes:['22'],terms:['BAIXA DEFINITIVA','ARQUIVAMENTO DEFINITIVO']},
+  {tag:'TRÂNSITO EM JULGADO',priority:95,codes:['848'],terms:['TRANSITO EM JULGADO']},
+  {tag:'SENTENÇA/JULGAMENTO',priority:90,codes:['221'],terms:['SENTENCA','JULGAMENTO']},
+  {tag:'PROCEDÊNCIA PARCIAL',priority:91,codes:['221'],terms:['PROCEDENCIA EM PARTE','PROCEDENCIA PARCIAL']},
+  {tag:'IMPROCEDÊNCIA',priority:91,codes:[],terms:['IMPROCEDENCIA']},
+  {tag:'PROCEDÊNCIA',priority:91,codes:[],terms:['PROCEDENCIA']},
+  {tag:'TUTELA',priority:85,codes:['889'],terms:['ANTECIPACAO DE TUTELA','TUTELA','LIMINAR']},
+  {tag:'RECURSO',priority:80,codes:[],terms:['RECURSO','APELACAO','AGRAVO','EMBARGOS']},
+  {tag:'RPV/PAGAMENTO',priority:78,codes:[],terms:['RPV','REQUISICAO DE PEQUENO VALOR','PRECATORIO','PAGAMENTO']},
+  {tag:'REDISTRIBUIÇÃO',priority:60,codes:['36'],terms:['REDISTRIBUICAO']},
+  {tag:'DISTRIBUIÇÃO',priority:55,codes:['26'],terms:['DISTRIBUICAO']},
+  {tag:'MUDANÇA DE CLASSE',priority:50,codes:['10966'],terms:['MUDANCA DE CLASSE PROCESSUAL']},
+  {tag:'DECISÃO',priority:45,codes:[],terms:['DECISAO','DESPACHO DECISORIO']},
+  {tag:'CONCLUSÃO',priority:20,codes:['51'],terms:['CONCLUSAO']}
 ]);
 
 function datajudMovementKeyText_(movement){
@@ -228,14 +228,28 @@ function datajudMovementTags_(movement){
       movement
     );
 
-  return DATAJUD_PROCESS_TAG_RULES
-    .filter(rule=>
-      rule.codes.includes(code)||
-      rule.terms.some(term=>
-        text.includes(term)
+  const byCode=
+    DATAJUD_PROCESS_TAG_RULES
+      .filter(rule=>
+        rule.codes.includes(code)
       )
-    )
-    .map(rule=>rule.tag);
+      .map(rule=>rule.tag);
+
+  if(byCode.length){
+    return [...new Set(byCode)];
+  }
+
+  return [...new Set(
+    DATAJUD_PROCESS_TAG_RULES
+      .filter(rule=>
+        rule.terms.some(term=>
+          text===term||
+          text.startsWith(term+' ')||
+          text.includes(' '+term+' ')
+        )
+      )
+      .map(rule=>rule.tag)
+  )];
 }
 
 function datajudTagsFromMovements_(movements){
@@ -255,13 +269,32 @@ function datajudTagsFromMovements_(movements){
 
 function datajudCurrentMilestone_(movements){
   for(const movement of movements||[]){
-    const tags=
-      datajudMovementTags_(
+    const code=
+      String(
+        movement&&movement.codigo||
+        ''
+      ).trim();
+
+    const text=
+      datajudMovementKeyText_(
         movement
       );
 
-    if(tags.length){
-      return tags[0];
+    const matches=
+      DATAJUD_PROCESS_TAG_RULES
+        .filter(rule=>
+          rule.codes.includes(code)||
+          rule.terms.some(term=>
+            text.includes(term)
+          )
+        )
+        .sort((a,b)=>
+          Number(b.priority||0)-
+          Number(a.priority||0)
+        );
+
+    if(matches.length){
+      return matches[0].tag;
     }
   }
 
