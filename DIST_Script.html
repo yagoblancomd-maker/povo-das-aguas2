@@ -144,7 +144,9 @@ window.PDA_MODULES.DIST = (()=>{
         {
           id:taskId,
           anexoId:attachment.id
-        }
+        },
+        false,
+        {noLoader:true}
       ),
       {
         nome:attachment.nome||'Anexo da tarefa'
@@ -933,7 +935,9 @@ window.PDA_MODULES.DIST = (()=>{
 
             detail=await call(
               'tarefaGeralDetalhe',
-              {id:detail.tarefa.id}
+              {id:detail.tarefa.id},
+              false,
+              {noLoader:true}
             );
 
             renderOverview();
