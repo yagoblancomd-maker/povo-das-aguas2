@@ -761,4 +761,100 @@
     justify-content:flex-start!important
   }
 }
+
+
+/* Etapa 3 — filas estreitas, clicáveis e manifestações em primeiro plano */
+.dist-task-card{
+  min-height:64px!important;
+  padding:6px 8px!important;
+  gap:3px 8px!important;
+  cursor:pointer
+}
+.dist-general-card{
+  min-height:56px!important;
+  padding:6px 8px!important;
+  gap:5px 9px!important;
+  cursor:pointer
+}
+.dist-task-card:hover,
+.dist-general-card:hover{
+  border-color:#b9ceca!important;
+  background:#fffefb!important;
+  box-shadow:0 5px 16px rgba(8,68,80,.09)!important
+}
+.dist-task-card:focus-visible,
+.dist-general-card:focus-visible{
+  outline:3px solid rgba(15,102,115,.22);
+  outline-offset:1px
+}
+.dist-state-group{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:3px
+}
+.dist-new-movement{
+  display:inline-flex;
+  align-items:center;
+  min-height:18px;
+  padding:2px 6px;
+  border:1px solid #e9a584;
+  border-radius:999px;
+  color:#8d3f28;
+  background:#fff0e7;
+  font-size:6.2px;
+  font-weight:900;
+  letter-spacing:.04em;
+  white-space:nowrap
+}
+.dist-task-card.has-new-movement,
+.dist-general-card.has-new-movement{
+  border-color:#e8b18e!important;
+  background:linear-gradient(90deg,#fff7f0 0,#fffdfa 40%)!important;
+  box-shadow:
+    inset 3px 0 0 #dd744d,
+    0 4px 15px rgba(124,65,34,.08)!important
+}
+.dist-linked-person{
+  display:grid!important;
+  width:100%!important;
+  gap:1px!important;
+  margin:0 0 9px!important;
+  padding:8px 10px!important;
+  text-align:left!important;
+  color:#214d58!important;
+  border:1px solid #cbded9!important;
+  border-radius:9px!important;
+  background:#f0f7f5!important;
+  box-shadow:none!important
+}
+.dist-linked-person:hover{
+  transform:none!important;
+  background:#e8f3f0!important
+}
+.dist-linked-person span{
+  font-size:6.3px;
+  font-weight:850;
+  letter-spacing:.08em
+}
+.dist-linked-person strong{
+  font-size:9.4px
+}
+.dist-linked-person small{
+  color:#6e7f7a;
+  font-size:7px
+}
+.dist-instant-dialog{
+  width:min(760px,94vw);
+  max-width:none;
+  padding:0;
+  border:0;
+  border-radius:14px;
+  background:#fffdfa;
+  box-shadow:0 25px 70px rgba(3,30,42,.28)
+}
+.dist-instant-dialog::backdrop{
+  background:rgba(3,24,34,.44);
+  backdrop-filter:blur(3px)
+}
 </style>
