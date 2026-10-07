@@ -10,6 +10,51 @@ function personCpfDisplay_(value){
     :String(value||'');
 }
 
+function personListIndexes_(){
+  const people=all_('Pessoas');
+  const users=all_('Usuarios');
+  const processes=all_('Processos');
+  const tasks=all_('Tarefas');
+
+  const usersByEmail=new Map(
+    users.map(user=>[
+      String(user.email||'').toLowerCase(),
+      user
+    ])
+  );
+
+  const processesByPerson=new Map();
+  processes.forEach(row=>{
+    if(!row.pessoaId)return;
+    processesByPerson.set(
+      row.pessoaId,
+      (processesByPerson.get(row.pessoaId)||0)+1
+    );
+  });
+
+  const openTasksByPerson=new Map();
+  tasks.forEach(task=>{
+    if(!task.pessoaId)return;
+    const done=
+      task.situacao===GENERAL_TASK_DONE||
+      task.situacao===DISTRIBUTION_TASK_DONE;
+    if(done)return;
+    openTasksByPerson.set(
+      task.pessoaId,
+      (openTasksByPerson.get(task.pessoaId)||0)+1
+    );
+  });
+
+  return {
+    people,
+    usersByEmail,
+    docsByPerson:new Map(),
+    processesByPerson,
+    openTasksByPerson,
+    doneTasksByPerson:new Map()
+  };
+}
+
 function personQueryIndexes_(){
   const people=all_('Pessoas');
   const users=all_('Usuarios');
@@ -107,7 +152,11 @@ function personLiteRow_(person,indexes){
 
 function personListLite_(q){
   q=q||{};
-  const indexes=personQueryIndexes_();
+  /*
+   * A lista não lê Documentos nem Atendimentos. Esses dados pesados só são
+   * consultados quando o usuário abre o drawer de uma pessoa.
+   */
+  const indexes=personListIndexes_();
   const term=String(q.busca||'').trim().toLowerCase();
   const typedCpf=term.replace(/\D/g,'');
   const cidade=String(q.cidade||'').trim().toLowerCase();
