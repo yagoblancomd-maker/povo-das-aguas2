@@ -97,7 +97,6 @@ assert.match(appScript,/const PROCESSING_PROFILES=Object\.freeze/);
 assert.match(appScript,/notificacoesTarefasMarcarLidas/);
 assert.match(appScript,/NAV_HELP=Object\.freeze/);
 
-const index=read('Index.html');
 assert.match(index,/id="navContextHelp"/);
 
 const finalStyle=read('App_Style.html');
