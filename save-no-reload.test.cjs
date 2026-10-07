@@ -14,8 +14,8 @@ assert.doesNotMatch(adm,/await\s+go\(\s*['"]ADM['"]/);
 assert.match(adm,/App\.refreshCurrent\(\{code:'ADM'\}\)/);
 
 const acomp=read('ACOMP_Script.html');
-assert.doesNotMatch(acomp,/await\s+go\(\s*['"]ACOMP['"]/);
 assert.match(acomp,/App\.refreshCurrent\(\{code:'ACOMP',pessoaId:p\.id\}\)/);
+assert.match(acomp,/pessoaExcluirDefinitivo[\s\S]*?await\s+go\(\s*['"]ACOMP['"]/);
 
 const min=read('MIN_Script.html');
 assert.doesNotMatch(min,/await\s+go\(\s*['"]MIN['"]/);
