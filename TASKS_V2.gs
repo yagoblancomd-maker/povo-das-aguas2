@@ -735,9 +735,7 @@ function distributionRankingAllowed_(){
   fail_('Ranking disponível somente para Residente, Professor ou Administrador.');
 }
 
-function distributionRanking_(q){
-  distributionRankingAllowed_();
-
+function rankingData_(q){
   batchAll_([
     'Usuarios',
     'Sessoes',
@@ -745,6 +743,7 @@ function distributionRanking_(q){
     'Tarefas',
     'Processos'
   ]);
+
   q=q||{};
 
   const from=String(q.de||q.inicio||'');
@@ -768,6 +767,7 @@ function distributionRanking_(q){
 
   const rows=users.map(user=>{
     const email=String(user.email||'').toLowerCase();
+
     const userSessions=sessions.filter(session=>
       session.usuarioId===user.id&&
       (!from&&!to||inRange(session.criadoEm))
@@ -806,19 +806,37 @@ function distributionRanking_(q){
     };
   });
 
-  const rankBy=(key,desc=true)=>{
+  const rankBy=key=>{
     const ordered=rows.slice().sort((a,b)=>{
-      const av=Number(a[key]||0),bv=Number(b[key]||0);
-      if(av!==bv)return desc?bv-av:av-bv;
-      return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'});
+      const av=Number(a[key]||0);
+      const bv=Number(b[key]||0);
+
+      if(av!==bv){
+        return bv-av;
+      }
+
+      return a.nome.localeCompare(
+        b.nome,
+        'pt-BR',
+        {sensitivity:'base'}
+      );
     });
-    let last=null,position=0;
-    return new Map(ordered.map((row,index)=>{
-      const value=Number(row[key]||0);
-      if(last===null||value!==last)position=index+1;
-      last=value;
-      return [row.email,position];
-    }));
+
+    let last=null;
+    let position=0;
+
+    return new Map(
+      ordered.map((row,index)=>{
+        const value=Number(row[key]||0);
+
+        if(last===null||value!==last){
+          position=index+1;
+        }
+
+        last=value;
+        return [row.email,position];
+      })
+    );
   };
 
   const rankCad=rankBy('cadastros');
@@ -837,7 +855,11 @@ function distributionRanking_(q){
   rows.sort((a,b)=>
     a.rankProcessos-b.rankProcessos||
     a.rankTarefas-b.rankTarefas||
-    a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'})
+    a.nome.localeCompare(
+      b.nome,
+      'pt-BR',
+      {sensitivity:'base'}
+    )
   );
 
   return {
@@ -845,7 +867,37 @@ function distributionRanking_(q){
     ate:to,
     inicio:from,
     fim:to,
+    totalUsuarios:rows.length,
     linhas:rows
+  };
+}
+
+function distributionRanking_(q){
+  distributionRankingAllowed_();
+  return rankingData_(q);
+}
+
+function profileRanking_(q){
+  const email=
+    String(
+      identity_()||
+      ''
+    ).toLowerCase();
+
+  const data=
+    rankingData_(q);
+
+  const row=
+    data.linhas.find(item=>
+      String(item.email||'').toLowerCase()===
+      email
+    )||null;
+
+  return {
+    de:data.de,
+    ate:data.ate,
+    totalUsuarios:data.totalUsuarios,
+    usuario:row
   };
 }
 
