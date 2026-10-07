@@ -49,7 +49,7 @@ const SCHEMA = Object.freeze({
   ],
   TarefaMensagens:['tarefaId','autor','mensagem'],
   TarefaAnexos:['tarefaId','fileId','url','nome','mime','hash','bytes','enviadoPor','pessoaId','documentoId'],
-  TarefaLeituras:['usuario','ultimoVistoEm'],
+  TarefaLeituras:['tarefaId','usuario','ultimoVistoEm'],
   TarefaTags:['nome','cor','ativo'],
   Processos:['pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes'],
   Operacoes:['hash','resultado']
