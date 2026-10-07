@@ -2483,6 +2483,360 @@ f.insertBefore(file,f.firstChild);
  }
 
 
+ function base64Blob_(base64,mime){
+  const raw=atob(String(base64||''));
+  const bytes=new Uint8Array(raw.length);
+
+  for(let i=0;i<raw.length;i++){
+    bytes[i]=raw.charCodeAt(i);
+  }
+
+  return new Blob(
+    [bytes],
+    {
+      type:mime||'application/octet-stream'
+    }
+  );
+ }
+
+ async function openFileViewer_(source,meta={}){
+  const previous=
+    document.querySelector(
+      '.pda-file-viewer-overlay'
+    );
+
+  if(previous){
+    previous.remove();
+  }
+
+  const overlay=
+    el(
+      'div',
+      undefined,
+      'pda-file-viewer-overlay'
+    );
+
+  const modal=
+    el(
+      'section',
+      undefined,
+      'pda-file-viewer'
+    );
+
+  const head=
+    el(
+      'div',
+      undefined,
+      'pda-file-viewer-head'
+    );
+
+  const copy=el('div');
+  const title=
+    el(
+      'strong',
+      meta.nome||
+      'Documento'
+    );
+
+  const subtitle=
+    el(
+      'small',
+      'Visualização interna do Povo das Águas'
+    );
+
+  copy.append(
+    title,
+    subtitle
+  );
+
+  const close=
+    el(
+      'button',
+      '×',
+      'pda-file-viewer-close'
+    );
+
+  close.type='button';
+
+  head.append(
+    copy,
+    close
+  );
+
+  const body=
+    el(
+      'div',
+      undefined,
+      'pda-file-viewer-body'
+    );
+
+  body.append(
+    el(
+      'div',
+      'Carregando documento…',
+      'pda-file-viewer-loading'
+    )
+  );
+
+  const foot=
+    el(
+      'div',
+      undefined,
+      'pda-file-viewer-foot'
+    );
+
+  modal.append(
+    head,
+    body,
+    foot
+  );
+
+  overlay.append(modal);
+  document.body.append(overlay);
+
+  let objectUrl='';
+
+  const dismiss=()=>{
+    if(objectUrl){
+      URL.revokeObjectURL(
+        objectUrl
+      );
+      objectUrl='';
+    }
+
+    overlay.remove();
+  };
+
+  close.onclick=dismiss;
+
+  overlay.addEventListener(
+    'click',
+    event=>{
+      if(event.target===overlay){
+        dismiss();
+      }
+    }
+  );
+
+  try{
+    const result=
+      typeof source==='function'
+        ?await source()
+        :await Promise.resolve(source);
+
+    const mime=
+      String(
+        result.mime||
+        'application/octet-stream'
+      ).toLowerCase();
+
+    const name=
+      result.nome||
+      meta.nome||
+      'documento';
+
+    title.textContent=name;
+
+    const blob=
+      base64Blob_(
+        result.base64,
+        mime
+      );
+
+    objectUrl=
+      URL.createObjectURL(
+        blob
+      );
+
+    body.replaceChildren();
+
+    if(mime.startsWith('image/')){
+      const image=el('img');
+      image.src=objectUrl;
+      image.alt=name;
+      image.className=
+        'pda-file-viewer-image';
+      body.append(image);
+
+    }else if(
+      mime==='application/pdf'||
+      mime.includes('pdf')
+    ){
+      const frame=el('iframe');
+      frame.src=objectUrl;
+      frame.title=name;
+      frame.className=
+        'pda-file-viewer-frame';
+      body.append(frame);
+
+    }else if(
+      mime.startsWith('text/')
+    ){
+      const frame=el('iframe');
+      frame.src=objectUrl;
+      frame.title=name;
+      frame.className=
+        'pda-file-viewer-frame';
+      body.append(frame);
+
+    }else{
+      const unsupported=
+        el(
+          'div',
+          undefined,
+          'pda-file-viewer-unsupported'
+        );
+
+      unsupported.append(
+        el(
+          'strong',
+          'Arquivo disponível pela plataforma'
+        ),
+        el(
+          'p',
+          'Este formato não possui reprodução nativa no navegador. O arquivo permanece protegido no sistema e pode ser baixado sem abrir o Google Drive.'
+        )
+      );
+
+      body.append(unsupported);
+    }
+
+    const download=
+      button(
+        'Baixar pela plataforma',
+        ()=>{
+          const anchor=
+            document.createElement('a');
+
+          anchor.href=objectUrl;
+          anchor.download=name;
+          anchor.rel='noopener';
+          document.body.append(anchor);
+          anchor.click();
+          anchor.remove();
+        },
+        true
+      );
+
+    foot.replaceChildren(
+      el(
+        'span',
+        [
+          result.categoria,
+          mime
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        'pda-file-viewer-meta'
+      ),
+      download
+    );
+
+  }catch(error){
+    body.replaceChildren(
+      el(
+        'div',
+        error.message||
+        String(error),
+        'warn'
+      )
+    );
+
+    throw error;
+  }
+
+  return overlay;
+ }
+
+ function drawerDocumentsTable_(rows,pessoaId){
+  const wrap=
+    el(
+      'div',
+      undefined,
+      'scroll pda-drawer-table'
+    );
+
+  const tableNode=el('table');
+  const thead=el('thead');
+  const header=el('tr');
+
+  [
+    'Documento',
+    'Arquivo',
+    'Conferido',
+    'Ações'
+  ].forEach(label=>
+    header.append(
+      el(
+        'th',
+        label
+      )
+    )
+  );
+
+  thead.append(header);
+
+  const tbody=el('tbody');
+
+  rows.forEach(document=>{
+    const tr=el('tr');
+
+    tr.append(
+      el(
+        'td',
+        document.categoria||
+        'Documento'
+      ),
+      el(
+        'td',
+        document.nome||
+        'Arquivo'
+      ),
+      el(
+        'td',
+        (
+          document.conferido===true||
+          document.conferido==='true'
+        )
+          ?'Sim'
+          :'Não'
+      )
+    );
+
+    const actions=el('td');
+    const view=
+      button(
+        'Visualizar',
+        ()=>openFileViewer_(
+          ()=>call(
+            'documentoConteudo',
+            {
+              id:document.id,
+              pessoaId
+            }
+          ),
+          {
+            nome:document.nome
+          }
+        ),
+        true
+      );
+
+    actions.append(view);
+    tr.append(actions);
+    tbody.append(tr);
+  });
+
+  tableNode.append(
+    thead,
+    tbody
+  );
+
+  wrap.append(tableNode);
+  return wrap;
+ }
+
+
  let activePersonDrawer=null;
 
  function cpfDrawer_(value){
