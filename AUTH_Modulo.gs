@@ -3,33 +3,6 @@ const PDA_AUTH_SESSION_HOURS=12;
 const PDA_AUTH_RECOVERY_MINUTES=30;
 const PDA_AUTH_PASSWORD_ALGORITHM='bcrypt-sha256-v1';
 
-const SELF_REGISTRATION_FUNCTIONS=Object.freeze([
-  'Professor',
-  'Residente',
-  'Colaborador',
-  'Aluno',
-  'Colônia de Pescador'
-]);
-
-function selfRegistrationAccess_(funcao){
-  const role={
-    Professor:'PROFESSOR_RESIDENTE',
-    Residente:'PROFESSOR_RESIDENTE',
-    Colaborador:'COLABORADOR',
-    Aluno:'ALUNO',
-    'Colônia de Pescador':'COLONIA_PESCADOR'
-  }[String(funcao||'')];
-
-  if(!role||!ROLES[role]){
-    fail_('Selecione sua função no projeto.');
-  }
-
-  return {
-    perfil:role,
-    permissoes:rolePermissions_(role)
-  };
-}
-
 function authUsername_(input){
   const username=
     String(input||'')
