@@ -493,50 +493,14 @@ window.PDA_MODULES.TAREFAS = (()=>{
     docsHead.append(el('h4','Documentos da pessoa'));
 
     if(detail.documentos&&detail.documentos.length){
-      const downloadAll=button(
-        'Baixar todos os documentos',
-        async()=>{
-          const downloadTab=window.open('','_blank');
-
-          if(downloadTab){
-            downloadTab.document.title='Preparando documentos…';
-            downloadTab.document.body.innerHTML=
-              '<div style="font:14px system-ui;padding:24px;color:#173f51">Preparando o arquivo ZIP dos documentos…</div>';
-          }
-
-          try{
-            const result=await call(
-              'tarefaDocumentosZipGerar',
-              {id:detail.tarefa.id},
-              true
-            );
-
-            status(
-              result.mensagem||
-              'Documentos preparados para download.'
-            );
-
-            if(downloadTab){
-              downloadTab.location.replace(result.downloadUrl);
-            }else{
-              const a=document.createElement('a');
-              a.href=result.downloadUrl;
-              a.target='_blank';
-              a.rel='noopener noreferrer';
-              document.body.append(a);
-              a.click();
-              a.remove();
-            }
-          }catch(e){
-            if(downloadTab&&!downloadTab.closed)downloadTab.close();
-            throw e;
-          }
-        },
-        true
+      docsHead.append(
+        el(
+          'small',
+          detail.documentos.length+
+          ' documento(s) disponível(is) para visualização interna.',
+          'hint'
+        )
       );
-
-      downloadAll.classList.add('task-download-all');
-      docsHead.append(downloadAll);
     }
 
     docs.append(docsHead);
@@ -554,7 +518,22 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
       row.append(
         copy,
-        link(doc.url,'Abrir')
+        button(
+          'Visualizar',
+          ()=>App.openFileViewer(
+            ()=>call(
+              'documentoConteudo',
+              {
+                id:doc.id,
+                pessoaId:detail.pessoa.id
+              }
+            ),
+            {
+              nome:doc.nome
+            }
+          ),
+          true
+        )
       );
 
       docGrid.append(row);
