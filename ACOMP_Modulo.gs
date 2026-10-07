@@ -23,11 +23,15 @@ function dossier_(q){
   const user=
     activeUser_();
 
-  const tarefasAbertas=
+  const tarefasAbertasResult=
     tasksCollectionV2_(
-      {pessoaId:p.id},
+      {pessoaId:p.id,limit:100,offset:0},
       'open'
     );
+
+  const tarefasAbertas=
+    tarefasAbertasResult.tarefas||
+    [];
 
   const tarefasConcluidas=
     all_('Tarefas').filter(task=>
