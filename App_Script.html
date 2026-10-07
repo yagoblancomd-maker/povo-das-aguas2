@@ -1090,6 +1090,7 @@ n.className='status '+(error?'error':'ok');
  async function call(action,data={},write=false,options={}){
   const token=epoch;
   const silent=!!(options&&options.silent);
+  const noLoader=!!(options&&options.noLoader);
   let payload={...data};
   let processingId=null;
   let processingDelay=null;
@@ -1139,7 +1140,10 @@ n.className='status '+(error?'error':'ok');
         );
     }
 
-  }else if(!navigationLoading){
+  }else if(
+    !navigationLoading&&
+    !noLoader
+  ){
     /*
      * Operações rápidas não piscam o loader. Ele só aparece se a leitura
      * realmente ultrapassar a janela de resposta imediata.
