@@ -135,7 +135,7 @@ window.PDA_MODULES.ADM = (()=>{
           App.state.boot=
             await call('bootstrap',{light:true});
 
-          await go('ADM');
+          await App.refreshCurrent({code:'ADM'});
 
           status(
             result.mensagem||
@@ -194,7 +194,7 @@ window.PDA_MODULES.ADM = (()=>{
         App.state.boot=
           await call('bootstrap',{light:true});
 
-        await go('ADM');
+        await App.refreshCurrent({code:'ADM'});
         status(result.mensagem||'Chave da API salva.');
       },
       d.portalTransparencia&&d.portalTransparencia.configurada
@@ -247,7 +247,7 @@ window.PDA_MODULES.ADM = (()=>{
         App.state.boot=
           await call('bootstrap',{light:true});
 
-        await go('ADM');
+        await App.refreshCurrent({code:'ADM'});
 
         status(
           result.mensagem||
@@ -363,7 +363,7 @@ window.PDA_MODULES.ADM = (()=>{
             App.state.boot=
               await call('bootstrap',{light:true});
 
-            await go('ADM');
+            await App.refreshCurrent({code:'ADM'});
           }
         );
       });
