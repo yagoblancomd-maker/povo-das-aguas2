@@ -25,6 +25,7 @@ const data=read('01_Dados.gs');
 const commit=data.slice(data.indexOf('function commit_'),data.indexOf('function version_'));
 assert.ok(commit.includes('Sheets.Spreadsheets.batchUpdate'));
 assert.ok(!commit.includes('SpreadsheetApp.flush()'));
+assert.ok(commit.includes("if(c.entity==='TarefaLeituras')"));
 
 const distModule=read('DIST_Modulo.gs');
 assert.ok(distModule.includes("where_(\n      'Documentos'"));
