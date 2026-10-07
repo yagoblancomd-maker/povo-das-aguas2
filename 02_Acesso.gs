@@ -561,7 +561,8 @@ function setGoogleAccess_(resource,email,level){
  */
 function syncGoogleResourcesForUser_(user,ctx){
   const email=String(
-    user&&user.email||''
+    user&&user.email||
+    ''
   )
     .trim()
     .toLowerCase();
@@ -574,7 +575,8 @@ function syncGoogleResourcesForUser_(user,ctx){
   const owner=String(
     props_().getProperty(
       'OWNER_EMAIL'
-    )||''
+    )||
+    ''
   )
     .trim()
     .toLowerCase();
@@ -591,18 +593,145 @@ function syncGoogleResourcesForUser_(user,ctx){
       user
     );
 
-  // Compartilhamento explícito somente dos documentos, nunca da raiz ou do banco.
-  const fileIds=new Set();
-  all_('Documentos').forEach(r=>{if(r.fileId)fileIds.add(r.fileId);});
-  all_('Minutas').forEach(r=>{if(r.fileId)fileIds.add(r.fileId);if(r.pdfFileId)fileIds.add(r.pdfFileId);});
-  const resources=Array.from(fileIds).map(id=>({nome:'documento '+id,item:DriveApp.getFileById(id)}));
+  const colony=
+    isColonyUser_(
+      user
+    );
+
+  const attendancePerson=
+    new Map(
+      all_('Atendimentos')
+        .map(row=>[
+          row.id,
+          row.pessoaId
+        ])
+    );
+
+  const personIdFromReference_=reference=>{
+    return (
+      personIdFromOwner_(
+        reference
+      )||
+      attendancePerson.get(
+        String(reference||'')
+      )||
+      ''
+    );
+  };
+
+  const resources=
+    new Map();
+
+  const registerFile_=(fileId,personId,label)=>{
+    const id=String(fileId||'').trim();
+
+    if(!id)return;
+
+    const person=
+      personId
+        ?findById_(
+            'Pessoas',
+            personId
+          )
+        :null;
+
+    const allowed=
+      !colony||
+      (
+        !!person&&
+        personInUserScope_(
+          user,
+          person
+        )
+      );
+
+    const current=
+      resources.get(id);
+
+    if(current){
+      current.allowed=
+        current.allowed||
+        allowed;
+      return;
+    }
+
+    resources.set(
+      id,
+      {
+        id,
+        allowed,
+        nome:
+          label||
+          'documento '+id
+      }
+    );
+  };
+
+  all_('Documentos')
+    .forEach(row=>{
+      registerFile_(
+        row.fileId,
+        personIdFromReference_(
+          row.atendimentoId
+        ),
+        row.nome||
+        'documento '+row.id
+      );
+    });
+
+  all_('Minutas')
+    .forEach(row=>{
+      const personId=
+        personIdFromReference_(
+          row.atendimentoId
+        );
+
+      registerFile_(
+        row.fileId,
+        personId,
+        'minuta '+row.id
+      );
+
+      registerFile_(
+        row.pdfFileId,
+        personId,
+        'PDF da minuta '+row.id
+      );
+    });
+
+  let granted=0;
+  let removed=0;
+  let skipped=0;
 
   resources.forEach(resource=>{
+    let file;
+
+    try{
+      file=
+        DriveApp.getFileById(
+          resource.id
+        );
+    }catch(e){
+      skipped++;
+      return;
+    }
+
+    const desiredLevel=
+      resource.allowed
+        ?level
+        :'NONE';
+
     setGoogleAccess_(
-      resource.item,
+      file,
       email,
-      level
+      desiredLevel
     );
+
+    if(desiredLevel==='NONE'){
+      removed++;
+    }else{
+      granted++;
+    }
 
     if(
       ctx&&
@@ -610,9 +739,9 @@ function syncGoogleResourcesForUser_(user,ctx){
     ){
       ctx.effects.push(
         (
-          level==='NONE'
+          desiredLevel==='NONE'
             ?'Acesso Google removido'
-            :'Acesso Google '+level+' concedido'
+            :'Acesso Google '+desiredLevel+' concedido'
         )+
         ': '+
         resource.nome+
@@ -624,7 +753,14 @@ function syncGoogleResourcesForUser_(user,ctx){
 
   return {
     email,
-    nivel:level
+    nivel:level,
+    escopoEntidade:
+      colony
+        ?colonyUserEntity_(user)
+        :'',
+    concedidos:granted,
+    removidos:removed,
+    ignorados:skipped
   };
 }
 
