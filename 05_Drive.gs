@@ -819,6 +819,21 @@ function personDocumentDelete_(ctx,q){
     ctx.effects.push('Documento removido da pasta da pessoa: '+d.nome);
   }
 
+  if(d.categoria==='ANEXO_TAREFA'){
+    all_('TarefaAnexos')
+      .filter(item=>
+        item.documentoId===d.id
+      )
+      .forEach(item=>
+        remove_(
+          ctx,
+          'TarefaAnexos',
+          item.id,
+          item.versao
+        )
+      );
+  }
+
   const observacaoExclusao=
     '[EXCLUÍDO '+now_()+' por '+ctx.email+']';
 
