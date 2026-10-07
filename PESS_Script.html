@@ -2310,7 +2310,18 @@ window.PDA_MODULES.PESS = (()=>{
     const personForm=form(
       edit,
       personFields(),
-      {uf:'RS'},
+      Object.assign(
+        {uf:'RS'},
+        App.state.boot&&
+        App.state.boot.perfil==='COLONIA_PESCADOR'
+          ?{
+              entidade:
+                App.state.boot.usuario&&
+                App.state.boot.usuario.entidade||
+                ''
+            }
+          :{}
+      ),
       async p=>{
         const qtd=
           Number(
@@ -2921,6 +2932,26 @@ window.PDA_MODULES.PESS = (()=>{
       },
       'Salvar cadastro, documentos e gerar minuta'
     );
+
+    if(
+      App.state.boot&&
+      App.state.boot.perfil==='COLONIA_PESCADOR'
+    ){
+      const entityControl=
+        personForm.elements.namedItem(
+          'entidade'
+        );
+
+      if(entityControl){
+        entityControl.value=
+          App.state.boot.usuario&&
+          App.state.boot.usuario.entidade||
+          '';
+        entityControl.disabled=true;
+        entityControl.title=
+          'A entidade é definida pelo perfil da Colônia e não pode ser alterada.';
+      }
+    }
 
     personForm.classList.add(
       'pess-person-form'
