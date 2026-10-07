@@ -925,236 +925,393 @@ window.PDA_MODULES.DIST = (()=>{
     const content=el('div',undefined,'dist-live-content');
     root.append(content);
 
-    const render=async()=>{
-      content.setAttribute('aria-busy','true');
+    let mode='open';
+    let openData=null;
+    let historyData=null;
+    let rankingData=null;
 
-      const data=await call('distribuicaoFila');
+    const filters={
+      busca:'',
+      responsavel:'',
+      tipo:'',
+      atribuidaDe:'',
+      atribuidaAte:'',
+      prazoDe:'',
+      prazoAte:''
+    };
+
+    const canSeeRanking_=()=>{
+      const user=App.state.boot&&App.state.boot.usuario||{};
+      const funcao=String(user.funcao||'').toLowerCase();
+      return user.perfil==='ADMIN'||funcao==='professor'||funcao==='residente';
+    };
+
+    const matches_=task=>{
+      if(filters.tipo&&task.tipo!==filters.tipo)return false;
+      if(filters.responsavel&&String(task.responsavel||'').toLowerCase()!==filters.responsavel)return false;
+
+      const assigned=String(task.dataDistribuicao||task.atribuidaEm||task.criadoEm||'').slice(0,10);
+      if(filters.atribuidaDe&&assigned<filters.atribuidaDe)return false;
+      if(filters.atribuidaAte&&assigned>filters.atribuidaAte)return false;
+
+      const due=String(task.prazo||'');
+      if(filters.prazoDe&&due<filters.prazoDe)return false;
+      if(filters.prazoAte&&due>filters.prazoAte)return false;
+
+      const q=filters.busca.trim().toLowerCase();
+      if(q){
+        const hay=[
+          task.titulo,task.descricao,task.pessoa,task.cpf,
+          task.responsavelNome,task.criadoPorNome,task.jurisdicao,
+          ...(task.tags||[]).map(tag=>tag.nome||tag)
+        ].join(' ').toLowerCase();
+        if(!hay.includes(q))return false;
+      }
+      return true;
+    };
+
+    const openGeneral_=task=>
+      openGeneralDialog_(root,task,renderOpen_);
+
+    const openDistribution_=async task=>{
+      const detail=await call(
+        'tarefaDistribuicaoDetalhe',
+        {id:task.id}
+      );
       if(!alive(ctx))return;
+      // Reaproveita o fluxo detalhado do módulo Minhas tarefas quando disponível:
+      // aqui a gestão atua principalmente pela atribuição exibida no card.
+      const dialog=el('dialog',undefined,'dist-task-detail-dialog');
+      const shell=el('div',undefined,'dist-general-dialog-shell');
+      const head=el('div',undefined,'dist-general-dialog-head');
+      const copy=el('div');
+      copy.append(
+        el('h3',detail.pessoa.nome),
+        el('p','Distribuição processual')
+      );
+      head.append(copy,button('Fechar',()=>dialog.close(),true));
+      const body=el('div',undefined,'dist-general-dialog-body');
+      const info=el('div',undefined,'dist-general-overview');
+      [
+        ['CPF',cpf_(detail.pessoa.cpf)],
+        ['Jurisdição',detail.pessoa.jurisdicao],
+        ['Valor da causa',money_(detail.pessoa.valorCausa)],
+        ['Responsável',detail.tarefa.responsavel||'Sem responsável']
+      ].forEach(([label,value])=>{
+        const item=el('div');
+        item.append(el('span',label),el('strong',value||'—'));
+        info.append(item);
+      });
+      body.append(info);
+      if(detail.processo){
+        body.append(
+          el('p','Processo: '+(detail.processo.numero||'—'),'hint')
+        );
+      }
+      shell.append(head,body);
+      dialog.append(shell);
+      root.append(dialog);
+      dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+      dialog.showModal();
+    };
 
+    const filterBar_=data=>{
+      const bar=el('div',undefined,'dist-filterbar');
+
+      const search=el('input');
+      search.type='search';
+      search.placeholder='Buscar tarefa, cadastro, CPF ou tag';
+      search.value=filters.busca;
+
+      const responsible=el('select');
+      responsible.append(new Option('Todos os responsáveis',''));
+      (data.usuariosTarefas||[]).forEach(user=>{
+        responsible.append(new Option(user.nome||user.email,String(user.email||'').toLowerCase()));
+      });
+      responsible.value=filters.responsavel;
+
+      const type=el('select');
+      [
+        ['','Todos os tipos'],
+        ['DISTRIBUICAO_PROCESSO','Distribuição processual'],
+        ['TAREFA_GERAL','Tarefa interna']
+      ].forEach(([value,label])=>type.append(new Option(label,value)));
+      type.value=filters.tipo;
+
+      const assignedFrom=el('input'); assignedFrom.type='date'; assignedFrom.value=filters.atribuidaDe;
+      const assignedTo=el('input'); assignedTo.type='date'; assignedTo.value=filters.atribuidaAte;
+      const dueFrom=el('input'); dueFrom.type='date'; dueFrom.value=filters.prazoDe;
+      const dueTo=el('input'); dueTo.type='date'; dueTo.value=filters.prazoAte;
+
+      const controls=[
+        ['Busca',search],
+        ['Responsável',responsible],
+        ['Tipo',type],
+        ['Distribuída a partir de',assignedFrom],
+        ['Distribuída até',assignedTo],
+        ['Prazo a partir de',dueFrom],
+        ['Prazo até',dueTo]
+      ];
+
+      const apply=()=>{
+        filters.busca=search.value;
+        filters.responsavel=responsible.value;
+        filters.tipo=type.value;
+        filters.atribuidaDe=assignedFrom.value;
+        filters.atribuidaAte=assignedTo.value;
+        filters.prazoDe=dueFrom.value;
+        filters.prazoAte=dueTo.value;
+        paintOpen_(data);
+      };
+
+      [search,responsible,type,assignedFrom,assignedTo,dueFrom,dueTo].forEach(control=>{
+        control.addEventListener(control===search?'input':'change',apply);
+      });
+
+      controls.forEach(([label,control])=>bar.append(field_(label,control)));
+      return bar;
+    };
+
+    const tabBar_=()=>{
+      const tabs=el('div',undefined,'dist-tabs');
+      const open=button('Abertas',()=>{mode='open'; paintOpen_(openData);},mode!=='open');
+      const history=button('Histórico',async()=>{
+        mode='history';
+        content.setAttribute('aria-busy','true');
+        if(!historyData){
+          historyData=await call('tarefasHistorico',{limit:500});
+        }
+        paintHistory_(historyData);
+      },mode!=='history');
+
+      tabs.append(open,history);
+
+      if(canSeeRanking_()){
+        const ranking=button('Ranking',async()=>{
+          mode='ranking';
+          content.setAttribute('aria-busy','true');
+          if(!rankingData){
+            rankingData=await call('distribuicaoRanking',{});
+          }
+          paintRanking_(rankingData);
+        },mode!=='ranking');
+        tabs.append(ranking);
+      }
+
+      return tabs;
+    };
+
+    const baseHead_=title=>{
       const head=el('div',undefined,'dist-head');
-      const headCopy=el('div');
+      const copy=el('div');
+      copy.append(
+        el('h2',title),
+        el('p','Gestão de tarefas, distribuição processual e carga da equipe.','hint')
+      );
+      head.append(copy,tabBar_());
+      return head;
+    };
 
-      headCopy.append(
-        el('h2','Atribuir tarefas'),
-        el(
-          'p',
-          'Gerencie distribuições processuais e crie tarefas internas com informações, PDFs e diálogo entre criador e responsável.',
-          'hint'
-        )
+    const paintOpen_=data=>{
+      content.replaceChildren();
+      content.append(baseHead_('Distribuição e tarefas'));
+
+      const actionBar=el('div',undefined,'dist-actionbar');
+
+      const autoLabel=el('span',undefined,'dist-auto-state '+(data.distribuicaoAutomatica?'is-on':'is-off'));
+      autoLabel.textContent=data.distribuicaoAutomatica?'Distribuição automática ativa':'Distribuição automática desativada';
+
+      const toggle=button(
+        data.distribuicaoAutomatica?'Desativar automática':'Ativar automática',
+        async()=>{
+          await call(
+            'distribuicaoAutomaticaSalvar',
+            {ativo:!data.distribuicaoAutomatica},
+            true
+          );
+          await renderOpen_();
+        },
+        true
       );
 
-      const headActions=el('div',undefined,'dist-head-actions');
-
-      headActions.append(
-        button(
-          'Nova tarefa',
-          ()=>openCreateDialog_(root,data,render)
-        ),
-        button(
-          'Criar tarefas faltantes',
-          async()=>{
-            const result=await call(
-              'tarefasDistribuicaoReconciliar',
-              {},
-              true
-            );
-
-            status(result.mensagem||'Tarefas reconciliadas.');
-            await render();
-          },
-          true
-        )
+      const run=button(
+        'Distribuir pendentes agora',
+        async()=>{
+          const result=await call('distribuicaoAutomaticaExecutar',{},true);
+          status(result.mensagem||'Distribuição automática concluída.');
+          await renderOpen_();
+        }
       );
 
-      head.append(headCopy,headActions);
-      content.append(head);
+      const create=button(
+        'Nova tarefa',
+        ()=>openCreateDialog_(root,data,renderOpen_)
+      );
+
+      const reconcile=button(
+        'Criar tarefas faltantes',
+        async()=>{
+          const result=await call('tarefasDistribuicaoReconciliar',{},true);
+          status(result.mensagem||'Tarefas reconciliadas.');
+          await renderOpen_();
+        },
+        true
+      );
+
+      actionBar.append(autoLabel,toggle,run,create,reconcile);
+      content.append(actionBar,filterBar_(data));
+
+      const tasks=(data.tarefas||[]).filter(matches_);
+      const internal=tasks.filter(task=>task.tipo==='TAREFA_GERAL');
+      const distribution=tasks.filter(task=>task.tipo==='DISTRIBUICAO_PROCESSO');
 
       const stats=el('div',undefined,'dist-stats');
-
       [
-        [data.indicadores.semResponsavel,'Distribuições sem responsável'],
-        [data.indicadores.atribuidas,'Distribuições atribuídas'],
-        [
-          data.indicadores.geraisAbertas||0,
-          'Tarefas internas abertas'
-        ],
-        [
-          (data.usuariosTarefas||[]).length,
-          'Usuários disponíveis'
-        ]
+        [distribution.filter(task=>!task.responsavel).length,'Distribuições sem responsável'],
+        [distribution.filter(task=>!!task.responsavel).length,'Distribuições atribuídas'],
+        [internal.length,'Tarefas internas abertas'],
+        [(data.usuariosDistribuicao||[]).length,'Usuários na distribuição']
       ].forEach(([value,label])=>{
         const box=el('div',undefined,'dist-stat');
-        box.append(el('strong',String(value||0)),el('span',label));
+        box.append(el('strong',String(value)),el('span',label));
         stats.append(box);
       });
-
       content.append(stats);
 
-      const generalSection=el(
-        'section',
-        undefined,
-        'dist-section dist-general-section'
-      );
-
-      const generalHead=el('div',undefined,'dist-section-head');
-      const generalTasks=data.tarefasGerais||[];
-
-      generalHead.append(
-        el('h3','Tarefas internas'),
-        el(
-          'span',
-          generalTasks.filter(task=>task.situacao!=='CONCLUIDA').length+
-          ' abertas',
-          'hint'
-        )
-      );
-
-      const generalGrid=el('div',undefined,'dist-general-grid');
-
-      if(!generalTasks.length){
-        generalGrid.append(
-          el(
-            'div',
-            'Nenhuma tarefa interna foi criada.',
-            'dist-empty'
-          )
-        );
+      const internalSection=el('section',undefined,'dist-section');
+      const internalHead=el('div',undefined,'dist-section-head');
+      internalHead.append(el('h3','Tarefas internas abertas'),el('span',internal.length+' tarefa(s)','hint'));
+      const internalGrid=el('div',undefined,'dist-general-grid');
+      if(!internal.length){
+        internalGrid.append(el('div','Nenhuma tarefa interna aberta com esses filtros.','dist-empty'));
       }else{
-        generalTasks.forEach(task=>
-          generalGrid.append(
-            generalCard_(
-              task,
-              item=>openGeneralDialog_(root,item,render)
-            )
-          )
-        );
+        internal.forEach(task=>internalGrid.append(generalCard_(task,openGeneral_)));
       }
+      internalSection.append(internalHead,internalGrid);
+      content.append(internalSection);
 
-      generalSection.append(generalHead,generalGrid);
-      content.append(generalSection);
-
-      const workload=el('section',undefined,'dist-workload');
-      workload.append(el('h3','Equipe de distribuição'));
-
-      const workloadGrid=el('div',undefined,'dist-workload-grid');
-
-      data.usuarios.forEach(user=>{
-        const distributionCount=data.tarefas.filter(t=>
-          t.situacao!=='CONCLUIDA'&&
-          String(t.responsavel||'').toLowerCase()===
-          String(user.email||'').toLowerCase()
-        ).length;
-
-        const generalCount=generalTasks.filter(t=>
-          t.situacao!=='CONCLUIDA'&&
-          String(t.responsavel||'').toLowerCase()===
-          String(user.email||'').toLowerCase()
-        ).length;
-
-        const item=el('div',undefined,'dist-user');
-
-        item.append(
-          el('strong',user.nome),
-          el(
-            'small',
-            (user.funcao||user.email)+
-            ' · '+distributionCount+' distribuição(ões) · '+
-            generalCount+' tarefa(s) interna(s)'
-          )
-        );
-
-        workloadGrid.append(item);
-      });
-
-      if(!data.usuarios.length){
-        workloadGrid.append(
-          el(
-            'p',
-            'Nenhum usuário possui a permissão "Distribuir processos". Configure essa permissão em Administração.',
-            'warn'
-          )
-        );
-      }
-
-      workload.append(workloadGrid);
-      content.append(workload);
-
-      const active=data.tarefas.filter(
-        task=>task.situacao!=='CONCLUIDA'
-      );
-
-      const section=el('section',undefined,'dist-section');
-      const sectionHead=el('div',undefined,'dist-section-head');
-
-      sectionHead.append(
-        el('h3','Fila de distribuição processual'),
-        el(
-          'span',
-          active.length+(active.length===1?' tarefa':' tarefas'),
-          'hint'
-        )
-      );
-
+      const distributionSection=el('section',undefined,'dist-section');
+      const distributionHead=el('div',undefined,'dist-section-head');
+      distributionHead.append(el('h3','Distribuições processuais abertas'),el('span',distribution.length+' tarefa(s)','hint'));
       const grid=el('div',undefined,'dist-grid');
-
-      if(!active.length){
-        grid.append(
-          el(
-            'div',
-            'Não existem tarefas pendentes de distribuição.',
-            'dist-empty'
-          )
-        );
+      if(!distribution.length){
+        grid.append(el('div','Nenhuma distribuição processual aberta com esses filtros.','dist-empty'));
       }else{
-        active.forEach(task=>
-          grid.append(
-            assignmentCard_(task,data.usuarios,render)
-          )
-        );
+        distribution.forEach(task=>grid.append(assignmentCard_(task,data.usuariosDistribuicao||[],renderOpen_)));
       }
-
-      section.append(sectionHead,grid);
-      content.append(section);
-
-      const completed=data.tarefas.filter(
-        task=>task.situacao==='CONCLUIDA'
-      );
-
-      if(completed.length){
-        const done=el('details',undefined,'dist-completed');
-
-        done.append(
-          el(
-            'summary',
-            'Distribuições concluídas ('+completed.length+')'
-          )
-        );
-
-        const doneGrid=el('div',undefined,'dist-done-grid');
-
-        completed.slice(0,30).forEach(task=>{
-          const row=el('div',undefined,'dist-done-row');
-
-          row.append(
-            el('strong',task.pessoa),
-            el('span',task.jurisdicao||'—'),
-            el(
-              'span',
-              task.responsavelNome||task.responsavel||'—'
-            )
-          );
-
-          doneGrid.append(row);
-        });
-
-        done.append(doneGrid);
-        content.append(done);
-      }
-
+      distributionSection.append(distributionHead,grid);
+      content.append(distributionSection);
       content.removeAttribute('aria-busy');
     };
 
-    await render();
+    const paintHistory_=data=>{
+      content.replaceChildren();
+      content.append(baseHead_('Histórico de tarefas'));
+
+      const info=el(
+        'p',
+        'O histórico é carregado somente quando esta guia é aberta. Use os filtros para localizar tarefas concluídas.',
+        'hint'
+      );
+      content.append(info);
+
+      const fake={
+        tarefas:data.tarefas||[],
+        usuariosTarefas:openData?openData.usuariosTarefas:[],
+        tags:data.tags||[]
+      };
+      content.append(filterBar_(fake));
+
+      const tasks=(data.tarefas||[]).filter(matches_);
+      const section=el('section',undefined,'dist-section');
+      const head=el('div',undefined,'dist-section-head');
+      head.append(el('h3','Tarefas concluídas'),el('span',tasks.length+' resultado(s)','hint'));
+      const grid=el('div',undefined,'dist-general-grid dist-history-grid');
+
+      if(!tasks.length){
+        grid.append(el('div','Nenhuma tarefa concluída encontrada.','dist-empty'));
+      }else{
+        tasks.forEach(task=>{
+          const card=el('article',undefined,'dist-history-card');
+          const top=el('div',undefined,'dist-general-top');
+          top.append(
+            el('strong',task.titulo),
+            el('span',task.tipoLabel,'dist-general-status normal')
+          );
+          const meta=el('div',undefined,'dist-general-meta');
+          [
+            ['Responsável',task.responsavelNome||task.responsavel||'—'],
+            ['Cadastro',task.pessoa||'—'],
+            ['Concluída em',dateTime_(task.concluidaEm)],
+            ['Prazo',date_(task.prazo)]
+          ].forEach(([label,value])=>{
+            const item=el('div');
+            item.append(el('span',label),el('strong',value));
+            meta.append(item);
+          });
+          card.append(top,meta,button('Abrir',()=>task.tipo==='TAREFA_GERAL'?openGeneral_(task):openDistribution_(task),true));
+          grid.append(card);
+        });
+      }
+      section.append(head,grid);
+      content.append(section);
+      content.removeAttribute('aria-busy');
+    };
+
+    const paintRanking_=data=>{
+      content.replaceChildren();
+      content.append(baseHead_('Ranking operacional'));
+
+      const filters=el('div',undefined,'dist-ranking-filters');
+      const start=el('input'); start.type='date'; start.value=data.inicio||'';
+      const end=el('input'); end.type='date'; end.value=data.fim||'';
+      const apply=button('Aplicar período',async()=>{
+        content.setAttribute('aria-busy','true');
+        rankingData=await call('distribuicaoRanking',{inicio:start.value,fim:end.value});
+        paintRanking_(rankingData);
+      });
+      filters.append(field_('Início',start),field_('Fim',end),apply);
+      content.append(filters);
+
+      const tableWrap=el('div',undefined,'scroll dist-ranking-table');
+      const table=el('table');
+      const thead=el('thead');
+      const tr=el('tr');
+      ['#','Pessoa','Função','Cadastros','Tarefas concluídas','Processos distribuídos','Logins','Processos / login']
+        .forEach(label=>tr.append(el('th',label)));
+      thead.append(tr);
+      const tbody=el('tbody');
+
+      (data.linhas||[]).forEach(row=>{
+        const line=el('tr');
+        [
+          String(row.posicao),
+          row.nome,
+          row.funcao||'—',
+          String(row.cadastros),
+          String(row.tarefasConcluidas),
+          String(row.processosDistribuidos),
+          String(row.logins),
+          Number(row.mediaProcessosPorLogin||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+        ].forEach(value=>line.append(el('td',value)));
+        tbody.append(line);
+      });
+
+      table.append(thead,tbody);
+      tableWrap.append(table);
+      content.append(tableWrap);
+      content.removeAttribute('aria-busy');
+    };
+
+    const renderOpen_=async()=>{
+      mode='open';
+      content.setAttribute('aria-busy','true');
+      openData=await call('tarefasAbertasGestao',{});
+      if(!alive(ctx))return;
+      paintOpen_(openData);
+    };
+
+    await renderOpen_();
   };
 })();
 </script>
