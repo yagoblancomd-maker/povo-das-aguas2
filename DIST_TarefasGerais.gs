@@ -1635,7 +1635,7 @@ function generalTaskAttachmentContent_(q){
 
   if(file.isTrashed()){
     fail_(
-      'O PDF foi removido do Google Drive.'
+      'O PDF não está mais disponível no repositório do sistema.'
     );
   }
 
