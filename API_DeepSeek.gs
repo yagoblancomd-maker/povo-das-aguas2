@@ -819,7 +819,7 @@ function deepseekFocusedIdentityRequest_(parts){
   }
 }
 
-function deepseekMergeIdentityFallback_(raw,focused,cpfDeterministic){
+function deepseekMergeIdentityFallback_(raw,focused,cpfDeterministic,currentNormalized){
   const base=
     Object.assign(
       {},
@@ -838,18 +838,33 @@ function deepseekMergeIdentityFallback_(raw,focused,cpfDeterministic){
   const fallback=
     focused||{};
 
-  if(!target.nome&&fallback.nome){
-    target.nome=fallback.nome;
+  const current=
+    currentNormalized&&
+    currentNormalized.identidade||
+    {};
+
+  if(
+    !current.nome&&
+    fallback.nome
+  ){
+    target.nome=
+      fallback.nome;
   }
 
-  if(!target.cpf){
-    target.cpf=
-      cpfDeterministic||
-      fallback.cpf||
-      '';
+  if(!current.cpf){
+    if(cpfDeterministic){
+      target.cpf=
+        cpfDeterministic;
+    }else if(fallback.cpf){
+      target.cpf=
+        fallback.cpf;
+    }
   }
 
-  if(!target.nascimento&&fallback.nascimento){
+  if(
+    !current.nascimento&&
+    fallback.nascimento
+  ){
     target.nascimento=
       fallback.nascimento;
   }
@@ -1125,7 +1140,8 @@ function deepseekDocumentImport_(q){
         deepseekMergeIdentityFallback_(
           mergedRaw,
           {},
-          deterministicCpf
+          deterministicCpf,
+          normalized
         );
 
       normalized=
@@ -1159,7 +1175,8 @@ function deepseekDocumentImport_(q){
           deepseekMergeIdentityFallback_(
             mergedRaw,
             focused.raw,
-            deterministicCpf
+            deterministicCpf,
+            normalized
           );
 
         normalized=
