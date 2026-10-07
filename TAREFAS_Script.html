@@ -241,6 +241,16 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
     const actions=el('div',undefined,'actions');
 
+    if(task.pessoaId){
+      actions.append(
+        button(
+          'Ver cadastro',
+          ()=>App.openPersonDrawer(task.pessoaId),
+          true
+        )
+      );
+    }
+
     actions.append(
       button(
         task.situacao==='CONCLUIDA'?'Ver distribuição':'Abrir tarefa',
@@ -310,6 +320,16 @@ window.PDA_MODULES.TAREFAS = (()=>{
     });
 
     const actions=el('div',undefined,'actions');
+
+    if(task.pessoaId){
+      actions.append(
+        button(
+          'Ver cadastro',
+          ()=>App.openPersonDrawer(task.pessoaId),
+          true
+        )
+      );
+    }
 
     actions.append(
       button(
