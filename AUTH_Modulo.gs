@@ -83,7 +83,7 @@ function authCheckAvailableEmail_(email,userId){
 
 function authPublicUser_(user){
   const allowed=COMMON.concat(['email','perfil','ativo','nome','funcao','permissoes',
-    'permissoesVersao','ultimoLogin','nomeUsuario']);
+    'permissoesVersao','ultimoLogin','nomeUsuario','entidade']);
   return Object.fromEntries(allowed.map(k=>[k,user[k]===undefined?'':user[k]]));
 }
 
