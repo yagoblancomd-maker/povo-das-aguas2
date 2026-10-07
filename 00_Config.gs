@@ -55,6 +55,7 @@ const SCHEMA = Object.freeze({
     'pessoaId','atendimentoId','numero','juizo','distribuidoEm','responsavel','movimentacoes',
     'datajudTribunal','datajudGrau','datajudClasse','datajudOrgao','datajudSistema',
     'datajudDataAjuizamento','datajudNivelSigilo','datajudAssuntos',
+    'datajudTags','datajudMarcoAtual','datajudUltimaMovimentacao',
     'datajudUltimaAtualizacaoOrigem','datajudUltimaConsulta','datajudStatus','datajudErro'
   ],
   Operacoes:['hash','resultado']
