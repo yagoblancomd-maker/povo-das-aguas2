@@ -23,7 +23,13 @@ function globalHistory_(q){
   const limit=Math.min(100,Math.max(10,Number(q.limit)||50));
 
   const people=all_('Pessoas');
+  const documents=all_('Documentos');
+  const processes=all_('Processos');
+  const tasks=all_('Tarefas');
   const peopleById=new Map(people.map(person=>[person.id,person]));
+  const documentsById=new Map(documents.map(row=>[row.id,row]));
+  const processesById=new Map(processes.map(row=>[row.id,row]));
+  const tasksById=new Map(tasks.map(row=>[row.id,row]));
   const attendancePerson=new Map(
     all_('Atendimentos').map(row=>[row.id,row.pessoaId])
   );
@@ -51,7 +57,7 @@ function globalHistory_(q){
       ].filter(Boolean).join(' · ')
     }));
   }else if(type==='documentos'){
-    rows=all_('Documentos').map(doc=>{
+    rows=documents.map(doc=>{
       const personId=personFromDocument_(doc);
       const person=peopleById.get(personId);
       return {
@@ -70,7 +76,7 @@ function globalHistory_(q){
       };
     });
   }else if(type==='processos'){
-    rows=all_('Processos').map(proc=>{
+    rows=processes.map(proc=>{
       const person=peopleById.get(proc.pessoaId);
       return {
         id:proc.id,
@@ -93,14 +99,14 @@ function globalHistory_(q){
       if(direct){
         personId=direct.id;
       }else{
-        const document=all_('Documentos').find(row=>row.id===item.registroId);
+        const document=documentsById.get(item.registroId);
         if(document)personId=personFromDocument_(document);
         if(!personId){
-          const process=all_('Processos').find(row=>row.id===item.registroId);
+          const process=processesById.get(item.registroId);
           if(process)personId=process.pessoaId||'';
         }
         if(!personId){
-          const task=all_('Tarefas').find(row=>row.id===item.registroId);
+          const task=tasksById.get(item.registroId);
           if(task)personId=task.pessoaId||'';
         }
       }
