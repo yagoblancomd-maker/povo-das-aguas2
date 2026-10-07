@@ -415,7 +415,7 @@ window.PDA_MODULES.PERF=async ctx=>{
       node.maxLength=4096;
       node.autocomplete=name==='novaSenha'?'new-password':'current-password';
     }else{
-      node.maxLength=name==='nome'?140:name==='nomeUsuario'?80:254;
+      node.maxLength=name==='nome'?140:name==='nomeUsuario'?40:254;
       node.addEventListener('input',()=>{dirty=true;});
     }
 
@@ -429,7 +429,7 @@ window.PDA_MODULES.PERF=async ctx=>{
 
   const name=input(form,'Nome completo','nome',user.nome);
   const username=input(form,'Nome de usuário','nomeUsuario',user.nomeUsuario||user.nome);
-  const email=input(form,'E-mail de acesso','email',user.email,'email');
+  const email=input(form,'E-mail de contato e recuperação','email',user.email,'email');
   const current=input(form,'Senha atual (para trocar o e-mail)','senhaAtual','','password',false);
 
   const save=el('button','Salvar perfil');
