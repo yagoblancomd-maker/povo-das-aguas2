@@ -11,6 +11,5 @@ const app=read('App_Script.html');
 for(const action of ['pessoasLeve','pessoaResumo','pessoaFichaMeta','pessoaDocumentos','pessoaProcessos','pessoaAtendimentos','pessoaHistorico','tarefaCriarOpcoes']) assert.ok(app.includes(action),action);
 const acomp=read('ACOMP_Script.html');
 for(const token of ['pessoasLeve','openPersonDrawer','prefetchPersonSummary','PDA_ACOMP_LIST_V2','+ Tarefa','Abrir ficha']) assert.ok(acomp.includes(token),token);
-const app=read('App_Script.html');
 for(const token of ['openPersonDrawer_','createTaskForPerson_','deletePersonFromUi_','pessoaFichaMeta','pessoaDocumentos','pessoaAtendimentos','pessoaProcessos','pessoaHistorico']) assert.ok(app.includes(token),token);
 console.log('PASS etapas 1 e 2: consultas leves, drawer e ficha lazy conectadas.');
