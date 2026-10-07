@@ -923,7 +923,10 @@ window.PDA_MODULES.TAREFAS = (()=>{
     try{
       detail=await call(
         'tarefaGeralDetalhe',
-        {id:task.id},
+        {
+          id:task.id,
+          light:true
+        },
         false,
         {noLoader:true}
       );
@@ -1118,11 +1121,17 @@ window.PDA_MODULES.TAREFAS = (()=>{
         input.files
       );
 
-      detail=await call(
-        'tarefaGeralDetalhe',
+      const movementData=await call(
+        'tarefaGeralMovimentos',
         {id:detail.tarefa.id},
         false,
         {noLoader:true}
+      );
+
+      detail=Object.assign(
+        {},
+        detail,
+        movementData
       );
 
       renderGeneralAttachments_(fileGrid,detail);
@@ -1177,9 +1186,17 @@ window.PDA_MODULES.TAREFAS = (()=>{
             true
           );
 
-          detail=await call(
-            'tarefaGeralDetalhe',
-            {id:detail.tarefa.id}
+          const movementData=await call(
+            'tarefaGeralMovimentos',
+            {id:detail.tarefa.id},
+            false,
+            {noLoader:true}
+          );
+
+          detail=Object.assign(
+            {},
+            detail,
+            movementData
           );
 
           renderGeneralMessages_(messages,detail);
@@ -1246,6 +1263,86 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
 
     dialog.showModal();
+
+    fileGrid.replaceChildren(
+      el(
+        'div',
+        'Carregando PDFs…',
+        'task-chat-empty'
+      )
+    );
+
+    messages.replaceChildren(
+      el(
+        'div',
+        'Carregando diálogo…',
+        'task-chat-empty'
+      )
+    );
+
+    call(
+      'tarefaGeralMovimentos',
+      {id:detail.tarefa.id},
+      false,
+      {noLoader:true}
+    )
+      .then(movementData=>{
+        if(
+          !dialog.isConnected||
+          !dialog.open
+        ){
+          return;
+        }
+
+        detail=Object.assign(
+          {},
+          detail,
+          movementData
+        );
+
+        renderGeneralAttachments_(
+          fileGrid,
+          detail
+        );
+
+        renderGeneralMessages_(
+          messages,
+          detail
+        );
+
+        refresh({
+          kind:'update',
+          id:detail.tarefa.id,
+          patch:{
+            mensagens:
+              (detail.mensagens||[]).length,
+            anexos:
+              (detail.anexos||[]).length
+          }
+        });
+      })
+      .catch(()=>{
+        if(
+          dialog.isConnected&&
+          dialog.open
+        ){
+          fileGrid.replaceChildren(
+            el(
+              'div',
+              'Não foi possível carregar os PDFs agora.',
+              'warn'
+            )
+          );
+
+          messages.replaceChildren(
+            el(
+              'div',
+              'Não foi possível carregar o diálogo agora.',
+              'warn'
+            )
+          );
+        }
+      });
   }
 
   return async function(ctx){
