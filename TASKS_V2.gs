@@ -430,9 +430,12 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
       ''
     );
 
+  /*
+   * NOVA MANIFESTAÇÃO só desaparece quando a própria tarefa é aberta.
+   * A leitura do sino não equivale à leitura da movimentação.
+   */
   const baseline=
     taskSeen||
-    String(globalSeen||'')||
     String(
       task.atribuidaEm||
       task.criadoEm||
