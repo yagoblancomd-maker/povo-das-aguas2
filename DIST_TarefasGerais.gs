@@ -515,10 +515,13 @@ function taskViewMark_(ctx,q){
     );
 
   const previous=
-    all_('TarefaLeituras')
-      .find(row=>
-        row.id===rowId
-      )||
+    (
+      where_(
+        'TarefaLeituras',
+        'id',
+        rowId
+      )[0]
+    )||
     null;
 
   const saved=
@@ -1058,13 +1061,11 @@ function generalTaskDetail_(q){
     generalTaskUserMaps_();
 
   const messages=
-    generalTaskRows_(
-      'TarefaMensagens'
+    where_(
+      'TarefaMensagens',
+      'tarefaId',
+      task.id
     )
-      .filter(message=>
-        message.tarefaId===
-        task.id
-      )
       .sort((a,b)=>
         String(
           a.criadoEm||
@@ -1091,13 +1092,11 @@ function generalTaskDetail_(q){
       }));
 
   const attachments=
-    generalTaskRows_(
-      'TarefaAnexos'
+    where_(
+      'TarefaAnexos',
+      'tarefaId',
+      task.id
     )
-      .filter(attachment=>
-        attachment.tarefaId===
-        task.id
-      )
       .sort((a,b)=>
         String(
           b.criadoEm||
@@ -1854,14 +1853,14 @@ function generalTaskAttachmentContent_(q){
   );
 
   const attachment=
-    generalTaskRows_(
-      'TarefaAnexos'
+    where_(
+      'TarefaAnexos',
+      'tarefaId',
+      task.id
     )
       .find(item=>
         item.id===
-          q.anexoId&&
-        item.tarefaId===
-          task.id
+        q.anexoId
       );
 
   if(!attachment){
