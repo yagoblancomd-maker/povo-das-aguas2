@@ -660,6 +660,17 @@ function personDeleteCascade_(ctx,q){
 
   const priorHistory=all_('Historico').filter(row=>relatedIds.has(row.registroId));
 
+  const priorOperations=all_('Operacoes').filter(row=>{
+    const result=String(row.resultado||'');
+    return (
+      result.includes(person.id)||
+      (
+        String(person.cpf||'')&&
+        result.includes(String(person.cpf))
+      )
+    );
+  });
+
   ctx.redactDeletionAudit=true;
 
   [
@@ -673,6 +684,7 @@ function personDeleteCascade_(ctx,q){
     ['Documentos',documents],
     ['Atendimentos',attendance],
     ['Historico',priorHistory],
+    ['Operacoes',priorOperations],
     ['Pessoas',[person]]
   ].forEach(([entity,rows])=>{
     rows.forEach(row=>remove_(ctx,entity,row.id,row.versao));
