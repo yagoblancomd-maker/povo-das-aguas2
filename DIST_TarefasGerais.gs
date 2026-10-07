@@ -6,6 +6,7 @@ const DEFAULT_TASK_TAGS=Object.freeze([
   {nome:'URGENTE',cor:'#c65349'},
   {nome:'DOCUMENTAÇÃO',cor:'#d49a42'},
   {nome:'PROCESSO',cor:'#176e7d'},
+  {nome:'CRIADO PELA COLÔNIA',cor:'#4f7f72'},
   {nome:'RETORNO',cor:'#7a5aa6'},
   {nome:'FINANCEIRO',cor:'#2f8b65'}
 ]);
