@@ -537,8 +537,31 @@ function tasksCollectionV2_(q,mode,options){
     task.situacao===GENERAL_TASK_DONE||
     task.situacao===DISTRIBUTION_TASK_DONE;
 
+  const currentUser=
+    activeUser_();
+
   let rows=allTasks
     .filter(task=>{
+      if(
+        isColonyUser_(currentUser)&&
+        task.pessoaId
+      ){
+        const person=
+          peopleById.get(
+            task.pessoaId
+          );
+
+        if(
+          !person||
+          !personInUserScope_(
+            currentUser,
+            person
+          )
+        ){
+          return false;
+        }
+      }
+
       if(mode==='open'&&isDone(task))return false;
       if(mode==='history'&&!isDone(task))return false;
       if(q.pessoaId&&task.pessoaId!==q.pessoaId)return false;
@@ -792,7 +815,7 @@ function myTasksHistoryV2_(q){
 
 function personTasksV2_(q){
   const pessoaId=String(required_(q.pessoaId,'pessoa')).trim();
-  get_('Pessoas',pessoaId);
+  getScopedPerson_(pessoaId);
   const mode=bool_(q.historico)?'history':'open';
   return Object.assign(
     {},
