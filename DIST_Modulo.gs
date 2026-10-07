@@ -383,8 +383,14 @@ function myDistributionTasks_(){
   const email=
     identity_();
 
+  const currentUser=
+    activeUser_();
+
   const people=
-    all_('Pessoas');
+    filterPeopleByUserScope_(
+      all_('Pessoas'),
+      currentUser
+    );
 
   const users=
     all_('Usuarios');
@@ -417,7 +423,15 @@ function myDistributionTasks_(){
           t.responsavel||
           ''
         ).toLowerCase()===
-          email
+          email&&
+        (
+          !isColonyUser_(
+            currentUser
+          )||
+          peopleById.has(
+            t.pessoaId
+          )
+        )
       )
       .sort((a,b)=>{
         const aDone=
