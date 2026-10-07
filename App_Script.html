@@ -733,6 +733,18 @@ n.className='status '+(error?'error':'ok');
   return id;
  }
 
+ function safeBeginProcessing_(action,write){
+  try{
+    return beginProcessing_(action,write);
+  }catch(e){
+    console.warn(
+      'Falha ao iniciar indicador de processamento:',
+      e
+    );
+    return null;
+  }
+ }
+
  function endProcessing_(id,success=true){
   if(
     !id||
@@ -835,7 +847,7 @@ n.className='status '+(error?'error':'ok');
         .forEach(b=>b.disabled=true);
 
       processingId=
-        beginProcessing_(
+        safeBeginProcessing_(
           action,
           true
         );
@@ -850,7 +862,7 @@ n.className='status '+(error?'error':'ok');
       setTimeout(
         ()=>{
           processingId=
-            beginProcessing_(
+            safeBeginProcessing_(
               action,
               false
             );
@@ -1299,7 +1311,7 @@ return d;
       ()=>{
         if(token===epoch){
           moduleProcessingId=
-            beginProcessing_(
+            safeBeginProcessing_(
               'carregarModulo',
               false
             );
