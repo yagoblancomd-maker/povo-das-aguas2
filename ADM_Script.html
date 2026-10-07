@@ -1,1197 +1,593 @@
 <script>
-window.PDA_MODULES.ADM = (()=>{
-  const {
-    el,card,details,form,link,button,call,go,alive,status
-  }=App;
+window.PDA_MODULES.ADM=(()=>{
+  const {el,button,call,status,alive}=App;
 
   function readFile_(file){
     return new Promise((resolve,reject)=>{
       const reader=new FileReader();
-
       reader.onload=()=>{
         const value=String(reader.result||'');
         const parts=value.split(',');
-
         if(parts.length<2){
           reject(new Error('Não foi possível ler o arquivo.'));
           return;
         }
-
         resolve(parts[1]);
       };
-
       reader.onerror=()=>reject(reader.error||new Error('Erro ao ler o arquivo.'));
       reader.readAsDataURL(file);
     });
   }
 
+  function field_(label,node,hint=''){
+    const wrap=el('label',undefined,'field');
+    wrap.append(el('span',label),node);
+    if(hint)wrap.append(el('small',hint,'hint'));
+    return wrap;
+  }
+
+  function input_(type,value=''){
+    const node=el('input');
+    node.type=type;
+    node.value=value===undefined?'':value;
+    return node;
+  }
+
+  function select_(options,value=''){
+    const node=el('select');
+    options.forEach(item=>{
+      const data=Array.isArray(item)?item:[item,item];
+      node.append(new Option(data[1],data[0]));
+    });
+    node.value=value;
+    return node;
+  }
+
   return async function(ctx){
     const root=ctx.root;
+    const cache=new Map();
 
-    root.append(el('h2','Administração'));
-
-    const d=await call('admin');
-
-    if(!alive(ctx)){
-      return;
-    }
-
-    root.append(el(
-      'p',
-      'Defina as políticas pendentes e mantenha o modelo oficial da minuta. O modelo é enviado em DOCX e convertido automaticamente para Google Docs.',
-      'hint'
-    ));
-
-    const model=card('Modelo de minuta');
-    root.append(model);
-
-    if(d.modelo&&d.modelo.configurado){
-      model.append(el(
-        'p',
-        'Modelo ativo: '+d.modelo.nome,
-        'badge'
-      ));
-
-      model.append(
-        link(
-          d.modelo.url,
-          'Abrir modelo ativo'
-        )
-      );
-
-    }else{
-      model.append(el(
-        'p',
-        d.modelo&&d.modelo.mensagem
-          ?d.modelo.mensagem
-          :'Nenhum modelo ativo.',
-        'warn'
-      ));
-    }
-
-    model.append(el(
-      'p',
-      'Envie o arquivo .docx da petição-modelo. O sistema converte o arquivo, normaliza os placeholders conhecidos, valida os campos obrigatórios e ativa o novo modelo. Não é necessário informar ID do Drive.',
-      'hint'
-    ));
-
-    const modelInput=el('input');
-    modelInput.type='file';
-    modelInput.accept=
-      '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    modelInput.setAttribute(
-      'aria-label',
-      'Arquivo DOCX do modelo de minuta'
+    const head=el('div',undefined,'adm-v3-head');
+    const copy=el('div');
+    copy.append(
+      el('h2','Administração'),
+      el('p','Cada área é carregada somente quando aberta.','hint')
     );
+    const tabs=el('div',undefined,'adm-v3-tabs');
+    head.append(copy,tabs);
 
-    model.append(modelInput);
+    const panel=el('div',undefined,'adm-v3-panel');
+    root.append(head,panel);
 
-    const modelActions=
-      el(
-        'div',
-        undefined,
-        'actions'
-      );
-
-    modelActions.append(
-      button(
-        'Enviar e ativar modelo',
-        async()=>{
-          const file=
-            modelInput.files&&
-            modelInput.files[0];
-
-          if(!file){
-            throw new Error(
-              'Selecione o arquivo DOCX do modelo.'
-            );
-          }
-
-          if(
-            file.size>
-            10*1024*1024
-          ){
-            throw new Error(
-              'O modelo DOCX deve ter no máximo 10 MB.'
-            );
-          }
-
-          const base64=
-            await readFile_(file);
-
-          const result=
-            await call(
-              'modeloUpload',
-              {
-                nome:file.name,
-                mime:
-                  file.type||
-                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                base64
-              },
-              true
-            );
-
-          App.state.boot=
-            await call('bootstrap',{light:true});
-
-          await App.refreshCurrent({code:'ADM'});
-
-          status(
-            result.mensagem||
-            'Modelo ativado.'
-          );
-        }
-      )
-    );
-
-    model.append(
-      modelActions
-    );
-
-    const portal=card('API do Portal da Transparência');
-    root.append(portal);
-
-    portal.append(
-      el(
-        'p',
-        d.portalTransparencia&&d.portalTransparencia.configurada
-          ?'Chave da API configurada.'
-          :'Chave da API ainda não configurada.',
-        d.portalTransparencia&&d.portalTransparencia.configurada
-          ?'badge'
-          :'warn'
-      )
-    );
-
-    portal.append(
-      el(
-        'p',
-        'A chave é usada somente no servidor para consultar a API oficial do Portal da Transparência. Ela não é devolvida ao navegador nem exibida depois de salva.',
-        'hint'
-      )
-    );
-
-    form(
-      portal,
-      [
-        {
-          key:'chave',
-          label:'Chave da API',
-          type:'password',
-          required:true,
-          placeholder:'Cole aqui a chave fornecida pelo Portal da Transparência'
-        }
-      ],
-      {},
-      async q=>{
-        const result=await call(
-          'portalApiKeySalvar',
-          q,
-          true
-        );
-
-        App.state.boot=
-          await call('bootstrap',{light:true});
-
-        await App.refreshCurrent({code:'ADM'});
-        status(result.mensagem||'Chave da API salva.');
-      },
-      d.portalTransparencia&&d.portalTransparencia.configurada
-        ?'Substituir chave da API'
-        :'Salvar chave da API'
-    );
-
-    const deepseek=card('API DeepSeek — leitura automática de documentos');
-    root.append(deepseek);
-
-    deepseek.append(
-      el(
-        'p',
-        d.deepseek&&d.deepseek.configurada
-          ?'Chave da API DeepSeek configurada. Modelo ativo: '+d.deepseek.modelo+'.'
-          :'Chave da API DeepSeek ainda não configurada.',
-        d.deepseek&&d.deepseek.configurada
-          ?'badge'
-          :'warn'
-      )
-    );
-
-    deepseek.append(
-      el(
-        'p',
-        'A chave é usada somente no servidor para a importação assistida de dados do documento de identidade e do comprovante de residência. Ela não é enviada ao navegador nem exibida depois de salva. A funcionalidade usa o modelo '+((d.deepseek&&d.deepseek.modelo)||'deepseek-flash')+'.',
-        'hint'
-      )
-    );
-
-    form(
-      deepseek,
-      [
-        {
-          key:'chave',
-          label:'DEEPSEEK_API_KEY',
-          type:'password',
-          required:true,
-          placeholder:'Cole aqui sua chave da API DeepSeek'
-        }
-      ],
-      {},
-      async q=>{
-        const result=await call(
-          'deepseekApiKeySalvar',
-          q,
-          true
-        );
-
-        App.state.boot=
-          await call('bootstrap',{light:true});
-
-        await App.refreshCurrent({code:'ADM'});
-
-        status(
-          result.mensagem||
-          'Chave da API DeepSeek salva.'
-        );
-      },
-      d.deepseek&&d.deepseek.configurada
-        ?'Substituir chave DeepSeek'
-        :'Salvar chave DeepSeek'
-    );
-
-    const loginInfo=card('Acesso ao sistema');
-    loginInfo.append(el('p','As pessoas criam o próprio acesso com e-mail e senha. Alterações de perfil e recuperação de senha estão disponíveis na tela de entrada e em Meu perfil.','hint'));
-    root.append(loginInfo);
-
-    const labels={
-      rascunhos:
-        'Salvar dados pessoais incompletos',
-      vencimentoFuturo:
-        'Faturas com vencimento futuro',
-      anexoOrientacao:
-        'Identificação e orientação do anexo exigido',
-      entidades:
-        'Colônias e entidades',
-      municipios:
-        'Municípios',
-      demandas:
-        'Tipos de demanda',
-      categorias:
-        'Categorias obrigatórias',
-      situacoes:
-        'Situações dos atendimentos'
-    };
-
-    d.configuracoes
-      .filter(c=>labels[c.chave])
-      .forEach(c=>{
-        const box=
-          details(
-            root,
-            labels[c.chave]
-          );
-
-        let value=
-          JSON.parse(
-            c.valor
-          );
-
-        const array=
-          Array.isArray(
-            value
-          );
-
-        const f={
-          key:'valor',
-          label:
-            array
-              ?'Um valor por linha'
-              :labels[c.chave],
-          type:
-            array||
-            c.chave==='anexoOrientacao'
-              ?'textarea'
-              :'text'
-        };
-
-        if(
-          c.chave==='rascunhos'
-        ){
-          f.options=[
-            'PENDENTE',
-            'PERMITIR',
-            'PROIBIR'
-          ];
-        }
-
-        if(
-          c.chave==='vencimentoFuturo'
-        ){
-          f.options=[
-            'PENDENTE',
-            'ACEITAR',
-            'RECUSAR'
-          ];
-        }
-
-        form(
-          box,
-          [f],
-          {
-            chave:c.chave,
-            versao:c.versao,
-            valor:
-              array
-                ?value.join('\n')
-                :value
-          },
-          async q=>{
-            if(array){
-              q.valor=
-                q.valor
-                  .split('\n')
-                  .map(s=>s.trim())
-                  .filter(Boolean);
-            }
-
-            await call(
-              'configSalvar',
-              q,
-              true
-            );
-
-            App.state.boot=
-              await call('bootstrap',{light:true});
-
-            await App.refreshCurrent({code:'ADM'});
-          }
-        );
-      });
-
-    const users=
-      card(
-        'Usuários e permissões'
-      );
-
-    users.classList.add(
-      'adm-users-card'
-    );
-
-    root.append(
-      users
-    );
-
-    users.append(
-      el(
-        'p',
-        'Cadastre a pessoa responsável pelo acesso, informe sua função no projeto, o e-mail usado para entrar no sistema, escolha um perfil-base e, se necessário, personalize permissões específicas. O perfil sugere um conjunto padrão; as permissões marcadas definem o acesso efetivo daquele usuário.',
-        'hint'
-      )
-    );
-
-    const accessNotice=
-      el(
-        'div',
-        undefined,
-        'adm-google-access'
-      );
-
-    accessNotice.append(
-      el(
-        'strong',
-        'Acesso direto aos arquivos do Google Drive'
-      ),
-      el(
-        'p',
-        'O Web App executa como proprietário e realiza todas as gravações no servidor. Usuários ativos recebem somente leitura direta dos arquivos do Google Drive para abrir PDFs, imagens e pacotes ZIP. O botão abaixo reaplica essa regra aos usuários já cadastrados.',
-        'hint'
-      )
-    );
-
-    const syncAccessButton=
-      button(
-        'Sincronizar acessos Google',
-        async()=>{
-          syncAccessButton.disabled=true;
-          syncAccessButton.textContent=
-            'Sincronizando acessos...';
-
-          try{
-            const result=
-              await call(
-                'usuariosAcessosGoogleSincronizar',
-                {},
-                true
-              );
-
-            status(
-              result.mensagem||
-              'Acessos Google sincronizados.'
-            );
-
-          }catch(e){
-            status(
-              e.message||String(e),
-              true
-            );
-
-          }finally{
-            syncAccessButton.disabled=false;
-            syncAccessButton.textContent=
-              'Sincronizar acessos Google';
-          }
-        }
-      );
-
-    accessNotice.append(
-      syncAccessButton
-    );
-
-    users.append(
-      accessNotice
-    );
-
-    const usersLayout=
-      el(
-        'div',
-        undefined,
-        'adm-users-layout'
-      );
-
-    users.append(usersLayout);
-
-    const profileGuide=
-      el(
-        'div',
-        undefined,
-        'adm-profile-guide'
-      );
-
-    d.perfis.forEach(perfil=>{
-      const info=
-        d.perfisDetalhes[perfil]||{
-          descricao:'',
-          permissoes:[]
-        };
-
-      const box=
-        el(
-          'div',
-          undefined,
-          'adm-profile-card'
-        );
-
-      box.append(
-        el(
-          'strong',
-          perfil
-        ),
-        el(
-          'span',
-          info.descricao||
-          '',
-          'hint'
-        ),
-        el(
-          'small',
-          'Padrão: '+
-          info.permissoes
-            .map(key=>{
-              const permission=
-                d.permissoes.find(
-                  item=>item.key===key
-                );
-
-              return permission
-                ?permission.label
-                :key;
-            })
-            .join(', '),
-          'adm-profile-defaults'
-        )
-      );
-
-      profileGuide.append(
-        box
-      );
-    });
-
-    usersLayout.append(
-      profileGuide
-    );
-
-    const permissionFields=
-      d.permissoes.map(permission=>({
-        key:'perm_'+permission.key,
-        label:
-          permission.label+
-          ' — '+
-          permission.descricao,
-        type:'checkbox'
-      }));
-
-    const userFields=[
-      {
-        key:'nome',
-        label:'Nome completo',
-        required:true,
-        placeholder:'Nome da pessoa'
-      },
-      {
-        key:'funcao',
-        label:'Função no projeto',
-        required:true,
-        placeholder:'Ex.: residente, professor, advogado, coordenação'
-      },
-      {
-        key:'email',
-        label:'E-mail de acesso',
-        type:'email',
-        required:true,
-        placeholder:'nome@gmail.com'
-      },
-      {
-        key:'perfil',
-        label:'Perfil-base',
-        options:d.perfis.map(perfil=>({
-          value:perfil,
-          label:
-            perfil+
-            ' — '+
-            (
-              d.perfisDetalhes[perfil]&&
-              d.perfisDetalhes[perfil].descricao
-                ?d.perfisDetalhes[perfil].descricao
-                :''
-            )
-        })),
-        required:true
-      },
-      {
-        key:'ativo',
-        label:'Acesso ativo',
-        type:'checkbox'
-      },
-      ...permissionFields
+    const defs=[
+      ['usuarios','Usuários e permissões','adminUsuarios'],
+      ['tags','Tags de tarefas','adminTags'],
+      ['modelo','Modelo de minuta','adminIntegracoes'],
+      ['apis','Integrações / APIs','adminIntegracoes'],
+      ['config','Configurações','adminConfiguracoes']
     ];
 
-    const buildUserForm_=(parent,user,isNew=false)=>{
-      const profile=
-        user.perfil||
-        'CONSULTA';
+    let active='usuarios';
+    let seq=0;
 
-      const defaults=
-        (
-          d.perfisDetalhes[profile]&&
-          d.perfisDetalhes[profile].permissoes
-        )||
-        ['consulta'];
+    const getData_=async(action,force=false)=>{
+      if(!force&&cache.has(action))return cache.get(action);
+      const data=await call(action);
+      cache.set(action,data);
+      return data;
+    };
 
-      const effective=
-        Array.isArray(user.permissoesEfetivas)
-          ?user.permissoesEfetivas
-          :defaults;
+    const invalidate_=action=>{
+      cache.delete(action);
+    };
 
-      const data=
-        Object.assign(
-          {},
-          user,
-          {
-            perfil:profile,
-            ativo:
-              user.ativo===undefined
-                ?true
-                :(
-                  user.ativo===true||
-                  user.ativo==='true'
-                )
+    async function renderUsers_(data){
+      panel.replaceChildren();
+
+      const toolbar=el('div',undefined,'adm-v3-toolbar');
+      const search=input_('search');
+      search.placeholder='Buscar usuário por nome, função ou e-mail';
+      const sync=button('Sincronizar acessos do Drive',async()=>{
+        const result=await call('usuariosAcessosGoogleSincronizar',{},true);
+        status(result.mensagem||'Acessos sincronizados.');
+      },true);
+      const add=button('+ Novo usuário',()=>selectUser_(null));
+      toolbar.append(search,sync,add);
+
+      const layout=el('div',undefined,'adm-users-v3-layout');
+      const list=el('div',undefined,'adm-users-v3-list');
+      const editor=el('div',undefined,'adm-users-v3-editor');
+      layout.append(list,editor);
+      panel.append(toolbar,layout);
+
+      let selected=null;
+
+      const renderList_=()=>{
+        const term=String(search.value||'').trim().toLowerCase();
+        list.replaceChildren();
+
+        const rows=(data.usuarios||[]).filter(user=>
+          !term||
+          [user.nome,user.funcao,user.email,user.perfil]
+            .join(' ')
+            .toLowerCase()
+            .includes(term)
+        );
+
+        rows.forEach(user=>{
+          const item=el('button',undefined,'adm-user-v3-item');
+          item.type='button';
+          item.classList.toggle('active',selected&&selected.id===user.id);
+          const name=el('strong',user.nome||user.email);
+          const meta=el('small',[
+            user.funcao||'sem função',
+            user.perfil,
+            user.ativo==='true'?'ativo':'inativo'
+          ].join(' · '));
+          item.append(name,meta);
+          item.onclick=()=>selectUser_(user);
+          list.append(item);
+        });
+
+        if(!rows.length){
+          list.append(el('p','Nenhum usuário encontrado.','hint'));
+        }
+      };
+
+      const selectUser_=user=>{
+        selected=user;
+        renderList_();
+        editor.replaceChildren();
+
+        const isNew=!user;
+        const source=user||{
+          nome:'',
+          funcao:'',
+          email:'',
+          perfil:'CONSULTA',
+          ativo:'true',
+          permissoesEfetivas:['consulta']
+        };
+
+        editor.append(
+          el('h3',isNew?'Novo usuário':source.nome||source.email)
+        );
+
+        const form=el('form',undefined,'adm-user-v3-form');
+        const name=input_('text',source.nome||'');
+        name.required=true;
+        const func=input_('text',source.funcao||'');
+        func.required=true;
+        const email=input_('email',source.email||'');
+        email.required=true;
+        if(!isNew)email.readOnly=true;
+
+        const profile=select_(
+          (data.perfis||[]).map(value=>[value,value]),
+          source.perfil||'CONSULTA'
+        );
+
+        const activeBox=input_('checkbox');
+        activeBox.checked=source.ativo===true||source.ativo==='true';
+
+        const basics=el('div',undefined,'adm-user-v3-basics');
+        basics.append(
+          field_('Nome',name),
+          field_('Função',func),
+          field_('E-mail',email),
+          field_('Perfil-base',profile),
+          field_('Ativo',activeBox)
+        );
+
+        const permissionBox=el('div',undefined,'adm-permission-v3-grid');
+        const controls=new Map();
+
+        const syncProfile_=()=>{
+          const defaults=
+            (data.perfisDetalhes[profile.value]&&
+             data.perfisDetalhes[profile.value].permissoes)||
+            ['consulta'];
+
+          (data.permissoes||[]).forEach(permission=>{
+            const control=controls.get(permission.key);
+            if(control)control.checked=defaults.includes(permission.key);
+          });
+
+          const required=controls.get('consulta');
+          if(required){
+            required.checked=true;
+            required.disabled=true;
           }
-        );
+        };
 
-      d.permissoes.forEach(permission=>{
-        data['perm_'+permission.key]=
-          effective.includes(
-            permission.key
+        (data.permissoes||[]).forEach(permission=>{
+          const label=el('label',undefined,'adm-permission-v3-item');
+          const control=input_('checkbox');
+          control.checked=(source.permissoesEfetivas||[]).includes(permission.key);
+          controls.set(permission.key,control);
+          const text=el('span');
+          text.append(
+            el('strong',permission.label),
+            el('small',permission.descricao||'')
           );
-      });
+          label.append(control,text);
+          permissionBox.append(label);
+        });
 
-      const wrapper=
-        el(
-          'div',
-          undefined,
-          'adm-user-editor'
-        );
+        const consultation=controls.get('consulta');
+        if(consultation){
+          consultation.checked=true;
+          consultation.disabled=true;
+        }
 
-      parent.append(
-        wrapper
-      );
+        if(isNew){
+          syncProfile_();
+        }
 
-      wrapper.append(
-        el(
-          'p',
-          'Consulta é a permissão mínima obrigatória. Ao trocar o perfil-base, o sistema atualiza as permissões para o padrão desse perfil; depois você pode marcar ou desmarcar permissões específicas.',
-          'adm-permission-help'
-        )
-      );
+        profile.addEventListener('change',syncProfile_);
 
-      const userForm=
-        form(
-          wrapper,
-          userFields,
-          data,
-          async q=>{
-            const permissions=
-              d.permissoes
-                .filter(permission=>
-                  !!q[
-                    'perm_'+
-                    permission.key
-                  ]
-                )
-                .map(permission=>
-                  permission.key
-                );
+        const actions=el('div',undefined,'actions');
+        const save=el('button',isNew?'Autorizar usuário':'Salvar usuário');
+        save.type='submit';
+        actions.append(save);
 
-            d.permissoes.forEach(permission=>{
-              delete q[
-                'perm_'+
-                permission.key
-              ];
-            });
-
-            q.permissoes=
-              permissions;
-
-            await call(
-              'usuarioSalvar',
-              q,
-              true
-            );
-
-            App.state.boot=
-              await call('bootstrap',{light:true});
-
-            await App.refreshCurrent({code:'ADM'});
-
-            status(
-              isNew
-                ?'Usuário autorizado com sucesso.'
-                :'Usuário e permissões atualizados.'
-            );
-          },
-          isNew
-            ?'Autorizar usuário'
-            :'Salvar usuário e permissões'
-        );
-
-      userForm.classList.add(
-        'adm-user-form'
-      );
-
-      const normalizedFunction=
-        String(
-          user.funcao||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-
-      const isProfessorResident=
-        normalizedFunction==='professor'||
-        normalizedFunction==='residente';
-
-      if(
-        !isNew&&
-        isProfessorResident
-      ){
-        const professorResidentDefaults=
-          (
-            d.perfisDetalhes.PROFESSOR_RESIDENTE&&
-            d.perfisDetalhes.PROFESSOR_RESIDENTE.permissoes
-          )||
-          [];
-
-        const approved=
-          professorResidentDefaults.every(permission=>
-            effective.includes(
-              permission
-            )
-          );
-
-        const approvalBox=
-          el(
-            'div',
-            undefined,
-            approved
-              ?'adm-function-approval approved'
-              :'adm-function-approval pending'
-          );
-
-        const approvalCopy=
-          el(
-            'div'
-          );
-
-        approvalCopy.append(
-          el(
-            'strong',
-            approved
-              ?'Poderes funcionais aprovados'
-              :'Aprovação funcional pendente'
-          ),
-          el(
-            'span',
-            approved
-              ?'Professor/Residente com o conjunto operacional padrão aprovado. Administração e Distribuir processos não fazem parte desse conjunto.'
-              :'No primeiro acesso, Professor/Residente possui somente Consulta e Cadastro. O administrador pode liberar o conjunto operacional padrão com um clique.'
-          )
-        );
-
-        approvalBox.append(
-          approvalCopy
-        );
-
-        if(!approved){
-          approvalBox.append(
+        const normalized=String(source.funcao||'').trim().toLowerCase();
+        if(
+          !isNew&&
+          (normalized==='professor'||normalized==='residente')
+        ){
+          actions.append(
             button(
-              'Aprovar poderes de Professor/Residente',
+              'Aplicar poderes padrão de Professor/Residente',
               async()=>{
-                const confirmed=
-                  window.confirm(
-                    'Aprovar as permissões operacionais padrão para '+
-                    (user.nome||user.email)+
-                    '?\n\nSerão concedidas Consulta, Cadastro, Retificação, Conferência, Minutas e Gerenciar distribuição. Administração e Distribuir processos não serão concedidas por esta aprovação; se já tiverem sido autorizadas separadamente, serão preservadas.'
-                  );
-
-                if(!confirmed){
-                  return;
-                }
-
-                await call(
+                const result=await call(
                   'usuarioAprovarProfessorResidente',
-                  {
-                    id:user.id,
-                    versao:user.versao
-                  },
+                  {id:source.id,versao:source.versao},
                   true
                 );
-
-                App.state.boot=
-                  await call('bootstrap',{light:true});
-
-                await App.refreshCurrent({code:'ADM'});
-
-                status(
-                  'Poderes funcionais de Professor/Residente aprovados.'
-                );
+                status('Poderes funcionais atualizados.');
+                invalidate_('adminUsuarios');
+                const fresh=await getData_('adminUsuarios',true);
+                data=fresh;
+                renderUsers_(fresh);
               },
               true
             )
           );
         }
 
-        wrapper.insertBefore(
-          approvalBox,
-          userForm
-        );
-      }
-
-      const emailInput=
-        userForm.elements.namedItem(
-          'email'
-        );
-
-      if(
-        emailInput&&
-        !isNew
-      ){
-        emailInput.readOnly=true;
-        emailInput.title=
-          'O próprio usuário pode trocar o e-mail em Meu perfil.';
-      }
-
-      if(!isNew){
-        const danger=
-          el(
-            'div',
-            undefined,
-            'adm-user-danger'
-          );
-
-        const dangerCopy=
-          el(
-            'div',
-            undefined,
-            'adm-user-danger-copy'
-          );
-
-        dangerCopy.append(
-          el(
-            'strong',
-            'Excluir usuário'
-          ),
-          el(
-            'span',
-            'Remove definitivamente o usuário do cadastro e revoga o acesso ao Google Drive. O histórico das operações já realizadas permanece preservado.'
-          )
-        );
-
-        const deleteButton=
-          button(
-            'Excluir definitivamente',
+        if(!isNew){
+          const remove=button(
+            'Excluir usuário',
             async()=>{
-              const label=
-                user.nome||
-                user.email;
-
-              const firstConfirm=
-                window.confirm(
-                  'Excluir definitivamente o usuário "'+
-                  label+
-                  '"?\n\nEsta ação removerá o cadastro do usuário e revogará o acesso aos recursos do Povo das Águas.'
-                );
-
-              if(!firstConfirm){
-                return;
+              if(!window.confirm('Excluir definitivamente '+(source.nome||source.email)+'?'))return;
+              const typed=window.prompt('Digite o e-mail para confirmar:\n'+source.email);
+              if(String(typed||'').trim().toLowerCase()!==String(source.email).toLowerCase()){
+                throw new Error('O e-mail de confirmação não confere.');
               }
-
-              const typed=
-                window.prompt(
-                  'Para confirmar, digite exatamente o e-mail do usuário:\n'+
-                  user.email
-                );
-
-              if(
-                String(
-                  typed||
-                  ''
-                )
-                  .trim()
-                  .toLowerCase()!==
-                String(
-                  user.email||
-                  ''
-                )
-                  .trim()
-                  .toLowerCase()
-              ){
-                status(
-                  'Exclusão cancelada: o e-mail de confirmação não confere.',
-                  true
-                );
-                return;
-              }
-
-              const result=
-                await call(
-                  'usuarioExcluir',
-                  {
-                    id:user.id,
-                    versao:user.versao
-                  },
-                  true
-                );
-
-              App.state.boot=
-                await call('bootstrap',{light:true});
-
-              await App.refreshCurrent({code:'ADM'});
-
-              status(
-                result.mensagem||
-                'Usuário excluído definitivamente.'
+              await call(
+                'usuarioExcluir',
+                {id:source.id,versao:source.versao},
+                true
               );
+              invalidate_('adminUsuarios');
+              const fresh=await getData_('adminUsuarios',true);
+              data=fresh;
+              renderUsers_(fresh);
+              status('Usuário excluído.');
             },
             true
           );
-
-        deleteButton.classList.add(
-          'adm-user-delete-button'
-        );
-
-        danger.append(
-          dangerCopy,
-          deleteButton
-        );
-
-        wrapper.append(
-          danger
-        );
-      }
-
-      const consulta=
-        userForm.elements.namedItem(
-          'perm_consulta'
-        );
-
-      if(consulta){
-        consulta.checked=true;
-        consulta.disabled=true;
-        consulta.title=
-          'Consulta é obrigatória para qualquer usuário ativo.';
-      }
-
-      const perfilSelect=
-        userForm.elements.namedItem(
-          'perfil'
-        );
-
-      const profileInfo=
-        el(
-          'div',
-          undefined,
-          'adm-selected-profile'
-        );
-
-      wrapper.insertBefore(
-        profileInfo,
-        userForm
-      );
-
-      const syncProfileInfo_=()=>{
-        const selected=
-          perfilSelect
-            ?perfilSelect.value
-            :profile;
-
-        const info=
-          d.perfisDetalhes[selected]||{
-            descricao:'',
-            permissoes:[]
-          };
-
-        profileInfo.textContent=
-          selected+
-          ': '+
-          info.descricao;
-      };
-
-      const applyProfileDefaults_=()=>{
-        const selected=
-          perfilSelect.value;
-
-        const defaultsNow=
-          (
-            d.perfisDetalhes[selected]&&
-            d.perfisDetalhes[selected].permissoes
-          )||
-          ['consulta'];
-
-        d.permissoes.forEach(permission=>{
-          const control=
-            userForm.elements.namedItem(
-              'perm_'+
-              permission.key
-            );
-
-          if(!control)return;
-
-          control.checked=
-            defaultsNow.includes(
-              permission.key
-            );
-        });
-
-        if(consulta){
-          consulta.checked=true;
+          remove.classList.add('danger');
+          actions.append(remove);
         }
 
-        syncProfileInfo_();
-      };
+        form.append(basics,el('h4','Permissões'),permissionBox,actions);
 
-      if(perfilSelect){
-        perfilSelect.addEventListener(
-          'change',
-          applyProfileDefaults_
-        );
-      }
+        form.onsubmit=async event=>{
+          event.preventDefault();
+          const permissions=(data.permissoes||[])
+            .filter(permission=>{
+              const control=controls.get(permission.key);
+              return control&&control.checked;
+            })
+            .map(permission=>permission.key);
 
-      syncProfileInfo_();
-
-      return userForm;
-    };
-
-    const userList=
-      el(
-        'div',
-        undefined,
-        'adm-user-list'
-      );
-
-    usersLayout.append(
-      userList
-    );
-
-    d.usuarios.forEach(u=>{
-      const custom=
-        JSON.stringify(
-          (u.permissoesEfetivas||[]).slice().sort()
-        )!==
-        JSON.stringify(
-          (
-            d.perfisDetalhes[u.perfil]
-              ?d.perfisDetalhes[u.perfil].permissoes
-              :[]
-          ).slice().sort()
-        );
-
-      const title=[
-        u.nome||u.email,
-        u.funcao||'função não informada',
-        u.perfil,
-        u.ativo==='true'
-          ?'ATIVO'
-          :'INATIVO'
-      ].join(' · ');
-
-      const box=
-        details(
-          userList,
-          title
-        );
-
-      box.classList.add(
-        'adm-user-box'
-      );
-
-      if(custom){
-        box.append(
-          el(
-            'p',
-            'Permissões personalizadas em relação ao perfil-base.',
-            'badge'
-          )
-        );
-      }
-
-      buildUserForm_(
-        box,
-        u,
-        false
-      );
-    });
-
-    const add=
-      details(
-        usersLayout,
-        'Cadastrar e autorizar novo usuário'
-      );
-
-    add.classList.add(
-      'adm-user-box',
-      'adm-user-add'
-    );
-
-    add.append(
-      el(
-        'p',
-        'Informe quem é a pessoa, qual função exerce e qual e-mail ela utilizará. Depois escolha o perfil-base e ajuste as permissões somente quando houver uma necessidade específica.',
-        'hint'
-      )
-    );
-
-    buildUserForm_(
-      add,
-      {
-        nome:'',
-        funcao:'',
-        email:'',
-        perfil:'CONSULTA',
-        ativo:true,
-        permissoesEfetivas:
-          d.perfisDetalhes.CONSULTA
-            ?d.perfisDetalhes.CONSULTA.permissoes
-            :['consulta']
-      },
-      true
-    );
-
-    const tagsCard=card('Tags de tarefas');
-    tagsCard.classList.add('adm-tags-card');
-    tagsCard.append(
-      el(
-        'p',
-        'As tags organizam tarefas e definem o acento de cor dos cartões e botões.',
-        'hint'
-      )
-    );
-
-    const tagsGrid=el('div',undefined,'adm-tags-grid');
-
-    const tagRow_=(tag,isNew=false)=>{
-      const row=el('div',undefined,'adm-tag-row');
-      const name=el('input');
-      name.type='text';
-      name.maxLength=40;
-      name.placeholder='NOME DA TAG';
-      name.value=isNew?'':String(tag.nome||'');
-
-      const color=el('input');
-      color.type='color';
-      color.value=String(tag.cor||'#176e7d');
-
-      const active=el('input');
-      active.type='checkbox';
-      active.checked=tag.ativo===undefined?true:(tag.ativo===true||tag.ativo==='true');
-
-      const preview=el('span',isNew?'NOVA TAG':String(tag.nome||''),'adm-tag-preview');
-      const syncPreview=()=>{
-        preview.textContent=String(name.value||'NOVA TAG').toUpperCase();
-        preview.style.setProperty('--tag-preview-color',color.value);
-      };
-      name.addEventListener('input',syncPreview);
-      color.addEventListener('input',syncPreview);
-      syncPreview();
-
-      const actions=el('div',undefined,'adm-tag-actions');
-      actions.append(
-        button(
-          isNew?'Adicionar':'Salvar',
-          async()=>{
-            const payload={
-              nome:String(name.value||'').trim(),
-              cor:color.value,
-              ativo:active.checked
-            };
-
-            if(!isNew&&!String(tag.id||'').startsWith('DEFAULT_')){
-              payload.id=tag.id;
-            }
-
-            await call('tarefaTagSalvar',payload,true);
-            await App.refreshCurrent({code:'ADM'});
-            status(isNew?'Tag criada.':'Tag atualizada.');
-          }
-        )
-      );
-
-      if(!isNew&&!String(tag.id||'').startsWith('DEFAULT_')){
-        actions.append(
-          button(
-            'Excluir',
-            async()=>{
-              if(!window.confirm('Excluir a tag "'+tag.nome+'"? As tarefas existentes preservarão o nome já gravado.'))return;
-              await call('tarefaTagExcluir',{id:tag.id},true);
-              await App.refreshCurrent({code:'ADM'});
-              status('Tag excluída.');
+          await call(
+            'usuarioSalvar',
+            {
+              id:source.id||'',
+              versao:source.versao||'',
+              nome:name.value,
+              funcao:func.value,
+              email:email.value,
+              perfil:profile.value,
+              ativo:activeBox.checked,
+              permissoes:permissions
             },
             true
-          )
+          );
+
+          invalidate_('adminUsuarios');
+          App.state.boot=await call('bootstrap',{light:true});
+          const fresh=await getData_('adminUsuarios',true);
+          data=fresh;
+          renderUsers_(fresh);
+          status(isNew?'Usuário autorizado.':'Usuário atualizado.');
+        };
+
+        editor.append(form);
+      };
+
+      search.addEventListener('input',renderList_);
+      renderList_();
+      if(data.usuarios&&data.usuarios.length)selectUser_(data.usuarios[0]);
+      else selectUser_(null);
+    }
+
+    async function renderTags_(data){
+      panel.replaceChildren();
+      const head=el('div',undefined,'adm-v3-toolbar');
+      head.append(
+        el('p','As cores das tags aparecem nos cards e botões das tarefas.','hint'),
+        button('+ Nova tag',()=>openTag_(null))
+      );
+      const grid=el('div',undefined,'adm-tags-grid-v3');
+      panel.append(head,grid);
+
+      const openTag_=tag=>{
+        const row=el('form',undefined,'adm-tag-editor-v3');
+        const name=input_('text',tag&&tag.nome||'');
+        name.placeholder='Nome da tag';
+        const color=input_('color',tag&&tag.cor||'#176e7d');
+        const activeBox=input_('checkbox');
+        activeBox.checked=!tag||tag.ativo===true||tag.ativo==='true';
+
+        const save=el('button','Salvar');
+        save.type='submit';
+        row.append(
+          field_('Nome',name),
+          field_('Cor',color),
+          field_('Ativa',activeBox),
+          save
+        );
+
+        if(tag&&!tag.padrao){
+          row.append(
+            button(
+              'Excluir',
+              async()=>{
+                if(!window.confirm('Excluir a tag '+tag.nome+'?'))return;
+                await call('tarefaTagExcluir',{id:tag.id},true);
+                invalidate_('adminTags');
+                renderTags_(await getData_('adminTags',true));
+              },
+              true
+            )
+          );
+        }
+
+        row.onsubmit=async event=>{
+          event.preventDefault();
+          await call(
+            'tarefaTagSalvar',
+            {
+              id:tag&&tag.padrao?'':tag&&tag.id||'',
+              nome:name.value,
+              cor:color.value,
+              ativo:activeBox.checked
+            },
+            true
+          );
+          invalidate_('adminTags');
+          renderTags_(await getData_('adminTags',true));
+          status('Tag salva.');
+        };
+
+        grid.prepend(row);
+      };
+
+      (data.tagsTarefas||[]).forEach(tag=>{
+        const row=el('div',undefined,'adm-tag-row-v3');
+        const chip=el('span',tag.nome,'adm-tag-chip-v3');
+        chip.style.setProperty('--tag-color',tag.cor||'#176e7d');
+        row.append(
+          chip,
+          el('small',tag.ativo===false||tag.ativo==='false'?'inativa':'ativa'),
+          button('Editar',()=>openTag_(tag),true)
+        );
+        grid.append(row);
+      });
+    }
+
+    async function renderModel_(data){
+      panel.replaceChildren();
+      const box=el('section',undefined,'card adm-v3-card');
+      box.append(el('h3','Modelo de minuta'));
+
+      if(data.modelo&&data.modelo.configurado){
+        box.append(
+          el('p','Modelo ativo: '+data.modelo.nome,'badge')
+        );
+      }else{
+        box.append(
+          el('p',(data.modelo&&data.modelo.mensagem)||'Nenhum modelo ativo.','warn')
         );
       }
 
-      const activeWrap=el('label',undefined,'adm-tag-active');
-      activeWrap.append(active,document.createTextNode(' ativa'));
+      const input=input_('file');
+      input.accept='.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const send=button('Enviar e ativar modelo',async()=>{
+        const file=input.files&&input.files[0];
+        if(!file)throw new Error('Selecione o arquivo DOCX.');
+        if(file.size>10*1024*1024)throw new Error('O arquivo deve ter no máximo 10 MB.');
+        const result=await call(
+          'modeloUpload',
+          {
+            nome:file.name,
+            mime:file.type||'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            base64:await readFile_(file)
+          },
+          true
+        );
+        status(result.mensagem||'Modelo ativado.');
+        invalidate_('adminIntegracoes');
+        renderModel_(await getData_('adminIntegracoes',true));
+      });
 
-      row.append(preview,name,color,activeWrap,actions);
-      return row;
+      box.append(
+        el('p','Envie somente o DOCX oficial. A conversão e a validação são feitas no servidor.','hint'),
+        input,
+        send
+      );
+      panel.append(box);
+    }
+
+    async function renderApis_(data){
+      panel.replaceChildren();
+
+      const portal=el('section',undefined,'card adm-v3-card');
+      portal.append(
+        el('h3','Portal da Transparência'),
+        el('p',data.portalTransparencia&&data.portalTransparencia.configurada?'Chave configurada.':'Chave não configurada.',data.portalTransparencia&&data.portalTransparencia.configurada?'badge':'warn')
+      );
+      const portalKey=input_('password');
+      portalKey.placeholder='Nova chave da API';
+      portal.append(
+        field_('Chave',portalKey),
+        button('Salvar chave',async()=>{
+          const result=await call('portalApiKeySalvar',{chave:portalKey.value},true);
+          portalKey.value='';
+          status(result.mensagem||'Chave salva.');
+          invalidate_('adminIntegracoes');
+        })
+      );
+
+      const deep=el('section',undefined,'card adm-v3-card');
+      deep.append(
+        el('h3','DeepSeek — leitura de documentos'),
+        el('p',data.deepseek&&data.deepseek.configurada?'Chave configurada. Modelo: '+data.deepseek.modelo+'.':'Chave não configurada.',data.deepseek&&data.deepseek.configurada?'badge':'warn')
+      );
+      const deepKey=input_('password');
+      deepKey.placeholder='Nova chave DeepSeek';
+      deep.append(
+        field_('Chave',deepKey),
+        button('Salvar chave',async()=>{
+          const result=await call('deepseekApiKeySalvar',{chave:deepKey.value},true);
+          deepKey.value='';
+          status(result.mensagem||'Chave salva.');
+          invalidate_('adminIntegracoes');
+        })
+      );
+
+      panel.append(portal,deep);
+    }
+
+    async function renderConfig_(data){
+      panel.replaceChildren();
+      const rows=data.configuracoes||[];
+      const editable=[
+        ['rascunhos','Política de rascunhos'],
+        ['vencimentoFuturo','Vencimento futuro'],
+        ['anexoOrientacao','Orientação de anexo'],
+        ['entidades','Entidades'],
+        ['municipios','Municípios'],
+        ['demandas','Demandas'],
+        ['categorias','Categorias'],
+        ['situacoes','Situações']
+      ];
+
+      const grid=el('div',undefined,'adm-config-v3-grid');
+
+      editable.forEach(([key,label])=>{
+        const row=rows.find(item=>item.chave===key);
+        let value=data.config&&data.config[key];
+
+        const form=el('form',undefined,'adm-config-v3-item');
+        form.append(el('strong',label));
+
+        let control;
+        if(Array.isArray(value)){
+          control=el('textarea');
+          control.rows=5;
+          control.value=value.join('\n');
+        }else if(key==='rascunhos'){
+          control=select_(['PENDENTE','PERMITIR','PROIBIR'],String(value||'PENDENTE'));
+        }else if(key==='vencimentoFuturo'){
+          control=select_(['PENDENTE','ACEITAR','RECUSAR'],String(value||'PENDENTE'));
+        }else{
+          control=input_('text',value||'');
+        }
+
+        const save=el('button','Salvar');
+        save.type='submit';
+        form.append(control,save);
+
+        form.onsubmit=async event=>{
+          event.preventDefault();
+          let next=control.value;
+          if(Array.isArray(value)){
+            next=String(control.value||'')
+              .split(/\r?\n/)
+              .map(item=>item.trim())
+              .filter(Boolean);
+          }
+
+          await call(
+            'configSalvar',
+            {
+              chave:key,
+              valor:next,
+              versao:row&&row.versao||''
+            },
+            true
+          );
+
+          invalidate_('adminConfiguracoes');
+          const fresh=await getData_('adminConfiguracoes',true);
+          renderConfig_(fresh);
+          status('Configuração salva.');
+        };
+
+        grid.append(form);
+      });
+
+      panel.append(grid);
+    }
+
+    const renderTab_=async(key,force=false)=>{
+      active=key;
+      tabs.querySelectorAll('button').forEach(node=>
+        node.classList.toggle('active',node.dataset.tab===key)
+      );
+
+      panel.replaceChildren(
+        el('div','Carregando '+defs.find(item=>item[0]===key)[1]+'…','adm-v3-loading')
+      );
+
+      const def=defs.find(item=>item[0]===key);
+      const data=await getData_(def[2],force);
+      if(!alive(ctx)||active!==key)return;
+
+      if(key==='usuarios')return renderUsers_(data);
+      if(key==='tags')return renderTags_(data);
+      if(key==='modelo')return renderModel_(data);
+      if(key==='apis')return renderApis_(data);
+      return renderConfig_(data);
     };
 
-    (d.tagsTarefas||[]).forEach(tag=>tagsGrid.append(tagRow_(tag,false)));
-    tagsGrid.append(tagRow_({cor:'#176e7d',ativo:true},true));
-    tagsCard.append(tagsGrid);
-    root.append(tagsCard);
+    defs.forEach(([key,label])=>{
+      const tab=button(label,()=>renderTab_(key),true);
+      tab.dataset.tab=key;
+      if(key===active)tab.classList.add('active');
+      tabs.append(tab);
+    });
+
+    /*
+     * O shell já está visível. Usuários é a única consulta inicial e costuma
+     * estar aquecida pelo preload; demais áreas permanecem totalmente lazy.
+     */
+    await renderTab_('usuarios');
   };
 })();
 </script>
-
