@@ -3156,43 +3156,135 @@ f.insertBefore(file,f.firstChild);
  async function openPersonDrawer_(id,options={}){
   closePersonDrawer_();
 
-  const overlay=el('div',undefined,'pda-drawer-overlay');
-  const drawer=el('aside',undefined,'pda-person-drawer');
-  drawer.setAttribute('aria-label','Ficha do cadastro');
+  const overlay=
+    el(
+      'div',
+      undefined,
+      'pda-drawer-overlay'
+    );
+
+  const drawer=
+    el(
+      'aside',
+      undefined,
+      'pda-person-drawer'
+    );
+
+  drawer.dataset.personId=id;
+  drawer.setAttribute(
+    'aria-label',
+    'Ficha do cadastro'
+  );
+
   overlay.append(drawer);
   activePersonDrawer=overlay;
   document.body.append(overlay);
   document.body.classList.add('pda-drawer-open');
 
-  const head=el('div',undefined,'pda-person-drawer-head');
+  const head=
+    el(
+      'div',
+      undefined,
+      'pda-person-drawer-head'
+    );
+
   const headCopy=el('div');
+
   headCopy.append(
-    el('span','CADASTRO','pda-drawer-kicker'),
-    el('h2',options.summary&&options.summary.nome||'Carregando cadastro…')
+    el(
+      'span',
+      'CADASTRO',
+      'pda-drawer-kicker'
+    ),
+    el(
+      'h2',
+      options.summary&&
+      options.summary.nome||
+      'Carregando cadastro…'
+    )
   );
-  const close=el('button','×','pda-drawer-close');
+
+  const close=
+    el(
+      'button',
+      '×',
+      'pda-drawer-close'
+    );
+
   close.type='button';
-  close.onclick=closePersonDrawer_;
-  head.append(headCopy,close);
+  close.onclick=
+    closePersonDrawer_;
 
-  const actions=el('div',undefined,'pda-person-drawer-actions');
-  const body=el('div',undefined,'pda-person-drawer-body');
-  const summaryBox=el('div',undefined,'pda-person-summary');
-  const fullArea=el('div',undefined,'pda-person-full');
-  drawer.append(head,actions,body);
-  body.append(summaryBox,fullArea);
+  head.append(
+    headCopy,
+    close
+  );
 
-  overlay.addEventListener('click',event=>{
-    if(event.target===overlay)closePersonDrawer_();
-  });
+  const actions=
+    el(
+      'div',
+      undefined,
+      'pda-person-drawer-actions'
+    );
 
-  let person=options.summary||{id};
+  const body=
+    el(
+      'div',
+      undefined,
+      'pda-person-drawer-body'
+    );
+
+  const summaryBox=
+    el(
+      'div',
+      undefined,
+      'pda-person-summary'
+    );
+
+  const fullArea=
+    el(
+      'div',
+      undefined,
+      'pda-person-full'
+    );
+
+  drawer.append(
+    head,
+    actions,
+    body
+  );
+
+  body.append(
+    summaryBox,
+    fullArea
+  );
+
+  overlay.addEventListener(
+    'click',
+    event=>{
+      if(event.target===overlay){
+        closePersonDrawer_();
+      }
+    }
+  );
+
+  let person=
+    options.summary||
+    {id};
+
   const tabCache=new Map();
+  let initialBundle=null;
+  let initialBundlePromise=null;
   let generateMenu=null;
   let deleteButton=null;
 
   const renderSummary=()=>{
-    headCopy.querySelector('h2').textContent=person.nome||'Cadastro';
+    headCopy
+      .querySelector('h2')
+      .textContent=
+        person.nome||
+        'Cadastro';
+
     summaryBox.replaceChildren(
       drawerCounters_(person),
       drawerInfoGrid_(person)
@@ -3205,136 +3297,302 @@ f.insertBefore(file,f.firstChild);
     }
 
     if(deleteButton){
-      deleteButton.disabled=!person.versao;
+      deleteButton.disabled=
+        !person.versao;
     }
+  };
+
+  const loadBundle_=()=>{
+    if(initialBundlePromise){
+      return initialBundlePromise;
+    }
+
+    initialBundlePromise=
+      call(
+        'pessoaFichaCargaInicial',
+        {
+          pessoaId:id
+        }
+      )
+        .then(bundle=>{
+          initialBundle=bundle;
+
+          if(
+            bundle&&
+            bundle.resumo
+          ){
+            person=Object.assign(
+              {},
+              person,
+              bundle.resumo
+            );
+          }
+
+          renderSummary();
+          return bundle;
+        })
+        .catch(error=>{
+          initialBundlePromise=null;
+          throw error;
+        });
+
+    return initialBundlePromise;
   };
 
   renderSummary();
 
-  const openFull=button(
-    'Abrir ficha em tela cheia',
-    ()=>{
-      closePersonDrawer_();
-      return go('ACOMP',id);
-    },
-    true
-  );
+  const openFull=
+    button(
+      'Abrir ficha em tela cheia',
+      ()=>{
+        closePersonDrawer_();
+        return go(
+          'ACOMP',
+          id
+        );
+      },
+      true
+    );
 
-  const createTask=button(
-    '+ Nova tarefa',
-    ()=>createTaskForPerson_(person,async()=>{
-      tabCache.delete('tarefas');
-      try{
-        person=await call('pessoaResumo',{id});
-        renderSummary();
-      }catch(e){}
-    })
-  );
-  createTask.hidden=!can('gestao_distribuicao');
-
-  deleteButton=button(
-    'Excluir',
-    ()=>deletePersonFromUi_(person,options.onDeleted),
-    true
-  );
-  deleteButton.classList.add('danger');
-  deleteButton.hidden=!can('administracao');
-  deleteButton.disabled=!person.versao;
-
-  generateMenu=el('details',undefined,'pda-drawer-generate');
-  const generateSummary=el('summary','Gerar documentos');
-  const generatePanel=el('div',undefined,'pda-drawer-generate-panel');
-
-  const refreshDocuments_=async()=>{
-    tabCache.delete('documentos');
-    try{
-      person=Object.assign(
-        {},
+  const createTask=
+    button(
+      '+ Nova tarefa',
+      ()=>createTaskForPerson_(
         person,
-        await call('pessoaResumo',{id})
-      );
-      renderSummary();
+        async()=>{
+          tabCache.delete('tarefas');
+          initialBundle=null;
+          initialBundlePromise=null;
+          loadBundle_().catch(()=>{});
+        }
+      )
+    );
+
+  createTask.hidden=
+    !can('gestao_distribuicao');
+
+  deleteButton=
+    button(
+      'Excluir',
+      ()=>deletePersonFromUi_(
+        person,
+        {
+          onOptimistic:
+            options.onOptimisticDelete,
+          onDeleted:
+            options.onDeleted,
+          onRollback:
+            options.onDeleteRollback
+        }
+      ),
+      true
+    );
+
+  deleteButton
+    .classList
+    .add('danger');
+
+  deleteButton.hidden=
+    !can('administracao');
+
+  deleteButton.disabled=
+    !person.versao;
+
+  generateMenu=
+    el(
+      'details',
+      undefined,
+      'pda-drawer-generate'
+    );
+
+  const generateSummary=
+    el(
+      'summary',
+      'Gerar documentos'
+    );
+
+  const generatePanel=
+    el(
+      'div',
+      undefined,
+      'pda-drawer-generate-panel'
+    );
+
+  const refreshBundle_=async()=>{
+    tabCache.clear();
+    initialBundle=null;
+    initialBundlePromise=null;
+
+    try{
+      await loadBundle_();
     }catch(e){}
   };
 
-  const report=button(
-    'Relatório Seguro-Defeso 2025',
-    async()=>{
-      report.disabled=true;
-      report.textContent='Gerando…';
-      try{
-        const result=await call(
-          'seguroDefesoRelatorioGerar',
-          {pessoaId:id},
-          true
-        );
-        await refreshDocuments_();
-        status(
-          'Relatório gerado e vinculado ao cadastro. '+
-          (result.quantidade!==undefined
-            ?'Registros: '+result.quantidade+'.'
-            :'')
-        );
-        generateMenu.open=false;
-      }finally{
-        report.disabled=false;
-        report.textContent='Relatório Seguro-Defeso 2025';
-      }
-    },
-    true
+  const report=
+    button(
+      'Relatório Seguro-Defeso 2025',
+      async()=>{
+        report.disabled=true;
+        report.textContent='Gerando…';
+
+        try{
+          const result=
+            await call(
+              'seguroDefesoRelatorioGerar',
+              {
+                pessoaId:id
+              },
+              true
+            );
+
+          await refreshBundle_();
+
+          status(
+            'Relatório gerado e vinculado ao cadastro. '+
+            (
+              result.quantidade!==undefined
+                ?'Registros: '+result.quantidade+'.'
+                :''
+            )
+          );
+
+          generateMenu.open=false;
+
+        }finally{
+          report.disabled=false;
+          report.textContent=
+            'Relatório Seguro-Defeso 2025';
+        }
+      },
+      true
+    );
+
+  const initial=
+    button(
+      'Petição inicial — Seguro-Defeso 2025',
+      async()=>{
+        initial.disabled=true;
+        initial.textContent='Gerando…';
+
+        try{
+          await call(
+            'pessoaInicialGerar',
+            {
+              pessoaId:id
+            },
+            true
+          );
+
+          await refreshBundle_();
+
+          status(
+            'Petição inicial gerada e vinculada ao cadastro.'
+          );
+
+          generateMenu.open=false;
+
+        }finally{
+          initial.disabled=false;
+          initial.textContent=
+            'Petição inicial — Seguro-Defeso 2025';
+        }
+      },
+      true
+    );
+
+  generatePanel.append(
+    report,
+    initial
   );
 
-  const initial=button(
-    'Petição inicial — Seguro-Defeso 2025',
-    async()=>{
-      initial.disabled=true;
-      initial.textContent='Gerando…';
-      try{
-        await call(
-          'pessoaInicialGerar',
-          {pessoaId:id},
-          true
-        );
-        await refreshDocuments_();
-        status('Petição inicial gerada e vinculada ao cadastro.');
-        generateMenu.open=false;
-      }finally{
-        initial.disabled=false;
-        initial.textContent='Petição inicial — Seguro-Defeso 2025';
-      }
-    },
-    true
+  generateMenu.append(
+    generateSummary,
+    generatePanel
   );
 
-  generatePanel.append(report,initial);
-  generateMenu.append(generateSummary,generatePanel);
   generateMenu.hidden=true;
 
-  const loadFull=button(
-    'Carregar ficha completa',
-    async()=>{
-      loadFull.disabled=true;
-      loadFull.textContent='Preparando ficha…';
-      try{
-        person=await call('pessoaFichaMeta',{id});
-        renderSummary();
-        renderTabs();
-        loadFull.remove();
-      }catch(e){
-        loadFull.disabled=false;
-        loadFull.textContent='Carregar ficha completa';
-        throw e;
-      }
-    }
+  actions.append(
+    createTask,
+    generateMenu,
+    openFull,
+    deleteButton
   );
 
-  actions.append(createTask,generateMenu,loadFull,openFull,deleteButton);
+  const renderTasks_=(rows,cls='')=>{
+    const list=
+      el(
+        'div',
+        undefined,
+        'pda-person-task-list '+cls
+      );
+
+    if(!rows.length){
+      list.append(
+        el(
+          'p',
+          'Nenhuma tarefa nesta situação.',
+          'hint'
+        )
+      );
+    }
+
+    rows.forEach(task=>{
+      const row=
+        el(
+          'div',
+          undefined,
+          'pda-person-task-row'
+        );
+
+      row.append(
+        el(
+          'strong',
+          task.titulo||
+          task.tipoLabel||
+          'Tarefa'
+        ),
+        el(
+          'small',
+          [
+            task.tipoLabel,
+            task.responsavelNome||
+            task.responsavel,
+            task.prazo
+              ?'Prazo '+
+                String(task.prazo)
+                  .split('-')
+                  .reverse()
+                  .join('/')
+              :''
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+
+      list.append(row);
+    });
+
+    return list;
+  };
 
   const renderTabs=()=>{
     fullArea.replaceChildren();
 
-    const tabs=el('div',undefined,'pda-person-tabs');
-    const panel=el('div',undefined,'pda-person-tab-panel');
+    const tabs=
+      el(
+        'div',
+        undefined,
+        'pda-person-tabs'
+      );
+
+    const panel=
+      el(
+        'div',
+        undefined,
+        'pda-person-tab-panel'
+      );
 
     const definitions=[
       ['resumo','Resumo'],
@@ -3347,181 +3605,503 @@ f.insertBefore(file,f.firstChild);
     ];
 
     const activate=async key=>{
-      tabs.querySelectorAll('button').forEach(button=>{
-        button.classList.toggle('active',button.dataset.tab===key);
-      });
-      panel.replaceChildren(el('p','Carregando…','hint'));
+      tabs
+        .querySelectorAll('button')
+        .forEach(button=>{
+          button.classList.toggle(
+            'active',
+            button.dataset.tab===key
+          );
+        });
+
+      panel.replaceChildren(
+        el(
+          'p',
+          key==='resumo'
+            ?'Preparando resumo…'
+            :'Carregando informações…',
+          'hint'
+        )
+      );
 
       if(tabCache.has(key)){
-        panel.replaceChildren(tabCache.get(key));
+        panel.replaceChildren(
+          tabCache.get(key)
+        );
         return;
       }
 
       let node;
 
       if(key==='resumo'){
-        node=el('div',undefined,'pda-person-tab-summary');
-        node.append(drawerInfoGrid_(person));
-      }else if(key==='dados'){
-        const data=await call('pessoa',{id});
-        node=el('div',undefined,'pda-person-data-list');
-        const fields=personFields();
-        fields.forEach(field=>{
-          const item=el('div',undefined,'pda-person-data-item');
-          let value=data[field.key];
-          if(field.type==='checkbox')value=(value===true||value==='true')?'Sim':'Não';
-          item.append(el('span',field.label),el('strong',String(value||'—')));
-          node.append(item);
-        });
-      }else if(key==='documentos'){
-        const first=await call('pessoaDocumentos',{pessoaId:id,limit:20,offset:0});
-        const config={
-          key:'documentos',
-          rows:[...(first.documentos||[])],
-          hasMore:!!first.hasMore,
-          empty:'Nenhum documento vinculado.',
-          fetch:offset=>call('pessoaDocumentos',{pessoaId:id,limit:20,offset}),
-          render:rows=>drawerTable_(
-            [
-              {label:'Documento',value:row=>row.categoria||'Documento'},
-              {label:'Arquivo',value:row=>row.nome||row.fileId||'—'},
-              {label:'Conferido',value:row=>(row.conferido===true||row.conferido==='true')?'Sim':'Não'}
-            ],
-            rows
-          )
-        };
-        node=drawerPagedSection_(config);
-      }else if(key==='atendimentos'){
-        const first=await call('pessoaAtendimentos',{pessoaId:id,limit:20,offset:0});
-        const config={
-          key:'atendimentos',
-          rows:[...(first.atendimentos||[])],
-          hasMore:!!first.hasMore,
-          empty:'Nenhum atendimento vinculado.',
-          fetch:offset=>call('pessoaAtendimentos',{pessoaId:id,limit:20,offset}),
-          render:rows=>drawerTable_(
-            [
-              {label:'Data',value:row=>String(row.criadoEm||row.alteradoEm||'').slice(0,10).split('-').reverse().join('/')},
-              {label:'Responsável',key:'responsavel'},
-              {label:'Situação',key:'situacao'}
-            ],
-            rows
-          )
-        };
-        node=drawerPagedSection_(config);
-      }else if(key==='processos'){
-        const first=await call('pessoaProcessos',{pessoaId:id,limit:20,offset:0});
-        const config={
-          key:'processos',
-          rows:[...(first.processos||[])],
-          hasMore:!!first.hasMore,
-          empty:'Nenhum processo judicial vinculado.',
-          fetch:offset=>call('pessoaProcessos',{pessoaId:id,limit:20,offset}),
-          render:rows=>drawerTable_(
-            [
-              {label:'Processo',key:'numero'},
-              {label:'Jurisdição',value:row=>row.juizo||row.jurisdicao||'—'},
-              {label:'Responsável',key:'responsavel'}
-            ],
-            rows
-          )
-        };
-        node=drawerPagedSection_(config);
-      }else if(key==='tarefas'){
-        const open=await call('tarefasPessoa',{pessoaId:id,historico:false,limit:100,offset:0});
-        node=el('div',undefined,'pda-person-task-tab');
-        const renderTasks=(rows,cls='')=>{
-          const list=el('div',undefined,'pda-person-task-list '+cls);
-          if(!rows.length){
-            list.append(el('p','Nenhuma tarefa nesta situação.','hint'));
-          }
-          rows.forEach(task=>{
-            const row=el('div',undefined,'pda-person-task-row');
-            row.append(
-              el('strong',task.titulo||task.tipoLabel||'Tarefa'),
-              el('small',[
-                task.tipoLabel,
-                task.responsavelNome||task.responsavel,
-                task.prazo?'Prazo '+String(task.prazo).split('-').reverse().join('/'):''
-              ].filter(Boolean).join(' · '))
-            );
-            list.append(row);
-          });
-          return list;
-        };
-        node.append(el('h4','Tarefas abertas ('+open.total+')'),renderTasks(open.tarefas||[]));
+        node=
+          el(
+            'div',
+            undefined,
+            'pda-person-tab-summary'
+          );
 
-        const historyButton=button('Consultar histórico de tarefas',async()=>{
-          historyButton.disabled=true;
-          historyButton.textContent='Carregando…';
-          try{
-            const done=await call('tarefasPessoa',{pessoaId:id,historico:true,limit:100,offset:0});
-            const section=el('div',undefined,'pda-person-task-history');
-            section.append(
-              el('h4','Concluídas ('+done.total+')'),
-              renderTasks(done.tarefas||[],'done')
-            );
-            node.append(section);
-            historyButton.remove();
-          }catch(e){
-            historyButton.disabled=false;
-            historyButton.textContent='Consultar histórico de tarefas';
-            throw e;
-          }
-        },true);
-        node.append(historyButton);
+        node.append(
+          drawerInfoGrid_(person)
+        );
+
       }else{
-        const first=await call('pessoaHistorico',{pessoaId:id,limit:30,offset:0});
-        const config={
-          key:'historico',
-          rows:[...(first.historico||[])],
-          hasMore:!!first.hasMore,
-          empty:'Nenhuma movimentação localizada.',
-          fetch:offset=>call('pessoaHistorico',{pessoaId:id,limit:30,offset}),
-          render:rows=>{
-            const list=el('div',undefined,'pda-person-history-list');
-            rows.forEach(item=>{
-              const row=el('div',undefined,'pda-person-history-row');
-              row.append(
-                el('strong',[item.entidade,item.usuario].filter(Boolean).join(' · ')),
-                el('small',item.alteradoEm||'')
+        const bundle=
+          initialBundle||
+          await loadBundle_();
+
+        if(
+          !bundle||
+          activePersonDrawer!==overlay
+        ){
+          return;
+        }
+
+        if(key==='dados'){
+          const data=bundle.pessoa||{};
+
+          node=
+            el(
+              'div',
+              undefined,
+              'pda-person-data-list'
+            );
+
+          personFields()
+            .forEach(field=>{
+              const item=
+                el(
+                  'div',
+                  undefined,
+                  'pda-person-data-item'
+                );
+
+              let value=
+                data[field.key];
+
+              if(field.type==='checkbox'){
+                value=
+                  (
+                    value===true||
+                    value==='true'
+                  )
+                    ?'Sim'
+                    :'Não';
+              }
+
+              item.append(
+                el(
+                  'span',
+                  field.label
+                ),
+                el(
+                  'strong',
+                  String(value||'—')
+                )
               );
-              list.append(row);
+
+              node.append(item);
             });
-            return list;
+
+        }else if(key==='documentos'){
+          const first=
+            bundle.documentos||
+            {
+              documentos:[],
+              hasMore:false
+            };
+
+          const config={
+            key:'documentos',
+            rows:[
+              ...(first.documentos||[])
+            ],
+            hasMore:
+              !!first.hasMore,
+            empty:
+              'Nenhum documento vinculado.',
+            fetch:offset=>
+              call(
+                'pessoaDocumentos',
+                {
+                  pessoaId:id,
+                  limit:20,
+                  offset
+                }
+              ),
+            render:rows=>
+              drawerDocumentsTable_(
+                rows,
+                id
+              )
+          };
+
+          node=
+            drawerPagedSection_(
+              config
+            );
+
+        }else if(key==='atendimentos'){
+          const first=
+            bundle.atendimentos||
+            {
+              atendimentos:[],
+              hasMore:false
+            };
+
+          const config={
+            key:'atendimentos',
+            rows:[
+              ...(first.atendimentos||[])
+            ],
+            hasMore:
+              !!first.hasMore,
+            empty:
+              'Nenhum atendimento vinculado.',
+            fetch:offset=>
+              call(
+                'pessoaAtendimentos',
+                {
+                  pessoaId:id,
+                  limit:20,
+                  offset
+                }
+              ),
+            render:rows=>
+              drawerTable_(
+                [
+                  {
+                    label:'Data',
+                    value:row=>
+                      String(
+                        row.criadoEm||
+                        row.alteradoEm||
+                        ''
+                      )
+                        .slice(0,10)
+                        .split('-')
+                        .reverse()
+                        .join('/')
+                  },
+                  {
+                    label:'Responsável',
+                    key:'responsavel'
+                  },
+                  {
+                    label:'Situação',
+                    key:'situacao'
+                  }
+                ],
+                rows
+              )
+          };
+
+          node=
+            drawerPagedSection_(
+              config
+            );
+
+        }else if(key==='processos'){
+          const first=
+            bundle.processos||
+            {
+              processos:[],
+              hasMore:false
+            };
+
+          const config={
+            key:'processos',
+            rows:[
+              ...(first.processos||[])
+            ],
+            hasMore:
+              !!first.hasMore,
+            empty:
+              'Nenhum processo judicial vinculado.',
+            fetch:offset=>
+              call(
+                'pessoaProcessos',
+                {
+                  pessoaId:id,
+                  limit:20,
+                  offset
+                }
+              ),
+            render:rows=>
+              drawerTable_(
+                [
+                  {
+                    label:'Processo',
+                    key:'numero'
+                  },
+                  {
+                    label:'Jurisdição',
+                    value:row=>
+                      row.juizo||
+                      row.jurisdicao||
+                      '—'
+                  },
+                  {
+                    label:'Responsável',
+                    key:'responsavel'
+                  }
+                ],
+                rows
+              )
+          };
+
+          node=
+            drawerPagedSection_(
+              config
+            );
+
+        }else if(key==='tarefas'){
+          const open=
+            bundle.tarefasAbertas||
+            {
+              tarefas:[],
+              total:0
+            };
+
+          const done=
+            bundle.tarefasConcluidas||
+            {
+              tarefas:[],
+              total:0,
+              hasMore:false
+            };
+
+          node=
+            el(
+              'div',
+              undefined,
+              'pda-person-task-tab'
+            );
+
+          node.append(
+            el(
+              'h4',
+              'Tarefas abertas ('+
+              Number(open.total||0)+
+              ')'
+            ),
+            renderTasks_(
+              open.tarefas||[]
+            ),
+            el(
+              'h4',
+              'Tarefas concluídas ('+
+              Number(done.total||0)+
+              ')'
+            ),
+            renderTasks_(
+              done.tarefas||[],
+              'done'
+            )
+          );
+
+          if(done.hasMore){
+            let rows=[
+              ...(done.tarefas||[])
+            ];
+
+            const more=
+              button(
+                'Carregar mais concluídas',
+                async()=>{
+                  more.disabled=true;
+                  more.textContent=
+                    'Carregando…';
+
+                  try{
+                    const next=
+                      await call(
+                        'tarefasPessoa',
+                        {
+                          pessoaId:id,
+                          historico:true,
+                          limit:100,
+                          offset:rows.length
+                        }
+                      );
+
+                    rows.push(
+                      ...(next.tarefas||[])
+                    );
+
+                    const sections=
+                      node.querySelectorAll(
+                        '.pda-person-task-list'
+                      );
+
+                    if(sections[1]){
+                      sections[1]
+                        .replaceWith(
+                          renderTasks_(
+                            rows,
+                            'done'
+                          )
+                        );
+                    }
+
+                    more.hidden=
+                      !next.hasMore;
+
+                  }finally{
+                    more.disabled=false;
+                    more.textContent=
+                      'Carregar mais concluídas';
+                  }
+                },
+                true
+              );
+
+            node.append(more);
           }
-        };
-        node=drawerPagedSection_(config);
+
+        }else{
+          const first=
+            bundle.historico||
+            {
+              historico:[],
+              hasMore:false
+            };
+
+          const config={
+            key:'historico',
+            rows:[
+              ...(first.historico||[])
+            ],
+            hasMore:
+              !!first.hasMore,
+            empty:
+              'Nenhuma movimentação localizada.',
+            fetch:offset=>
+              call(
+                'pessoaHistorico',
+                {
+                  pessoaId:id,
+                  limit:30,
+                  offset
+                }
+              ),
+            render:rows=>{
+              const list=
+                el(
+                  'div',
+                  undefined,
+                  'pda-person-history-list'
+                );
+
+              rows.forEach(item=>{
+                const row=
+                  el(
+                    'div',
+                    undefined,
+                    'pda-person-history-row'
+                  );
+
+                row.append(
+                  el(
+                    'strong',
+                    [
+                      item.entidade,
+                      item.usuario
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  ),
+                  el(
+                    'small',
+                    item.alteradoEm||
+                    ''
+                  )
+                );
+
+                list.append(row);
+              });
+
+              return list;
+            }
+          };
+
+          node=
+            drawerPagedSection_(
+              config
+            );
+        }
       }
 
-      tabCache.set(key,node);
+      tabCache.set(
+        key,
+        node
+      );
+
       panel.replaceChildren(node);
     };
 
-    definitions.forEach(([key,label])=>{
-      const tab=el('button',label);
-      tab.type='button';
-      tab.dataset.tab=key;
-      tab.onclick=()=>activate(key).catch(error=>status(error.message||String(error),true));
-      tabs.append(tab);
-    });
+    definitions
+      .forEach(([key,label])=>{
+        const tab=
+          el(
+            'button',
+            label
+          );
 
-    fullArea.append(tabs,panel);
-    activate('resumo').catch(error=>status(error.message||String(error),true));
+        tab.type='button';
+        tab.dataset.tab=key;
+
+        tab.onclick=
+          ()=>activate(key)
+            .catch(error=>
+              status(
+                error.message||
+                String(error),
+                true
+              )
+            );
+
+        tabs.append(tab);
+      });
+
+    fullArea.append(
+      tabs,
+      panel
+    );
+
+    activate('resumo')
+      .catch(error=>
+        status(
+          error.message||
+          String(error),
+          true
+        )
+      );
   };
 
-  try{
-    const fresh=await call('pessoaResumo',{id});
-    if(activePersonDrawer!==overlay)return;
-    person=Object.assign({},person,fresh);
-    renderSummary();
-  }catch(e){
-    if(!options.summary){
-      summaryBox.replaceChildren(
-        el('p',e.message||String(e),'warn')
-      );
-    }
-  }
+  renderTabs();
+
+  /*
+   * O drawer abre imediatamente com o resumo disponível e, no mesmo
+   * instante, inicia uma única carga de todas as informações vinculadas.
+   * As abas passam a estar prontas sem disparar várias execuções concorrentes.
+   */
+  loadBundle_()
+    .catch(error=>{
+      if(
+        activePersonDrawer===overlay&&
+        !options.summary
+      ){
+        summaryBox.replaceChildren(
+          el(
+            'p',
+            error.message||
+            String(error),
+            'warn'
+          )
+        );
+      }
+    });
 
   return overlay;
  }
@@ -3959,7 +4539,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,refreshCurrent:refreshCurrentModule_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
