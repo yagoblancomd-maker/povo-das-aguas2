@@ -1468,12 +1468,93 @@ window.PDA_MODULES.ACOMP = (()=>{
 
     if(taskSummary.concluidas){
       let historyLoaded=false;
+      let historyRows=[];
+      let historyHasMore=false;
+      let historyTotal=Number(taskSummary.concluidas||0);
+
+      const historyWrap=el('div',undefined,'acomp-task-history');
+      const historyTitle=el('h4','');
+      const historyList=el('div',undefined,'acomp-task-list history');
+      const historyMore=button(
+        'Carregar mais concluídas',
+        async()=>{
+          historyMore.disabled=true;
+          historyMore.textContent='Carregando…';
+
+          try{
+            const next=await call(
+              'tarefasPessoa',
+              {
+                pessoaId:p.id,
+                historico:true,
+                limit:100,
+                offset:historyRows.length
+              }
+            );
+
+            historyRows=[
+              ...historyRows,
+              ...(next.tarefas||[])
+            ];
+            historyHasMore=!!next.hasMore;
+            historyTotal=Number(next.total||historyTotal);
+            renderHistory_();
+          }catch(e){
+            historyMore.disabled=false;
+            historyMore.textContent='Carregar mais concluídas';
+            throw e;
+          }
+        },
+        true
+      );
+
+      const renderHistory_=()=>{
+        historyTitle.textContent=
+          'Tarefas concluídas ('+historyTotal+')';
+
+        historyList.replaceChildren();
+
+        historyRows.forEach(task=>{
+          const row=el('div',undefined,'acomp-task-row done');
+          const copy=el('div');
+
+          copy.append(
+            el('strong',task.titulo||task.tipoLabel||'Tarefa'),
+            el(
+              'small',
+              [
+                task.responsavelNome||task.responsavel,
+                task.concluidaEm
+                  ?new Date(task.concluidaEm).toLocaleDateString('pt-BR')
+                  :'',
+                task.tipoLabel
+              ].filter(Boolean).join(' · ')
+            )
+          );
+
+          const tags=el('div',undefined,'acomp-task-tags');
+          (task.tags||[]).forEach(tag=>{
+            const chip=el('span',tag.nome||String(tag),'acomp-task-tag');
+            if(tag.cor)chip.style.setProperty('--task-tag-color',tag.cor);
+            tags.append(chip);
+          });
+
+          row.append(copy,tags);
+          historyList.append(row);
+        });
+
+        historyMore.hidden=!historyHasMore;
+        historyMore.disabled=false;
+        historyMore.textContent='Carregar mais concluídas';
+      };
+
       const historyButton=button(
         'Consultar histórico de tarefas',
         async()=>{
           if(historyLoaded)return;
+
           historyButton.disabled=true;
-          historyButton.textContent='Carregando histórico...';
+          historyButton.textContent='Carregando histórico…';
 
           try{
             const result=await call(
@@ -1481,33 +1562,23 @@ window.PDA_MODULES.ACOMP = (()=>{
               {
                 pessoaId:p.id,
                 historico:true,
-                limit:500
+                limit:100,
+                offset:0
               }
             );
 
-            const historyTitle=el(
-              'h4',
-              'Tarefas concluídas ('+(result.tarefas||[]).length+')'
+            historyRows=result.tarefas||[];
+            historyHasMore=!!result.hasMore;
+            historyTotal=Number(result.total||historyRows.length);
+
+            historyWrap.append(
+              historyTitle,
+              historyList,
+              historyMore
             );
 
-            const historyList=el('div',undefined,'acomp-task-list history');
-            (result.tarefas||[]).forEach(task=>{
-              const row=el('div',undefined,'acomp-task-row done');
-              row.append(
-                el('strong',task.titulo||task.tipoLabel||'Tarefa'),
-                el(
-                  'small',
-                  [
-                    task.responsavelNome||task.responsavel,
-                    task.concluidaEm?new Date(task.concluidaEm).toLocaleDateString('pt-BR'):'',
-                    task.tipoLabel
-                  ].filter(Boolean).join(' · ')
-                )
-              );
-              historyList.append(row);
-            });
-
-            tasks.append(historyTitle,historyList);
+            tasks.append(historyWrap);
+            renderHistory_();
             historyLoaded=true;
             historyButton.remove();
 
