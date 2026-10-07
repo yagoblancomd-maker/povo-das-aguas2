@@ -1,6 +1,6 @@
 <script>
 window.PDA_MODULES.PERF=async ctx=>{
-  const {el,card,button,status}=App;
+  const {el,card,button,status,call}=App;
   const root=ctx.root;
   const auth=window.PDA_AUTH;
   const boot=App.state.boot||{};
@@ -13,6 +13,232 @@ window.PDA_MODULES.PERF=async ctx=>{
     el('h2','Meu perfil'),
     el('p','Seus dados aparecem imediatamente; a sincronização ocorre em segundo plano.','hint')
   );
+
+
+  const performance=
+    card('Minha participação');
+
+  performance.classList.add(
+    'perf-ranking-card'
+  );
+
+  const rankingIntro=
+    el(
+      'div',
+      undefined,
+      'perf-ranking-intro'
+    );
+
+  rankingIntro.append(
+    el(
+      'strong',
+      'Seu trabalho no projeto'
+    ),
+    el(
+      'span',
+      'Posições calculadas a partir dos registros reais do sistema.',
+      'hint'
+    )
+  );
+
+  const rankingGrid=
+    el(
+      'div',
+      undefined,
+      'perf-ranking-grid'
+    );
+
+  const rankingFoot=
+    el(
+      'p',
+      'Atualizando posições…',
+      'hint perf-ranking-foot'
+    );
+
+  performance.append(
+    rankingIntro,
+    rankingGrid,
+    rankingFoot
+  );
+
+  root.append(performance);
+
+  const rankingIcon_=position=>{
+    if(Number(position)===1)return '1º';
+    if(Number(position)===2)return '2º';
+    if(Number(position)===3)return '3º';
+    return '#'+String(position||'—');
+  };
+
+  const rankingItem_=(label,position,value,total)=>{
+    const item=
+      el(
+        'article',
+        undefined,
+        'perf-rank-item'
+      );
+
+    const head=
+      el(
+        'div',
+        undefined,
+        'perf-rank-head'
+      );
+
+    head.append(
+      el(
+        'span',
+        rankingIcon_(position),
+        'perf-rank-position'+
+        (
+          Number(position)<=3
+            ?' top'
+            :''
+        )
+      ),
+      el(
+        'strong',
+        label
+      )
+    );
+
+    const count=
+      el(
+        'b',
+        String(value||0),
+        'perf-rank-value'
+      );
+
+    const meta=
+      el(
+        'small',
+        position
+          ?'posição '+position+
+            ' de '+String(total||0)
+          :'sem posição calculada'
+      );
+
+    const progress=
+      el(
+        'div',
+        undefined,
+        'perf-rank-progress'
+      );
+
+    const bar=
+      el(
+        'span'
+      );
+
+    const percentage=
+      total&&position
+        ?Math.max(
+            4,
+            Math.round(
+              (
+                (
+                  total-
+                  Number(position)+
+                  1
+                )/
+                total
+              )*100
+            )
+          )
+        :0;
+
+    bar.style.width=
+      percentage+'%';
+
+    progress.append(bar);
+
+    item.append(
+      head,
+      count,
+      meta,
+      progress
+    );
+
+    return item;
+  };
+
+  const renderRanking_=data=>{
+    rankingGrid.replaceChildren();
+
+    const row=
+      data&&
+      data.usuario;
+
+    if(!row){
+      rankingGrid.append(
+        el(
+          'p',
+          'Ainda não há dados suficientes para calcular sua posição.',
+          'hint'
+        )
+      );
+
+      rankingFoot.textContent=
+        'As posições serão atualizadas conforme novos registros forem realizados.';
+      return;
+    }
+
+    const total=
+      Number(
+        data.totalUsuarios||
+        0
+      );
+
+    rankingGrid.append(
+      rankingItem_(
+        'Novos cadastros',
+        row.rankCadastros,
+        row.cadastros,
+        total
+      ),
+      rankingItem_(
+        'Tarefas concluídas',
+        row.rankTarefas,
+        row.tarefasConcluidas,
+        total
+      ),
+      rankingItem_(
+        'Processos distribuídos',
+        row.rankProcessos,
+        row.processosDistribuidos,
+        total
+      )
+    );
+
+    rankingFoot.textContent=
+      'Comparação entre '+
+      total+
+      ' usuário(s) ativo(s) · '+
+      row.logins+
+      ' login(s) registrado(s).';
+  };
+
+  call(
+    'perfilRanking',
+    {},
+    false,
+    {noLoader:true}
+  )
+    .then(data=>{
+      if(
+        App.alive(ctx)
+      ){
+        renderRanking_(data);
+      }
+    })
+    .catch(()=>{
+      if(
+        App.alive(ctx)
+      ){
+        rankingFoot.textContent=
+          'Não foi possível atualizar o ranking agora.';
+      }
+    });
 
   const layout=el('div',undefined,'perf-layout');
   const personal=card('Dados do perfil');
