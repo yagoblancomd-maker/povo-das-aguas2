@@ -923,6 +923,26 @@ function personUploadBatch_(ctx,q){
     }
   });
 
+  personRegistrationStateSet_(
+    p.id,
+    erros.length
+      ?'DOCUMENTOS_PENDENTES'
+      :'DOCUMENTOS_SALVOS',
+    ctx,
+    {
+      folderId:folder.getId(),
+      documentosSalvos:documentos.length,
+      falhas:erros.length,
+      ultimoErro:
+        erros.length
+          ?String(
+              erros[0].erro||
+              ''
+            )
+          :''
+    }
+  );
+
   return {
     documentos,
     erros,
