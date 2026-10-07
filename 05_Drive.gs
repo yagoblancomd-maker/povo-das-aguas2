@@ -602,6 +602,292 @@ function personUpload_(ctx,q){
   };
 }
 
+function personUploadBatch_(ctx,q){
+  const p=get_(
+    'Pessoas',
+    required_(
+      q.pessoaId,
+      'pessoa'
+    )
+  );
+
+  authorizePersonContentWrite_(
+    p
+  );
+
+  const files=
+    Array.isArray(q.arquivos)
+      ?q.arquivos.slice(0,24)
+      :[];
+
+  if(!files.length){
+    return {
+      documentos:[],
+      erros:[],
+      quantidade:0,
+      mensagem:'Nenhum documento para enviar.'
+    };
+  }
+
+  const c=cfg_();
+  const owner=personOwnerKey_(p.id);
+  const folder=personFolder_(p);
+
+  const existingDocs=
+    all_('Documentos')
+      .filter(d=>
+        d.atendimentoId===owner&&
+        bool_(d.vigente)
+      );
+
+  const byHash=new Map(
+    existingDocs
+      .filter(d=>d.hash)
+      .map(d=>[
+        d.categoria+'|'+d.hash,
+        d
+      ])
+  );
+
+  const counts=new Map();
+
+  existingDocs.forEach(d=>{
+    counts.set(
+      d.categoria,
+      (
+        counts.get(d.categoria)||
+        0
+      )+1
+    );
+  });
+
+  const usedNames=new Set();
+
+  const iterator=folder.getFiles();
+
+  while(iterator.hasNext()){
+    const existing=iterator.next();
+    usedNames.add(existing.getName());
+  }
+
+  const nextName_=(categoria,payload)=>{
+    const base=
+      personDocumentBaseName_(
+        categoria,
+        p
+      );
+
+    let count=
+      Number(
+        counts.get(categoria)||
+        0
+      );
+
+    let name=
+      count>0
+        ?base+' ('+(count+1)+').'+payload.ext
+        :base+'.'+payload.ext;
+
+    while(usedNames.has(name)){
+      count++;
+      name=
+        base+
+        ' ('+
+        (count+1)+
+        ').'+
+        payload.ext;
+    }
+
+    counts.set(
+      categoria,
+      count+1
+    );
+
+    usedNames.add(name);
+
+    return name;
+  };
+
+  const documentos=[];
+  const erros=[];
+
+  files.forEach((item,index)=>{
+    try{
+      const categoria=
+        String(
+          item&&item.categoria||
+          ''
+        ).trim();
+
+      if(
+        !documentCategoryAllowed_(
+          categoria,
+          c
+        )
+      ){
+        fail_(
+          'Categoria inválida.'
+        );
+      }
+
+      if(categoria==='RESIDENCIA'){
+        residenceDateWithin60Days_(
+          item.vencimento
+        );
+
+        if(
+          bool_(item.terceiro)&&
+          !bool_(
+            item.declaracaoTerceiro
+          )
+        ){
+          fail_(
+            'Quando o comprovante estiver em nome de terceiro, confirme que há declaração de residência no documento.'
+          );
+        }
+      }
+
+      const payload=
+        filePayload_(item);
+
+      const duplicate=
+        byHash.get(
+          categoria+
+          '|'+
+          payload.digest
+        );
+
+      if(duplicate){
+        documentos.push({
+          documento:duplicate,
+          duplicado:true,
+          nomeOriginal:
+            String(
+              item.nome||
+              duplicate.nome||
+              ''
+            )
+        });
+        return;
+      }
+
+      const name=
+        nextName_(
+          categoria,
+          payload
+        );
+
+      const file=
+        folder.createFile(
+          Utilities.newBlob(
+            payload.bytes,
+            payload.mime,
+            name
+          )
+        );
+
+      const did=
+        id_(
+          'DOC',
+          ctx.op+
+          ':'+
+          index
+        );
+
+      const documento=
+        change_(
+          ctx,
+          'Documentos',
+          did,
+          {
+            atendimentoId:owner,
+            categoria,
+            fileId:file.getId(),
+            url:file.getUrl(),
+            nome:name,
+            hash:payload.digest,
+            mime:payload.mime,
+            substituiId:'',
+            vigente:true,
+            vencimento:
+              item.vencimento||
+              '',
+            terceiro:
+              bool_(
+                item.terceiro
+              ),
+            conferido:false,
+            declaracaoTerceiro:
+              bool_(
+                item.declaracaoTerceiro
+              ),
+            processoCompleto:false,
+            anexoPresente:false,
+            rogo:false,
+            testemunhas:false,
+            observacoes:''
+          }
+        );
+
+      byHash.set(
+        categoria+
+        '|'+
+        payload.digest,
+        documento
+      );
+
+      documentos.push({
+        documento,
+        duplicado:false,
+        nomeOriginal:
+          String(
+            item.nome||
+            ''
+          )
+      });
+
+      ctx.effects.push(
+        'Documento da pessoa preservado no Drive: '+
+        file.getUrl()
+      );
+
+    }catch(e){
+      erros.push({
+        index,
+        nome:
+          String(
+            item&&item.nome||
+            'arquivo'
+          ),
+        categoria:
+          String(
+            item&&item.categoria||
+            ''
+          ),
+        erro:
+          e.message||
+          String(e)
+      });
+    }
+  });
+
+  return {
+    documentos,
+    erros,
+    quantidade:documentos.length,
+    folderId:folder.getId(),
+    folderUrl:folder.getUrl(),
+    mensagem:
+      erros.length
+        ?documentos.length+
+          ' documento(s) salvo(s); '+
+          erros.length+
+          ' falha(s).'
+        :documentos.length+
+          ' documento(s) salvo(s) no mesmo lote.'
+  };
+}
+
 function effectiveDocs_(a){
   const owner=
     personOwnerKey_(
