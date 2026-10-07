@@ -43,6 +43,8 @@ window.PDA_MODULES.PAINEL=(()=>{
   function action_(item){
     const card=el('button',undefined,'home-action-card home-action-'+String(item.code||'').toLowerCase()+' home-action-photo-'+item.photo);
     card.type='button';
+    card.dataset.moduleCode=
+      String(item.code||'');
     card.onclick=()=>go(item.code);
     const copy=el('span',undefined,'home-action-copy');
     copy.append(el('strong',item.title),el('small',item.description));
@@ -67,10 +69,7 @@ window.PDA_MODULES.PAINEL=(()=>{
     hero.append(heroContent);
     root.append(hero);
 
-    const cachedVisual=
-      sessionStorage.getItem(
-        'PDA_VISUAL_PAINEL_V1'
-      );
+    const panelVisualUsed=[];
 
     const applyVisual_=dataUrl=>{
       if(!dataUrl)return;
@@ -81,56 +80,31 @@ window.PDA_MODULES.PAINEL=(()=>{
         '")';
     };
 
-    if(cachedVisual){
-      try{
-        const parsed=
-          JSON.parse(
-            cachedVisual
-          );
+    let cachedHero=null;
 
-        applyVisual_(
-          parsed&&
-          parsed.dataUrl
+    try{
+      cachedHero=
+        JSON.parse(
+          sessionStorage.getItem(
+            'PDA_VISUAL_PAINEL_V2'
+          )||
+          'null'
         );
-      }catch(e){}
-    }else{
-      call(
-        'imagemSistemaAleatoria',
-        {uso:'PAINEL'},
-        false,
-        {noLoader:true}
-      )
-        .then(image=>{
-          if(
-            !alive(ctx)||
-            !image||
-            !image.base64||
-            !image.mime
-          ){
-            return;
-          }
+    }catch(e){}
 
-          const dataUrl=
-            'data:'+
-            image.mime+
-            ';base64,'+
-            image.base64;
+    if(
+      cachedHero&&
+      cachedHero.dataUrl
+    ){
+      applyVisual_(
+        cachedHero.dataUrl
+      );
 
-          applyVisual_(
-            dataUrl
-          );
-
-          try{
-            sessionStorage.setItem(
-              'PDA_VISUAL_PAINEL_V1',
-              JSON.stringify({
-                id:image.id,
-                dataUrl
-              })
-            );
-          }catch(e){}
-        })
-        .catch(()=>{});
+      if(cachedHero.id){
+        panelVisualUsed.push(
+          cachedHero.id
+        );
+      }
     }
 
     const metrics=el('section',undefined,'home-headline-metrics');
@@ -176,6 +150,188 @@ window.PDA_MODULES.PAINEL=(()=>{
       .forEach(item=>actions.append(action_(item)));
 
     root.append(actions);
+
+    /*
+     * As fotos são aplicadas depois que o Painel já está utilizável.
+     * A composição fica estável durante a sessão e evita repetir a mesma
+     * fotografia entre o hero e os cartões visíveis.
+     */
+    (async()=>{
+      try{
+        if(!cachedHero){
+          const image=
+            await call(
+              'imagemSistemaAleatoria',
+              {
+                uso:'PAINEL',
+                excluirIds:
+                  panelVisualUsed
+              },
+              false,
+              {noLoader:true}
+            );
+
+          if(
+            image&&
+            image.base64&&
+            image.mime&&
+            alive(ctx)
+          ){
+            const dataUrl=
+              'data:'+
+              image.mime+
+              ';base64,'+
+              image.base64;
+
+            cachedHero={
+              id:image.id,
+              dataUrl
+            };
+
+            panelVisualUsed.push(
+              image.id
+            );
+
+            applyVisual_(
+              dataUrl
+            );
+
+            try{
+              sessionStorage.setItem(
+                'PDA_VISUAL_PAINEL_V2',
+                JSON.stringify(
+                  cachedHero
+                )
+              );
+            }catch(e){}
+          }
+        }
+
+        let cachedActions={};
+
+        try{
+          cachedActions=
+            JSON.parse(
+              sessionStorage.getItem(
+                'PDA_VISUAL_PAINEL_ACTIONS_V2'
+              )||
+              '{}'
+            )||
+            {};
+        }catch(e){}
+
+        const cards=
+          Array.from(
+            actions.querySelectorAll(
+              '.home-action-card'
+            )
+          );
+
+        for(const card of cards){
+          if(
+            !alive(ctx)||
+            !card.isConnected
+          ){
+            return;
+          }
+
+          const code=
+            String(
+              card.dataset.moduleCode||
+              ''
+            );
+
+          const cached=
+            cachedActions[code];
+
+          if(
+            cached&&
+            cached.dataUrl
+          ){
+            card.style.setProperty(
+              'background-image',
+              'url("'+
+              cached.dataUrl+
+              '")',
+              'important'
+            );
+
+            if(
+              cached.id&&
+              !panelVisualUsed.includes(
+                cached.id
+              )
+            ){
+              panelVisualUsed.push(
+                cached.id
+              );
+            }
+
+            continue;
+          }
+
+          const usage=
+            code==='PROC'
+              ?'INSTITUCIONAL'
+              :code==='ACOMP'
+                ?'TERRITORIO'
+                :'PAINEL';
+
+          const image=
+            await call(
+              'imagemSistemaAleatoria',
+              {
+                uso:usage,
+                excluirIds:
+                  panelVisualUsed
+              },
+              false,
+              {noLoader:true}
+            );
+
+          if(
+            !image||
+            !image.base64||
+            !image.mime
+          ){
+            continue;
+          }
+
+          const dataUrl=
+            'data:'+
+            image.mime+
+            ';base64,'+
+            image.base64;
+
+          panelVisualUsed.push(
+            image.id
+          );
+
+          card.style.setProperty(
+            'background-image',
+            'url("'+
+            dataUrl+
+            '")',
+            'important'
+          );
+
+          cachedActions[code]={
+            id:image.id,
+            dataUrl
+          };
+
+          try{
+            sessionStorage.setItem(
+              'PDA_VISUAL_PAINEL_ACTIONS_V2',
+              JSON.stringify(
+                cachedActions
+              )
+            );
+          }catch(e){}
+        }
+
+      }catch(e){}
+    })();
 
     const compact=el('div',undefined,'home-compact-footer');
     compact.append(
