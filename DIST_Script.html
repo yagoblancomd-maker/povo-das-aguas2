@@ -1071,7 +1071,7 @@ window.PDA_MODULES.DIST = (()=>{
       dialog.showModal();
     };
 
-    const filterBar_=data=>{
+    const filterBar_=(data,painter)=>{
       const bar=el('div',undefined,'dist-filterbar');
 
       const search=el('input');
@@ -1118,7 +1118,7 @@ window.PDA_MODULES.DIST = (()=>{
         filters.prazoDe=dueFrom.value;
         filters.prazoAte=dueTo.value;
         saveFilters_();
-        paintOpen_(data);
+        (painter||paintOpen_)(data);
       };
 
       [search,responsible,type,assignedFrom,assignedTo,dueFrom,dueTo].forEach(control=>{
@@ -1136,7 +1136,7 @@ window.PDA_MODULES.DIST = (()=>{
         mode='history';
         content.setAttribute('aria-busy','true');
         if(!historyData){
-          historyData=await call('tarefasHistorico',{limit:500});
+          historyData=await call('tarefasHistorico',{limit:100,offset:0});
         }
         paintHistory_(historyData);
       },mode!=='history');
@@ -1216,7 +1216,7 @@ window.PDA_MODULES.DIST = (()=>{
       );
 
       actionBar.append(autoLabel,toggle,run,create,reconcile);
-      content.append(actionBar,filterBar_(data));
+      content.append(actionBar,filterBar_(data,paintOpen_));
 
       const tasks=(data.tarefas||[]).filter(matches_);
       const internal=tasks.filter(task=>task.tipo==='TAREFA_GERAL');
@@ -1277,7 +1277,11 @@ window.PDA_MODULES.DIST = (()=>{
         usuariosTarefas:openData?openData.usuariosTarefas:[],
         tags:data.tags||[]
       };
-      content.append(filterBar_(fake));
+      fake.hasMore=data.hasMore;
+      fake.offset=data.offset;
+      fake.limit=data.limit;
+      fake.total=data.total;
+      content.append(filterBar_(fake,paintHistory_));
 
       const tasks=(data.tarefas||[]).filter(matches_);
       const section=el('section',undefined,'dist-section');
@@ -1312,6 +1316,48 @@ window.PDA_MODULES.DIST = (()=>{
       }
       section.append(head,grid);
       content.append(section);
+
+      if(data.hasMore){
+        const more=button(
+          'Carregar mais concluídas',
+          async()=>{
+            more.disabled=true;
+            more.textContent='Carregando…';
+
+            try{
+              const next=await call(
+                'tarefasHistorico',
+                {
+                  limit:100,
+                  offset:(data.tarefas||[]).length
+                }
+              );
+
+              historyData=Object.assign({},data,{
+                tarefas:[
+                  ...(data.tarefas||[]),
+                  ...(next.tarefas||[])
+                ],
+                hasMore:next.hasMore,
+                total:next.total,
+                offset:0,
+                limit:(data.tarefas||[]).length+(next.tarefas||[]).length
+              });
+
+              paintHistory_(historyData);
+            }catch(e){
+              more.disabled=false;
+              more.textContent='Carregar mais concluídas';
+              throw e;
+            }
+          },
+          true
+        );
+
+        more.classList.add('dist-history-more');
+        content.append(more);
+      }
+
       content.removeAttribute('aria-busy');
     };
 
