@@ -545,7 +545,10 @@ function deepseekPrompt_(){
   ].join('\n');
 }
 
-function deepseekContentParts_(identidade,residencia){
+function deepseekContentParts_(identidade,residencia,context){
+  context=context||{};
+  context.identidadeOcr=context.identidadeOcr||[];
+
   const parts=[
     {
       type:'text',
@@ -564,14 +567,23 @@ function deepseekContentParts_(identidade,residencia){
     });
 
     if(file.mime==='application/pdf'){
+      const ocrText=
+        deepseekPdfOcrText_(
+          file,
+          label
+        );
+
+      if(label==='IDENTIDADE / CPF'){
+        context.identidadeOcr.push(
+          ocrText
+        );
+      }
+
       parts.push({
         type:'text',
         text:
           'TEXTO OCR DO PDF '+label+':\n'+
-          deepseekPdfOcrText_(
-            file,
-            label
-          )
+          ocrText
       });
 
     }else{
@@ -604,6 +616,274 @@ function deepseekContentParts_(identidade,residencia){
   }
 
   return parts;
+}
+
+function deepseekCpfFromText_(text){
+  const source=
+    String(text||'')
+      .replace(/\u00a0/g,' ');
+
+  const candidates=[];
+  const patterns=[
+    /(?:\d[\s.\-]*){11}/g,
+    /\b\d{11}\b/g
+  ];
+
+  patterns.forEach(pattern=>{
+    const matches=
+      source.match(pattern)||
+      [];
+
+    matches.forEach(match=>{
+      const digits=
+        String(match||'')
+          .replace(/\D/g,'');
+
+      if(digits.length===11){
+        candidates.push(digits);
+      }
+    });
+  });
+
+  for(const candidate of [...new Set(candidates)]){
+    try{
+      return cpf_(candidate);
+    }catch(e){}
+  }
+
+  return '';
+}
+
+function deepseekCpfFromTexts_(texts){
+  for(const text of texts||[]){
+    const cpf=
+      deepseekCpfFromText_(
+        text
+      );
+
+    if(cpf){
+      return cpf;
+    }
+  }
+
+  return '';
+}
+
+function deepseekFocusedIdentityParts_(identidade,context){
+  const parts=[
+    {
+      type:'text',
+      text:[
+        'Faça uma segunda leitura rápida e estritamente focada no documento de identidade brasileiro.',
+        'Extraia SOMENTE: nome completo, CPF e data de nascimento.',
+        'Não extraia RG, número do documento, órgão expedidor, endereço ou qualquer outro campo.',
+        'Procure CPF mesmo quando os 11 dígitos estiverem separados por espaços, pontos ou traços.',
+        'Não invente nem complete caracteres ilegíveis.',
+        'A data deve ser DD/MM/AAAA quando legível.',
+        'Retorne exclusivamente JSON válido neste formato:',
+        JSON.stringify({
+          nome:'',
+          cpf:'',
+          nascimento:''
+        })
+      ].join('\n')
+    }
+  ];
+
+  let pdfIndex=0;
+
+  (identidade||[]).forEach(file=>{
+    parts.push({
+      type:'text',
+      text:
+        'DOCUMENTO DE IDENTIDADE — '+
+        file.nome
+    });
+
+    if(file.mime==='application/pdf'){
+      const text=
+        context&&
+        context.identidadeOcr&&
+        context.identidadeOcr[pdfIndex]
+          ?context.identidadeOcr[pdfIndex]
+          :'';
+
+      pdfIndex++;
+
+      if(text){
+        parts.push({
+          type:'text',
+          text:
+            'TEXTO OCR JÁ OBTIDO:\n'+
+            text.slice(0,12000)
+        });
+      }
+    }else{
+      parts.push({
+        type:'image_url',
+        image_url:{
+          url:
+            'data:'+
+            file.mime+
+            ';base64,'+
+            file.base64,
+          detail:'original'
+        }
+      });
+    }
+  });
+
+  return parts;
+}
+
+function deepseekFocusedIdentityRequest_(parts){
+  const key=deepseekApiKey_();
+
+  const response=
+    UrlFetchApp.fetch(
+      DEEPSEEK_API_URL,
+      {
+        method:'post',
+        contentType:'application/json',
+        headers:{
+          Authorization:'Bearer '+key,
+          Accept:'application/json'
+        },
+        payload:
+          JSON.stringify({
+            model:DEEPSEEK_MODEL,
+            messages:[
+              {
+                role:'user',
+                content:parts
+              }
+            ],
+            response_format:{
+              type:'json_object'
+            },
+            thinking:{
+              type:'disabled'
+            },
+            temperature:0,
+            max_tokens:320,
+            stream:false
+          }),
+        muteHttpExceptions:true,
+        followRedirects:true
+      }
+    );
+
+  const code=
+    response.getResponseCode();
+
+  if(code<200||code>=300){
+    return {
+      raw:{},
+      usage:{},
+      ok:false
+    };
+  }
+
+  try{
+    const data=
+      JSON.parse(
+        response.getContentText()||
+        '{}'
+      );
+
+    const content=
+      data&&
+      data.choices&&
+      data.choices[0]&&
+      data.choices[0].message
+        ?String(
+            data.choices[0].message.content||
+            ''
+          )
+        :'';
+
+    return {
+      raw:
+        content
+          ?JSON.parse(content)
+          :{},
+      usage:data.usage||{},
+      ok:!!content
+    };
+  }catch(e){
+    return {
+      raw:{},
+      usage:{},
+      ok:false
+    };
+  }
+}
+
+function deepseekMergeIdentityFallback_(raw,focused,cpfDeterministic){
+  const base=
+    Object.assign(
+      {},
+      raw||{}
+    );
+
+  base.identidade=
+    Object.assign(
+      {},
+      base.identidade||{}
+    );
+
+  const target=
+    base.identidade;
+
+  const fallback=
+    focused||{};
+
+  if(!target.nome&&fallback.nome){
+    target.nome=fallback.nome;
+  }
+
+  if(!target.cpf){
+    target.cpf=
+      cpfDeterministic||
+      fallback.cpf||
+      '';
+  }
+
+  if(!target.nascimento&&fallback.nascimento){
+    target.nascimento=
+      fallback.nascimento;
+  }
+
+  if(
+    Array.isArray(base.alertas)&&
+    (
+      target.nome||
+      target.cpf||
+      target.nascimento
+    )
+  ){
+    base.alertas=
+      base.alertas.filter(item=>
+        !/documento de identidade não contém nome, cpf ou data de nascimento legíveis/i.test(
+          String(item||'')
+        )
+      );
+  }
+
+  return base;
+}
+
+function deepseekIdentityMissing_(normalized){
+  const id=
+    normalized&&
+    normalized.identidade||
+    {};
+
+  return (
+    !id.nome||
+    !id.cpf||
+    !id.nascimento
+  );
 }
 
 function deepseekRequest_(parts){
@@ -801,18 +1081,96 @@ function deepseekDocumentImport_(q){
         )
       :null;
 
+  const importContext={
+    identidadeOcr:[]
+  };
+
   const request=
     deepseekRequest_(
       deepseekContentParts_(
         identidade,
-        residencia
+        residencia,
+        importContext
       )
     );
 
-  const normalized=
+  let mergedRaw=
+    request.raw;
+
+  let normalized=
     deepseekImportNormalize_(
-      request.raw
+      mergedRaw
     );
+
+  let focusedUsage={};
+  let fallbackUsed=false;
+  let deterministicCpf='';
+
+  if(
+    hasIdentity&&
+    deepseekIdentityMissing_(
+      normalized
+    )
+  ){
+    deterministicCpf=
+      deepseekCpfFromTexts_(
+        importContext.identidadeOcr
+      );
+
+    if(
+      !normalized.identidade.cpf&&
+      deterministicCpf
+    ){
+      mergedRaw=
+        deepseekMergeIdentityFallback_(
+          mergedRaw,
+          {},
+          deterministicCpf
+        );
+
+      normalized=
+        deepseekImportNormalize_(
+          mergedRaw
+        );
+    }
+
+    if(
+      deepseekIdentityMissing_(
+        normalized
+      )
+    ){
+      const focused=
+        deepseekFocusedIdentityRequest_(
+          deepseekFocusedIdentityParts_(
+            identidade,
+            importContext
+          )
+        );
+
+      focusedUsage=
+        focused.usage||
+        {};
+
+      if(
+        focused.ok&&
+        focused.raw
+      ){
+        mergedRaw=
+          deepseekMergeIdentityFallback_(
+            mergedRaw,
+            focused.raw,
+            deterministicCpf
+          );
+
+        normalized=
+          deepseekImportNormalize_(
+            mergedRaw
+          );
+
+        fallbackUsed=true;
+      }
+    }
+  }
 
   return Object.assign(
     {},
@@ -823,13 +1181,22 @@ function deepseekDocumentImport_(q){
         residencia:hasResidence
       },
       modelo:DEEPSEEK_MODEL,
+      leituraReforcada:fallbackUsed,
       uso:{
-        inputTokens:Number(request.usage.prompt_tokens||0),
-        outputTokens:Number(request.usage.completion_tokens||0),
-        totalTokens:Number(request.usage.total_tokens||0)
+        inputTokens:
+          Number(request.usage.prompt_tokens||0)+
+          Number(focusedUsage.prompt_tokens||0),
+        outputTokens:
+          Number(request.usage.completion_tokens||0)+
+          Number(focusedUsage.completion_tokens||0),
+        totalTokens:
+          Number(request.usage.total_tokens||0)+
+          Number(focusedUsage.total_tokens||0)
       },
       aviso:
-        'Os dados foram extraídos automaticamente e devem ser conferidos antes do salvamento.'
+        fallbackUsed
+          ?'Foi necessária uma segunda leitura rápida da identidade. Confira os dados antes do salvamento.'
+          :'Os dados foram extraídos automaticamente e devem ser conferidos antes do salvamento.'
     }
   );
 }
