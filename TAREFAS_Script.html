@@ -1614,6 +1614,27 @@ window.PDA_MODULES.TAREFAS = (()=>{
       }
     };
 
+    const instant=
+      el(
+        'div',
+        undefined,
+        'tasks-instant-head'
+      );
+
+    instant.append(
+      el(
+        'h2',
+        'Minhas tarefas'
+      ),
+      el(
+        'p',
+        'Atividades abertas, prioridades e novas manifestações.',
+        'hint'
+      )
+    );
+
+    content.append(instant);
+
     await render();
   };
 })();
