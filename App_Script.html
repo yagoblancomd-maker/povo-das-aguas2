@@ -20,14 +20,16 @@ const App=(()=>{
  const CACHEABLE_READS=new Set([
   'painel',
   'tarefasMinhas',
+  'tarefasMinhasAbertas',
+  'tarefasAbertasGestao',
   'distribuicaoFila',
   'processos',
   'admin'
  ]);
  const MODULE_INITIAL_READ=Object.freeze({
   PAINEL:['painel',{}],
-  TAREFAS:['tarefasMinhas',{}],
-  DIST:['distribuicaoFila',{}],
+  TAREFAS:['tarefasMinhasAbertas',{}],
+  DIST:['tarefasAbertasGestao',{}],
   PROC:['processos',{}],
   ADM:['admin',{}]
  });
