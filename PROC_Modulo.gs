@@ -37,9 +37,15 @@ function processList_(q){
     'Processos'
   ]);
 
+  const currentUser=
+    activeUser_();
+
   const people=
     new Map(
-      all_('Pessoas').map(p=>[
+      filterPeopleByUserScope_(
+        all_('Pessoas'),
+        currentUser
+      ).map(p=>[
         p.id,
         p
       ])
@@ -47,6 +53,10 @@ function processList_(q){
 
   let rows=
     all_('Processos')
+      .filter(process=>
+        !isColonyUser_(currentUser)||
+        people.has(process.pessoaId)
+      )
       .slice()
       .sort((a,b)=>
         String(
