@@ -187,6 +187,121 @@ function datajudNormalizeMovement_(movement){
   };
 }
 
+const DATAJUD_PROCESS_TAG_RULES=Object.freeze([
+  {tag:'BAIXA DEFINITIVA',codes:['22'],terms:['BAIXA DEFINITIVA','ARQUIVAMENTO DEFINITIVO']},
+  {tag:'TRÂNSITO EM JULGADO',codes:['848'],terms:['TRANSITO EM JULGADO']},
+  {tag:'REDISTRIBUIÇÃO',codes:['36'],terms:['REDISTRIBUICAO']},
+  {tag:'DISTRIBUIÇÃO',codes:['26'],terms:['DISTRIBUICAO']},
+  {tag:'TUTELA',codes:['889'],terms:['ANTECIPACAO DE TUTELA','TUTELA','LIMINAR']},
+  {tag:'PROCEDÊNCIA PARCIAL',codes:['221'],terms:['PROCEDENCIA EM PARTE','PROCEDENCIA PARCIAL']},
+  {tag:'IMPROCEDÊNCIA',codes:[],terms:['IMPROCEDENCIA']},
+  {tag:'PROCEDÊNCIA',codes:[],terms:['PROCEDENCIA']},
+  {tag:'SENTENÇA/JULGAMENTO',codes:[],terms:['SENTENCA','PROCEDENCIA','IMPROCEDENCIA','EXTINCAO','JULGAMENTO']},
+  {tag:'DECISÃO',codes:[],terms:['DECISAO','DESPACHO DECISORIO']},
+  {tag:'RECURSO',codes:[],terms:['RECURSO','APELACAO','AGRAVO','EMBARGOS']},
+  {tag:'RPV/PAGAMENTO',codes:[],terms:['RPV','REQUISICAO DE PEQUENO VALOR','PRECATORIO','PAGAMENTO']},
+  {tag:'MUDANÇA DE CLASSE',codes:['10966'],terms:['MUDANCA DE CLASSE PROCESSUAL']},
+  {tag:'CONCLUSÃO',codes:['51'],terms:['CONCLUSAO']}
+]);
+
+function datajudMovementKeyText_(movement){
+  return String(
+    movement&&movement.nome||
+    ''
+  )
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ')
+    .trim()
+    .toUpperCase();
+}
+
+function datajudMovementTags_(movement){
+  const code=
+    String(
+      movement&&movement.codigo||
+      ''
+    ).trim();
+
+  const text=
+    datajudMovementKeyText_(
+      movement
+    );
+
+  return DATAJUD_PROCESS_TAG_RULES
+    .filter(rule=>
+      rule.codes.includes(code)||
+      rule.terms.some(term=>
+        text.includes(term)
+      )
+    )
+    .map(rule=>rule.tag);
+}
+
+function datajudTagsFromMovements_(movements){
+  const tags=[];
+
+  (movements||[]).forEach(movement=>{
+    datajudMovementTags_(movement)
+      .forEach(tag=>{
+        if(!tags.includes(tag)){
+          tags.push(tag);
+        }
+      });
+  });
+
+  return tags;
+}
+
+function datajudCurrentMilestone_(movements){
+  for(const movement of movements||[]){
+    const tags=
+      datajudMovementTags_(
+        movement
+      );
+
+    if(tags.length){
+      return tags[0];
+    }
+  }
+
+  return '';
+}
+
+function datajudProcessTags_(process){
+  try{
+    const stored=
+      JSON.parse(
+        process.datajudTags||
+        '[]'
+      );
+
+    if(
+      Array.isArray(stored)&&
+      stored.length
+    ){
+      return stored;
+    }
+  }catch(e){}
+
+  return datajudTagsFromMovements_(
+    datajudExistingMovements_(
+      process
+    )
+  );
+}
+
+function datajudProcessMilestone_(process){
+  return (
+    process.datajudMarcoAtual||
+    datajudCurrentMilestone_(
+      datajudExistingMovements_(
+        process
+      )
+    )
+  );
+}
+
 function datajudExistingMovements_(process){
   try{
     const parsed=
@@ -284,6 +399,21 @@ function datajudProcessPublic_(process){
           return [];
         }
       })(),
+      tags:
+        datajudProcessTags_(
+          process
+        ),
+      marcoAtual:
+        datajudProcessMilestone_(
+          process
+        ),
+      ultimaMovimentacao:
+        process.datajudUltimaMovimentacao||
+        (
+          movements[0]&&
+          movements[0].dataHora||
+          ''
+        ),
       ultimaAtualizacaoOrigem:
         process.datajudUltimaAtualizacaoOrigem||
         '',
@@ -582,6 +712,21 @@ function processDatajudSync_(ctx,q){
     source.orgaoJulgador||
     {};
 
+  const processTags=
+    datajudTagsFromMovements_(
+      movements
+    );
+
+  const currentMilestone=
+    datajudCurrentMilestone_(
+      movements
+    );
+
+  const latestMovement=
+    movements[0]&&
+    movements[0].dataHora||
+    '';
+
   const updated=
     change_(
       ctx,
@@ -637,6 +782,14 @@ function processDatajudSync_(ctx,q){
             JSON.stringify(
               subjects
             ),
+          datajudTags:
+            JSON.stringify(
+              processTags
+            ),
+          datajudMarcoAtual:
+            currentMilestone,
+          datajudUltimaMovimentacao:
+            latestMovement,
           datajudUltimaAtualizacaoOrigem:
             datajudText_(
               source.dataHoraUltimaAtualizacao||
