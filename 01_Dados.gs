@@ -124,9 +124,21 @@ function get_(entity,id){
   const wanted=String(id||'');
 
   if(DATA_CACHE[entity]){
-    return DATA_CACHE[entity]
-      .find(row=>row.id===wanted)||
-      fail_('Registro não encontrado: '+entity);
+    const found=
+      (
+        indexBy_(
+          entity,
+          'id'
+        )
+          .get(wanted)||
+        []
+      )[0];
+
+    return found||
+      fail_(
+        'Registro não encontrado: '+
+        entity
+      );
   }
 
   const index=row_(entity,wanted);
@@ -319,7 +331,18 @@ function record_(entity,id,data,before,user){
 }
 
 function change_(ctx,entity,id,data,version){
-  const before=all_(entity).find(r=>r.id===id);
+  const before=
+    (
+      indexBy_(
+        entity,
+        'id'
+      )
+        .get(
+          String(id||'')
+        )||
+      []
+    )[0]||
+    null;
 
   if(before&&Number(version)!==before.versao){
     fail_('CONFLITO: o registro mudou. Reabra a ficha antes de salvar.');
@@ -332,8 +355,17 @@ function change_(ctx,entity,id,data,version){
 
 function remove_(ctx,entity,id,version){
   const before=
-    all_(entity)
-      .find(r=>r.id===id);
+    (
+      indexBy_(
+        entity,
+        'id'
+      )
+        .get(
+          String(id||'')
+        )||
+      []
+    )[0]||
+    null;
 
   if(!before){
     fail_(
