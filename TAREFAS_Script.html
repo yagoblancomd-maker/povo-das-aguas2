@@ -157,6 +157,72 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
   }
 
+
+  function makeTaskRowInteractive_(card,task,onOpen){
+    card.tabIndex=0;
+    card.setAttribute(
+      'role',
+      'button'
+    );
+
+    card.setAttribute(
+      'aria-label',
+      'Abrir tarefa: '+
+      (
+        task.titulo||
+        task.pessoa||
+        'tarefa'
+      )
+    );
+
+    const activate=event=>{
+      const target=
+        event&&event.target;
+
+      if(
+        target&&
+        target.closest&&
+        target.closest(
+          'button,a,input,select,textarea,label,summary'
+        )
+      ){
+        return;
+      }
+
+      onOpen(task);
+    };
+
+    card.addEventListener(
+      'click',
+      activate
+    );
+
+    card.addEventListener(
+      'keydown',
+      event=>{
+        if(
+          event.key==='Enter'||
+          event.key===' '
+        ){
+          event.preventDefault();
+          onOpen(task);
+        }
+      }
+    );
+  }
+
+  function movementBadge_(task){
+    if(!task.novaManifestacao){
+      return null;
+    }
+
+    return el(
+      'span',
+      'NOVA MANIFESTAÇÃO',
+      'task-new-movement'
+    );
+  }
+
   function distributionCard_(task,onOpen){
     const card=el(
       'article',
@@ -165,7 +231,8 @@ window.PDA_MODULES.TAREFAS = (()=>{
       (task.situacao==='CONCLUIDA'?' done':'')+
       (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
       (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
-      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')+
+      (task.novaManifestacao?' has-new-movement':'')
     );
 
     if(task.tags&&task.tags[0]&&task.tags[0].cor){
@@ -174,13 +241,31 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
     const top=el('div',undefined,'task-card-top');
 
-    top.append(
-      el('strong',task.pessoa),
+    const distState=
+      el(
+        'span',
+        undefined,
+        'task-state-group'
+      );
+
+    const movement=
+      movementBadge_(task);
+
+    if(movement){
+      distState.append(movement);
+    }
+
+    distState.append(
       el(
         'span',
         task.situacao==='CONCLUIDA'?'CONCLUÍDA':'PARA DISTRIBUIR',
         'task-status'+(task.situacao==='CONCLUIDA'?' done':'')
       )
+    );
+
+    top.append(
+      el('strong',task.pessoa),
+      distState
     );
 
     const meta=el('div',undefined,'task-card-meta');
@@ -226,6 +311,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
 
     card.append(top,meta,tags,actions);
+    makeTaskRowInteractive_(
+      card,
+      task,
+      onOpen
+    );
     return card;
   }
 
@@ -239,7 +329,8 @@ window.PDA_MODULES.TAREFAS = (()=>{
       (done?' done':'')+
       (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
       (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
-      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')+
+      (task.novaManifestacao?' has-new-movement':'')
     );
 
     if(task.tags&&task.tags[0]&&task.tags[0].cor){
@@ -248,13 +339,31 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
     const top=el('div',undefined,'task-card-top');
 
-    top.append(
-      el('strong',task.titulo),
+    const stateGroup=
+      el(
+        'span',
+        undefined,
+        'task-state-group'
+      );
+
+    const movement=
+      movementBadge_(task);
+
+    if(movement){
+      stateGroup.append(movement);
+    }
+
+    stateGroup.append(
       el(
         'span',
         done?'CONCLUÍDA':priority_(task.prioridade).toUpperCase(),
         'task-status task-priority '+String(task.prioridade||'NORMAL').toLowerCase()
       )
+    );
+
+    top.append(
+      el('strong',task.titulo),
+      stateGroup
     );
 
     const description=el(
@@ -266,10 +375,25 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const meta=el('div',undefined,'task-card-meta');
 
     [
-      ['Criada por',task.criadoPorNome||task.criadoPor||'—'],
+      [
+        'Cadastro',
+        task.pessoa||
+        'Sem vínculo'
+      ],
+      [
+        'Responsável',
+        task.responsavelNome||
+        task.responsavel||
+        '—'
+      ],
       ['Prazo',date_(task.prazo)],
-      ['Mensagens',String(task.mensagens||0)],
-      ['PDFs',String(task.anexos||0)]
+      [
+        'Movimentações',
+        String(task.mensagens||0)+
+        ' msg · '+
+        String(task.anexos||0)+
+        ' anexo(s)'
+      ]
     ].forEach(([label,value])=>{
       const item=el('span',label);
       item.append(el('b',value));
@@ -306,6 +430,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
 
     card.append(top,description,meta,tags,actions);
+    makeTaskRowInteractive_(
+      card,
+      task,
+      onOpen
+    );
     return card;
   }
 
@@ -790,7 +919,9 @@ window.PDA_MODULES.TAREFAS = (()=>{
     try{
       detail=await call(
         'tarefaGeralDetalhe',
-        {id:task.id}
+        {id:task.id},
+        false,
+        {noLoader:true}
       );
     }catch(error){
       if(instant&&instant.open){
@@ -829,6 +960,49 @@ window.PDA_MODULES.TAREFAS = (()=>{
     );
 
     const body=el('div',undefined,'task-general-dialog-body');
+
+    if(detail.tarefa.pessoaId){
+      const personBar=
+        el(
+          'button',
+          undefined,
+          'task-linked-person'
+        );
+
+      personBar.type='button';
+
+      personBar.append(
+        el(
+          'span',
+          'CADASTRO VINCULADO'
+        ),
+        el(
+          'strong',
+          detail.tarefa.pessoa||
+          'Pessoa vinculada'
+        ),
+        el(
+          'small',
+          [
+            cpf_(
+              detail.tarefa.pessoaCpf
+            ),
+            detail.tarefa.pessoaCidade,
+            detail.tarefa.pessoaJurisdicao
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+
+      personBar.onclick=
+        ()=>App.openPersonDrawer(
+          detail.tarefa.pessoaId
+        );
+
+      body.append(personBar);
+    }
+
     const overview=el('div',undefined,'task-general-overview');
 
     const renderOverview=()=>{
@@ -884,7 +1058,9 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
       detail=await call(
         'tarefaGeralDetalhe',
-        {id:detail.tarefa.id}
+        {id:detail.tarefa.id},
+        false,
+        {noLoader:true}
       );
 
       renderGeneralAttachments_(fileGrid,detail);
@@ -1093,7 +1269,37 @@ window.PDA_MODULES.TAREFAS = (()=>{
       paint_(data);
     }
 
+    const markViewed_=task=>{
+      if(!task||!task.id)return;
+
+      if(task.novaManifestacao){
+        task.novaManifestacao=false;
+        applyTaskChange_({
+          kind:'update',
+          id:task.id,
+          patch:{
+            novaManifestacao:false,
+            ultimoVistoEm:
+              new Date().toISOString()
+          }
+        });
+      }
+
+      call(
+        'tarefaMarcarVista',
+        {id:task.id},
+        true,
+        {silent:true}
+      )
+        .then(()=>
+          App.refreshTaskNotifications()
+        )
+        .catch(()=>{});
+    };
+
     const openTask_=async task=>{
+      markViewed_(task);
+
       if(task.tipo==='DISTRIBUICAO_PROCESSO'){
         const instant=
           openInstantTaskDialog_(
@@ -1105,7 +1311,9 @@ window.PDA_MODULES.TAREFAS = (()=>{
         try{
           const detail=await call(
             'tarefaDistribuicaoDetalhe',
-            {id:task.id}
+            {id:task.id},
+            false,
+            {noLoader:true}
           );
 
           if(!alive(ctx)){
