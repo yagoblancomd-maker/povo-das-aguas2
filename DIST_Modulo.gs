@@ -1140,6 +1140,19 @@ function taskBatchAssign_(ctx,q){
         );
       }
     });
+  }else{
+    selectedUsers.forEach(user=>{
+      if(
+        !hasPermission_(
+          user,
+          'consulta'
+        )
+      ){
+        fail_(
+          'O usuário escolhido não pode receber tarefas internas.'
+        );
+      }
+    });
   }
 
   const now=
