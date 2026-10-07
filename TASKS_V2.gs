@@ -119,6 +119,7 @@ function taskSummaryV2_(task,maps){
     pessoaId:task.pessoaId||'',
     pessoa:person?person.nome:'',
     cpf:person?person.cpf:'',
+    cidade:person?person.cidade:'',
     processoId:task.processoId||'',
     responsavel:task.responsavel||'',
     responsavelNome:responsible?(responsible.nome||responsible.email):'',
