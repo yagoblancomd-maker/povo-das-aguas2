@@ -783,6 +783,13 @@ window.PDA_MODULES.ACOMP = (()=>{
         );
       }catch(e){}
 
+      /*
+       * A consulta sempre inicia vazia. Resultados só aparecem depois que
+       * o usuário informa um filtro nesta visita.
+       */
+      state.busca='';
+      state.offset=0;
+
       const saveState_=()=>{
         try{
           sessionStorage.setItem(
@@ -936,6 +943,18 @@ window.PDA_MODULES.ACOMP = (()=>{
         results.replaceChildren();
         pager.replaceChildren();
 
+        if(data&&data.aguardandoFiltro){
+          meta.textContent='';
+          results.append(
+            el(
+              'p',
+              'Digite nome, CPF, município, jurisdição ou entidade para localizar um cadastro.',
+              'hint'
+            )
+          );
+          return;
+        }
+
         const rows=data.pessoas||[];
 
         meta.textContent=
@@ -1000,6 +1019,18 @@ window.PDA_MODULES.ACOMP = (()=>{
         state.offset=Math.max(0,Number(offset)||0);
         state.busca=String(filter.value||'').trim();
         saveState_();
+
+        if(!state.busca){
+          render_({
+            pessoas:[],
+            total:0,
+            offset:0,
+            limit:state.limit,
+            hasMore:false,
+            aguardandoFiltro:true
+          });
+          return;
+        }
 
         results.setAttribute('aria-busy','true');
         results.classList.add('loading');
