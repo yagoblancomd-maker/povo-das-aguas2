@@ -1066,6 +1066,11 @@ function upload_(ctx,q){
   }
 
   const p=get_('Pessoas',a.pessoaId);
+
+  authorizePersonContentWrite_(
+    p
+  );
+
   const folder=folder_(a);
   const did=id_('DOC',ctx.op);
 
