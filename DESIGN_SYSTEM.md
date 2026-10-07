@@ -110,3 +110,25 @@ Não inserir apenas para enriquecer o visual:
 - números de impacto sem origem no backend;
 - logos de órgãos como se houvesse parceria não registrada;
 - documentos oficiais falsos apresentados como reais.
+
+
+### Tipografia operacional
+
+A interface deve priorizar fontes humanistas disponíveis no sistema, evitando a estética genérica de dashboards produzidos por template. A pilha atual é:
+
+- Interface: Aptos, Trebuchet MS, Segoe UI, Arial, sans-serif.
+- Títulos editoriais: Iowan Old Style, Palatino Linotype, Book Antiqua, Palatino, Georgia, serif.
+
+Evitar usar Inter, Poppins ou pesos 800/900 como linguagem dominante do produto.
+
+### Contraste sobre fotografia
+
+Textos posicionados sobre fotografia devem usar contraste explícito. O padrão é texto claro com sombra discreta e overlay localizado apenas onde há texto. A fotografia não deve ser convertida em uma massa monocromática azul; preservar cor, textura e leitura territorial.
+
+### Camadas de navegação
+
+Submenus, notificações e diálogos devem sempre ficar acima da área de conteúdo. A sidebar não pode recortar submenus abertos. Mudanças futuras de `overflow` e `z-index` devem preservar esse comportamento.
+
+### Ajuda contextual
+
+Os itens do menu devem oferecer uma explicação breve da função ao receber hover ou foco por teclado. A explicação é funcional e não substitui o nome curto do módulo.
