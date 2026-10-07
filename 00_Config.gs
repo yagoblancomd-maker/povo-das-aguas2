@@ -38,7 +38,7 @@ const SCHEMA = Object.freeze({
   Configuracoes:['chave','valor'],
   Usuarios:['email','perfil','ativo','nome','funcao','permissoes','permissoesVersao',
     'senhaHash','senhaSalt','senhaAlgoritmo','sessionVersion','ultimoLogin',
-    'nomeUsuario','fotoId','emailsAnteriores'],
+    'nomeUsuario','fotoId','emailsAnteriores','entidade'],
   Sessoes:['usuarioId','tokenHash','expiraEm','sessionVersion','revogada'],
   Recuperacoes:['usuarioId','tokenHash','expiraEm','sessionVersion','usada'],
   Distribuicao:['atendimentoId','processoId','numero','juizo','data','responsavel','protocoloId'],
@@ -119,6 +119,9 @@ const ROLES={
   COLABORADOR:[
     'consulta','cadastro','retificacao_propria'
   ],
+  COLONIA_PESCADOR:[
+    'consulta','cadastro','retificacao_propria','criar_tarefa_entidade'
+  ],
   ALUNO:[
     'consulta','distribuicao'
   ],
@@ -150,6 +153,10 @@ const PERMISSIONS=Object.freeze({
     label:'Retificação dos próprios cadastros',
     descricao:'Editar e corrigir somente pessoas que foram cadastradas pelo próprio usuário. Não autoriza alterações em cadastros criados por outras pessoas.'
   },
+  criar_tarefa_entidade:{
+    label:'Criar tarefas da entidade',
+    descricao:'Permite à Colônia criar tarefas vinculadas somente a membros da própria entidade e destiná-las aos usuários autorizados.'
+  },
   conferencia:{
     label:'Conferência',
     descricao:'Conferir documentos e registrar validações no cadastro da pessoa.'
@@ -177,6 +184,7 @@ const ROLE_DESCRIPTIONS=Object.freeze({
   NOVO_USUARIO:'Perfil legado de primeiro acesso com Consulta e Cadastro.',
   PROFESSOR_RESIDENTE:'Professor ou Residente. Recebe automaticamente as permissões operacionais do perfil, exceto Administração e Distribuir processos.',
   COLABORADOR:'Consulta, Cadastro e Retificação limitada aos cadastros criados pelo próprio colaborador.',
+  COLONIA_PESCADOR:'Acesso restrito aos cadastros e processos da entidade vinculada. Pode cadastrar membros da própria entidade, editar somente os próprios cadastros, receber tarefas e criar tarefas dentro do escopo da entidade.',
   ALUNO:'Consulta e Distribuir processos, para receber e concluir tarefas de distribuição atribuídas ao aluno.',
   CADASTRO:'Consulta e inclusão de pessoas e documentos.',
   CONFERENCIA:'Cadastro, retificação e conferência documental.',
