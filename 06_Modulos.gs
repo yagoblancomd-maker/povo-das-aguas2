@@ -627,7 +627,11 @@ function apiAuthenticated_(action,q,sessionToken){
     }
 
     const digest=hash_({action,payload});
-    const previous=all_('Operacoes').find(r=>r.id===op);
+    const previous=
+      findById_(
+        'Operacoes',
+        op
+      );
 
     if(previous){
       if(previous.hash!==digest)fail_('Operação já utilizada com conteúdo diferente.');
