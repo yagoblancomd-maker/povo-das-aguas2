@@ -47,6 +47,11 @@ function ensureDistributionTask_(ctx,p){
     return null;
   }
 
+  const autoUser=
+    distributionAutoEnabled_()
+      ?distributionAutoAssignee_()
+      :null;
+
   return change_(
     ctx,
     'Tarefas',
@@ -56,8 +61,8 @@ function ensureDistributionTask_(ctx,p){
     {
       tipo:DISTRIBUTION_TASK_TYPE,
       pessoaId:p.id,
-      responsavel:'',
-      situacao:DISTRIBUTION_TASK_PENDING,
+      responsavel:autoUser?String(autoUser.email||'').toLowerCase():'',
+      situacao:autoUser?DISTRIBUTION_TASK_ASSIGNED:DISTRIBUTION_TASK_PENDING,
       jurisdicao:
         p.jurisdicao||
         jurisdicaoPessoa_(p)||
@@ -68,11 +73,20 @@ function ensureDistributionTask_(ctx,p){
             p.parcelasNaoRecebidas
           )
         ),
-      atribuidaEm:'',
+      atribuidaEm:autoUser?now_():'',
       concluidaEm:'',
       processoId:'',
       observacoes:
-        'Tarefa criada automaticamente após a conclusão do cadastro.'
+        autoUser
+          ?'Tarefa criada e distribuída automaticamente após a conclusão do cadastro.'
+          :'Tarefa criada automaticamente após a conclusão do cadastro.',
+      titulo:'Distribuir processo',
+      descricao:'Distribuição processual decorrente da conclusão do cadastro.',
+      criadoPor:String(ctx.email||'').toLowerCase(),
+      prazo:taskDatePlusDays_(now_(),4),
+      prioridade:'ALTA',
+      tags:JSON.stringify(['PROCESSO']),
+      modoDistribuicao:autoUser?'AUTOMATICA':'MANUAL'
     }
   );
 }
