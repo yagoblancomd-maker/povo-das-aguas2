@@ -340,6 +340,10 @@ const SERVER_CACHEABLE_READS=new Set([
   'distribuicaoFila',
   'processos',
   'admin',
+  'adminUsuarios',
+  'adminTags',
+  'adminIntegracoes',
+  'adminConfiguracoes',
   'tarefasAbertasGestao',
   'tarefasMinhasAbertas',
   'tarefasHistorico',
@@ -482,6 +486,10 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralAnexoConteudo:()=>generalTaskAttachmentContent_(q),
     notificacoesTarefas:()=>taskNotifications_(),
     processos:()=>processList_(),
+    adminUsuarios:()=>adminUsersData_(),
+    adminTags:()=>adminTagsData_(),
+    adminIntegracoes:()=>adminIntegrationsData_(),
+    adminConfiguracoes:()=>adminConfigData_(),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
       usuarios:all_('Usuarios').map(u=>
@@ -561,6 +569,10 @@ function apiAuthenticated_(action,q,sessionToken){
   if(reads[action]){
     const readPermissions={
       admin:'administracao',
+      adminUsuarios:'administracao',
+      adminTags:'administracao',
+      adminIntegracoes:'administracao',
+      adminConfiguracoes:'administracao',
       documentosImportar:'cadastro',
       distribuicaoFila:'gestao_distribuicao',
       tarefasMinhas:'consulta',
