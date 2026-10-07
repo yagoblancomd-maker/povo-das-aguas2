@@ -122,7 +122,16 @@ function processList_(q){
                   :''
               ),
             distribuidoEm:process.distribuidoEm,
-            responsavel:process.responsavel
+            responsavel:process.responsavel,
+            datajudStatus:
+              process.datajudStatus||
+              'NAO_SINCRONIZADO',
+            datajudUltimaConsulta:
+              process.datajudUltimaConsulta||
+              '',
+            datajudTribunal:
+              process.datajudTribunal||
+              ''
           };
         }),
     total,
