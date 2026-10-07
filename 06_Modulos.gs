@@ -360,6 +360,10 @@ const SERVER_CACHEABLE_READS=new Set([
   'adminTags',
   'adminIntegracoes',
   'adminConfiguracoes',
+  'adminImagens',
+  'imagensSistema',
+  'imagemSistemaConteudo',
+  'imagemSistemaAleatoria',
   'tarefasAbertasGestao',
   'tarefasMinhasAbertas',
   'tarefasHistorico',
@@ -511,6 +515,10 @@ function apiAuthenticated_(action,q,sessionToken){
     adminTags:()=>adminTagsData_(),
     adminIntegracoes:()=>adminIntegrationsData_(),
     adminConfiguracoes:()=>adminConfigData_(),
+    adminImagens:()=>visualLibraryList_(),
+    imagensSistema:()=>visualLibraryList_(),
+    imagemSistemaConteudo:()=>visualImageContent_(q),
+    imagemSistemaAleatoria:()=>visualRandomImage_(q),
     admin:()=>({
       configuracoes:all_('Configuracoes'),
       usuarios:all_('Usuarios').map(u=>
@@ -587,7 +595,10 @@ function apiAuthenticated_(action,q,sessionToken){
     distribuicaoAutomaticaExecutar:['gestao_distribuicao',distributionAutoRun_],
     tarefaTagSalvar:['administracao',taskTagSave_],
     tarefaTagExcluir:['administracao',taskTagDelete_],
-    pessoaExcluirDefinitivo:['administracao',personDeleteCascade_]
+    pessoaExcluirDefinitivo:['administracao',personDeleteCascade_],
+    imagemSistemaUpload:['administracao',visualImageUpload_],
+    imagemSistemaSalvar:['administracao',visualImageMetaSave_],
+    imagemSistemaExcluir:['administracao',visualImageDelete_]
   };
 
   if(reads[action]){
@@ -597,6 +608,10 @@ function apiAuthenticated_(action,q,sessionToken){
       adminTags:'administracao',
       adminIntegracoes:'administracao',
       adminConfiguracoes:'administracao',
+      adminImagens:'administracao',
+      imagensSistema:'consulta',
+      imagemSistemaConteudo:'consulta',
+      imagemSistemaAleatoria:'consulta',
       documentosImportar:'cadastro',
       distribuicaoFila:'gestao_distribuicao',
       tarefasMinhas:'consulta',
