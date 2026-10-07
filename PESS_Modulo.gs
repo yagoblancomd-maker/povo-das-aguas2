@@ -86,6 +86,12 @@ function personRetify_(ctx,q){
 }
 
 function personSave_(ctx,q){
+  q=
+    enforcePersonEntityPayload_(
+      activeUser_(),
+      q
+    );
+
   const before=q.id?get_('Pessoas',q.id):null;
 
   if(before){
@@ -491,13 +497,17 @@ function personInitialGenerate_(ctx,q){
 
 function personSearch_(q){
   const term=String(q.busca||'').trim().toLowerCase();
+  const user=activeUser_();
 
   return all_('Pessoas')
     .filter(p=>
-      !term||
-      p.nome.toLowerCase().includes(term)||
-      p.cpf.includes(term.replace(/[.\- ]/g,''))||
-      String(p.cidade||'').toLowerCase().includes(term)
+      personInUserScope_(user,p)&&
+      (
+        !term||
+        p.nome.toLowerCase().includes(term)||
+        p.cpf.includes(term.replace(/[.\- ]/g,''))||
+        String(p.cidade||'').toLowerCase().includes(term)
+      )
     )
     .sort((a,b)=>
       String(a.nome||'').localeCompare(
