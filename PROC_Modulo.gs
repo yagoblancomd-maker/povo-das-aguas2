@@ -75,6 +75,9 @@ function processList_(q){
           process.juizo,
           process.jurisdicao,
           process.responsavel,
+          process.datajudTribunal,
+          process.datajudClasse,
+          process.datajudOrgao,
           p&&p.nome,
           p&&p.cpf,
           p&&p.jurisdicao
