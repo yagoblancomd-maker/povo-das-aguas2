@@ -225,8 +225,12 @@ function personFinalize_(ctx,q){
     );
   }
 
-  const folder=personFolder_(p);
-  const minuta=generatePersonDraft_(ctx,p);
+  const folder=
+    personFolderFromHint_(
+      p,
+      q.folderId
+    );
+  const minuta=generatePersonDraft_(ctx,p,folder);
   const tarefaDistribuicao=
     ensureDistributionTask_(
       ctx,
@@ -272,8 +276,12 @@ function personInitialGenerate_(ctx,q){
     );
   }
 
-  const folder=personFolder_(p);
-  const minuta=generatePersonDraft_(ctx,p);
+  const folder=
+    personFolderFromHint_(
+      p,
+      q.folderId
+    );
+  const minuta=generatePersonDraft_(ctx,p,folder);
   const tarefaDistribuicao=
     ensureDistributionTask_(
       ctx,
