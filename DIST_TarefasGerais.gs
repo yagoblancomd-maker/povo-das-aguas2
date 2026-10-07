@@ -440,6 +440,25 @@ function taskMovementMaps_(tasks,messages,attachments,email){
   };
 }
 
+
+function ensureTaskReadSchema_(){
+  const spreadsheet=ss_();
+  const sheet=
+    spreadsheet.getSheetByName(
+      'TarefaLeituras'
+    );
+
+  if(
+    !sheet||
+    sheet.getLastColumn()<
+      headers_(
+        'TarefaLeituras'
+      ).length
+  ){
+    ensureGeneralTaskSchema_();
+  }
+}
+
 function taskReadSave_(ctx,taskId,email,seenAt){
   const normalized=
     String(
@@ -484,7 +503,7 @@ function taskReadSave_(ctx,taskId,email,seenAt){
 }
 
 function taskViewMark_(ctx,q){
-  ensureGeneralTaskSchema_();
+  ensureTaskReadSchema_();
 
   const task=
     get_(
@@ -1710,6 +1729,12 @@ function taskNotifications_(){
       ''
     ).toLowerCase();
 
+  /*
+   * taskMapsV2_ faz o batchGet primeiro; TarefaLeituras abaixo passa a vir
+   * do cache da própria execução em vez de abrir outra leitura remota.
+   */
+  const maps=taskMapsV2_();
+
   const state=
     generalTaskRows_(
       'TarefaLeituras'
@@ -1730,8 +1755,6 @@ function taskNotifications_(){
       state&&state.ultimoVistoEm||
       ''
     );
-
-  const maps=taskMapsV2_();
 
   const tasks=
     all_('Tarefas')
@@ -1846,7 +1869,7 @@ function taskNotifications_(){
 }
 
 function taskNotificationsMarkSeen_(ctx){
-  ensureGeneralTaskSchema_();
+  ensureTaskReadSchema_();
 
   const email=
     String(
