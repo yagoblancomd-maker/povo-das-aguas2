@@ -1036,7 +1036,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
             mode='history';
             if(!historyData){
               content.setAttribute('aria-busy','true');
-              historyData=await call('tarefasMinhasHistorico',{limit:500});
+              historyData=await call('tarefasMinhasHistorico',{limit:100,offset:0});
             }
             paint_(historyData);
           },
@@ -1094,6 +1094,48 @@ window.PDA_MODULES.TAREFAS = (()=>{
 
       section.append(sectionHead,grid);
       content.append(section);
+
+      if(mode==='history'&&data.hasMore){
+        const more=button(
+          'Carregar mais concluídas',
+          async()=>{
+            more.disabled=true;
+            more.textContent='Carregando…';
+
+            try{
+              const next=await call(
+                'tarefasMinhasHistorico',
+                {
+                  limit:100,
+                  offset:(data.tarefas||[]).length
+                }
+              );
+
+              historyData=Object.assign({},data,{
+                tarefas:[
+                  ...(data.tarefas||[]),
+                  ...(next.tarefas||[])
+                ],
+                hasMore:next.hasMore,
+                total:next.total,
+                offset:0,
+                limit:(data.tarefas||[]).length+(next.tarefas||[]).length
+              });
+
+              paint_(historyData);
+            }catch(e){
+              more.disabled=false;
+              more.textContent='Carregar mais concluídas';
+              throw e;
+            }
+          },
+          true
+        );
+
+        more.classList.add('tasks-history-more');
+        content.append(more);
+      }
+
       content.removeAttribute('aria-busy');
     };
 
@@ -1101,7 +1143,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
       content.setAttribute('aria-busy','true');
 
       if(mode==='history'){
-        historyData=await call('tarefasMinhasHistorico',{limit:500});
+        historyData=await call('tarefasMinhasHistorico',{limit:100,offset:0});
         if(!alive(ctx))return;
         paint_(historyData);
       }else{
