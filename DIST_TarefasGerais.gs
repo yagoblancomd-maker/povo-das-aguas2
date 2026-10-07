@@ -2,6 +2,38 @@ const GENERAL_TASK_TYPE='TAREFA_GERAL';
 const GENERAL_TASK_ASSIGNED='ATRIBUIDA';
 const GENERAL_TASK_DONE='CONCLUIDA';
 const GENERAL_TASK_PRIORITIES=Object.freeze(['BAIXA','NORMAL','ALTA','URGENTE']);
+const DEFAULT_TASK_TAGS=Object.freeze([
+  {nome:'URGENTE',cor:'#c65349'},
+  {nome:'DOCUMENTAÇÃO',cor:'#d49a42'},
+  {nome:'PROCESSO',cor:'#176e7d'},
+  {nome:'RETORNO',cor:'#7a5aa6'},
+  {nome:'FINANCEIRO',cor:'#2f8b65'}
+]);
+
+function taskTagsParse_(value){
+  if(Array.isArray(value)){
+    return [...new Set(value.map(v=>String(v||'').trim()).filter(Boolean))].slice(0,8);
+  }
+  const text=String(value||'').trim();
+  if(!text)return [];
+  try{
+    const parsed=JSON.parse(text);
+    if(Array.isArray(parsed))return taskTagsParse_(parsed);
+  }catch(e){}
+  return [...new Set(text.split(',').map(v=>v.trim()).filter(Boolean))].slice(0,8);
+}
+
+function taskDueState_(task){
+  const due=String(task&&task.prazo||'').trim();
+  if(!due)return {estado:'SEM_PRAZO',horas:null};
+  const end=new Date(due+'T23:59:59');
+  const hours=(end.getTime()-Date.now())/3600000;
+  if(Number.isNaN(hours))return {estado:'SEM_PRAZO',horas:null};
+  if(hours<0)return {estado:'VENCIDA',horas:Math.round(hours)};
+  if(hours<=24)return {estado:'ATE_24H',horas:Math.round(hours)};
+  if(hours<=96)return {estado:'ATE_96H',horas:Math.round(hours)};
+  return {estado:'NORMAL',horas:Math.round(hours)};
+}
 
 function generalTaskRows_(name){
   return ss_().getSheetByName(name)
@@ -17,7 +49,8 @@ function ensureGeneralTaskSchema_(){
     'Tarefas',
     'TarefaMensagens',
     'TarefaAnexos',
-    'TarefaLeituras'
+    'TarefaLeituras',
+    'TarefaTags'
   ].forEach(name=>{
     const expected=
       headers_(name);
@@ -209,12 +242,25 @@ function generalTaskDisplayUser_(email,usersByEmail){
 }
 
 function generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts){
+  const person=
+    task.pessoaId
+      ?all_('Pessoas').find(p=>p.id===task.pessoaId)||null
+      :null;
+  const due=taskDueState_(task);
+
   return {
     id:task.id,
     versao:task.versao,
     tipo:task.tipo,
     titulo:task.titulo||'Tarefa',
     descricao:task.descricao||'',
+    pessoaId:task.pessoaId||'',
+    pessoa:person?person.nome:'',
+    processoId:task.processoId||'',
+    tags:taskTagsParse_(task.tags),
+    modoDistribuicao:task.modoDistribuicao||'MANUAL',
+    vencimentoEstado:due.estado,
+    horasRestantes:due.horas,
     responsavel:task.responsavel||'',
     responsavelNome:
       generalTaskDisplayUser_(
@@ -639,7 +685,13 @@ function generalTaskData_(task,patch){
         '',
       prioridade:
         task.prioridade||
-        'NORMAL'
+        'NORMAL',
+      tags:
+        task.tags||
+        '[]',
+      modoDistribuicao:
+        task.modoDistribuicao||
+        'MANUAL'
     },
     patch||{}
   );
@@ -679,6 +731,27 @@ function generalTaskCreate_(ctx,q){
       q.responsavel
     );
 
+  let pessoaId=
+    String(q.pessoaId||'').trim();
+
+  if(pessoaId){
+    get_('Pessoas',pessoaId);
+  }
+
+  const processoId=
+    String(q.processoId||'').trim();
+
+  if(processoId){
+    const proc=get_('Processos',processoId);
+    if(pessoaId&&proc.pessoaId!==pessoaId){
+      fail_('O processo informado pertence a outro cadastro.');
+    }
+    pessoaId=pessoaId||proc.pessoaId;
+  }
+
+  const tags=
+    taskTagsParse_(q.tags);
+
   const taskId=
     id_(
       'TAR',
@@ -713,7 +786,11 @@ function generalTaskCreate_(ctx,q){
           prioridade:
             generalTaskPriority_(
               q.prioridade
-            )
+            ),
+          pessoaId,
+          processoId,
+          tags:JSON.stringify(tags),
+          modoDistribuicao:'MANUAL'
         }
       )
     );
@@ -1229,8 +1306,15 @@ function generalTaskAttachmentAdd_(ctx,q){
     };
   }
 
+  const linkedPerson=
+    task.pessoaId
+      ?get_('Pessoas',task.pessoaId)
+      :null;
+
   const folder=
-    generalTaskFolder_(task);
+    linkedPerson
+      ?personFolder_(linkedPerson)
+      :generalTaskFolder_(task);
 
   const rawName=
     safeName_(
@@ -1238,7 +1322,13 @@ function generalTaskAttachmentAdd_(ctx,q){
       'anexo.pdf'
     );
 
+  const basePrefix=
+    linkedPerson
+      ?'TAREFA.'+safeName_(task.titulo||'ANEXO')+'.'
+      :'';
+
   const base=
+    basePrefix+
     (
       rawName
         .replace(
@@ -1278,14 +1368,54 @@ function generalTaskAttachmentAdd_(ctx,q){
     file.getUrl()
   );
 
+  const attachmentId=
+    id_(
+      'TANX',
+      ctx.op
+    );
+
+  let documento=null;
+
+  if(linkedPerson){
+    const documentId=
+      id_(
+        'DOC',
+        'TAREFA:'+attachmentId
+      );
+
+    documento=
+      change_(
+        ctx,
+        'Documentos',
+        documentId,
+        {
+          atendimentoId:personOwnerKey_(linkedPerson.id),
+          categoria:'ANEXO_TAREFA',
+          fileId:file.getId(),
+          url:file.getUrl(),
+          nome:file.getName(),
+          hash:payload.digest,
+          mime:payload.mime,
+          substituiId:'',
+          vigente:true,
+          vencimento:'',
+          terceiro:false,
+          conferido:false,
+          declaracaoTerceiro:false,
+          processoCompleto:false,
+          anexoPresente:true,
+          rogo:false,
+          testemunhas:false,
+          observacoes:'Arquivo anexado à tarefa "'+(task.titulo||task.id)+'".'
+        }
+      );
+  }
+
   const attachment=
     change_(
       ctx,
       'TarefaAnexos',
-      id_(
-        'TANX',
-        ctx.op
-      ),
+      attachmentId,
       {
         tarefaId:task.id,
         fileId:file.getId(),
@@ -1300,14 +1430,19 @@ function generalTaskAttachmentAdd_(ctx,q){
           String(
             ctx.email||
             ''
-          ).toLowerCase()
+          ).toLowerCase(),
+        pessoaId:linkedPerson?linkedPerson.id:'',
+        documentoId:documento?documento.id:''
       }
     );
 
   return {
     anexo:attachment,
+    documento,
     mensagem:
-      'PDF anexado à tarefa.'
+      linkedPerson
+        ?'PDF anexado à tarefa e aos documentos do cadastro.'
+        :'PDF anexado à tarefa.'
   };
 }
 
