@@ -114,10 +114,7 @@ window.PDA_MODULES.MIN = (()=>{
             'Petição inicial gerada e adicionada aos documentos da pessoa.'
           );
 
-          await go(
-            'MIN',
-            p.id
-          );
+          await App.refreshCurrent({code:'MIN',pessoaId:p.id});
         }
       );
 
