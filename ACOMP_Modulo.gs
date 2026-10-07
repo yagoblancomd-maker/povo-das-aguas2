@@ -23,6 +23,21 @@ function dossier_(q){
   const user=
     activeUser_();
 
+  const tarefasAbertas=
+    tasksCollectionV2_(
+      {pessoaId:p.id},
+      'open'
+    );
+
+  const tarefasConcluidas=
+    all_('Tarefas').filter(task=>
+      task.pessoaId===p.id&&
+      (
+        task.situacao===GENERAL_TASK_DONE||
+        task.situacao===DISTRIBUTION_TASK_DONE
+      )
+    ).length;
+
   return {
     pessoa:p,
     podeRetificar:
@@ -42,6 +57,11 @@ function dossier_(q){
     documentos:docs,
     documentosPessoa:docs,
     processos,
+    tarefasAbertas,
+    tarefasResumo:{
+      abertas:tarefasAbertas.length,
+      concluidas:tarefasConcluidas
+    },
     historico:
       all_('Historico')
         .filter(h=>
