@@ -387,4 +387,109 @@
     grid-column:2;
   }
 }
+
+
+.proc-structured-filters{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(150px,1fr))
+    repeat(2,minmax(130px,.8fr));
+  gap:8px;
+  margin:-2px 0 12px;
+  padding:10px 12px;
+  border:1px solid #ddd9d0;
+  border-radius:12px;
+  background:rgba(255,253,249,.96)
+}
+.proc-structured-filters select,
+.proc-structured-filters input{
+  width:100%;
+  min-height:34px!important;
+  font-size:8.4px!important
+}
+.proc-clear-filters{
+  justify-self:start
+}
+.proc-case-tags,
+.proc-tags-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:4px
+}
+.proc-process-tag{
+  display:inline-flex;
+  align-items:center;
+  min-height:18px;
+  padding:2px 7px;
+  border:1px solid #d4ddd9;
+  border-radius:999px;
+  background:#f2f6f4;
+  color:#38574f;
+  font-size:6.8px;
+  font-weight:850;
+  line-height:1.1;
+  letter-spacing:.015em
+}
+.proc-process-tag.current{
+  border-color:#0d7885;
+  background:#e5f3f4;
+  color:#075c66
+}
+.proc-process-tag.tag-baixa-definitiva,
+.proc-process-tag.tag-transito-em-julgado{
+  border-color:#bbd5c6;
+  background:#e9f5ee;
+  color:#235d43
+}
+.proc-process-tag.tag-sentenca-julgamento,
+.proc-process-tag.tag-procedencia,
+.proc-process-tag.tag-procedencia-parcial{
+  border-color:#c8d5e1;
+  background:#edf3f8;
+  color:#315873
+}
+.proc-process-tag.tag-improcedencia{
+  border-color:#e3c8be;
+  background:#f9ece7;
+  color:#854934
+}
+.proc-process-tag.tag-tutela,
+.proc-process-tag.tag-decisao{
+  border-color:#dccfa8;
+  background:#f8f3df;
+  color:#765d17
+}
+.proc-process-tag.tag-recurso{
+  border-color:#d2c5e3;
+  background:#f2edf8;
+  color:#654a82
+}
+.proc-process-tag.tag-rpv-pagamento{
+  border-color:#b9d8d2;
+  background:#e7f5f2;
+  color:#22645a
+}
+.proc-tags-summary{
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #e0ddd5;
+  border-radius:10px;
+  background:#fbfaf6
+}
+@media(max-width:1050px){
+  .proc-structured-filters{
+    grid-template-columns:repeat(3,minmax(140px,1fr))
+  }
+}
+@media(max-width:720px){
+  .proc-structured-filters{
+    grid-template-columns:1fr 1fr
+  }
+}
+@media(max-width:480px){
+  .proc-structured-filters{
+    grid-template-columns:1fr
+  }
+}
 </style>
