@@ -879,11 +879,31 @@ window.PDA_MODULES.TAREFAS = (()=>{
     let mode='open';
     let openData=null;
     let historyData=null;
+    const FILTER_KEY='PDA_MY_TASK_FILTERS_V2';
     const filters={
       busca:'',
       tipo:'',
       tag:'',
       prazo:''
+    };
+
+    try{
+      Object.assign(
+        filters,
+        JSON.parse(
+          sessionStorage.getItem(FILTER_KEY)||
+          '{}'
+        )
+      );
+    }catch(e){}
+
+    const saveFilters_=()=>{
+      try{
+        sessionStorage.setItem(
+          FILTER_KEY,
+          JSON.stringify(filters)
+        );
+      }catch(e){}
     };
 
     const taskMatches_=task=>{
@@ -972,6 +992,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
         filters.tipo=type.value;
         filters.tag=tag.value;
         filters.prazo=due.value;
+        saveFilters_();
         paint_(data);
       };
 
