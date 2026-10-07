@@ -13,7 +13,8 @@ const DOCUMENT_LABELS={
   PROCESSO_ADMINISTRATIVO:'Processo administrativo',
   PESCA:'Documentos de pesca',
   PROCURACAO:'Procuração',
-  HIPOSSUFICIENCIA:'Declaração de hipossuficiência'
+  HIPOSSUFICIENCIA:'Declaração de hipossuficiência',
+  ANEXO_TAREFA:'Anexo de tarefa'
 };
 
 const LEGACY_DOCUMENT_FOLDERS={
