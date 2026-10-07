@@ -1,104 +1,179 @@
 <script>
 window.PDA_MODULES.PROC = (()=>{
   const {
-    el,table,button,call,go,alive
+    el,button,call,go,alive
   }=App;
 
   function cpf_(value){
-    const d=String(value||'')
-      .replace(/\D/g,'');
-
+    const d=String(value||'').replace(/\D/g,'');
     return d.length===11
-      ?d.replace(
-          /(\d{3})(\d{3})(\d{3})(\d{2})/,
-          '$1.$2.$3-$4'
-        )
+      ?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')
       :String(value||'');
   }
 
   function date_(value){
     const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return '—';
+    return d.toLocaleString('pt-BR',{
+      day:'2-digit',
+      month:'2-digit',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit'
+    });
+  }
 
-    if(Number.isNaN(d.getTime())){
-      return '—';
-    }
+  function text_(value){
+    return String(value||'').trim()||'—';
+  }
 
-    return d.toLocaleString(
-      'pt-BR',
-      {
-        day:'2-digit',
-        month:'2-digit',
-        year:'numeric',
-        hour:'2-digit',
-        minute:'2-digit'
-      }
+  function processItem_(row,active,onOpen){
+    const item=el('button',undefined,'proc-case-item'+(active?' active':''));
+    item.type='button';
+
+    const icon=el('span',undefined,'proc-case-icon');
+    icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M15 4v5h4"></path><path d="M8 13h8"></path><path d="M8 16h6"></path></svg>';
+
+    const copy=el('span',undefined,'proc-case-copy');
+    copy.append(
+      el('strong',text_(row.numero)),
+      el('span',text_(row.pessoa)),
+      el('small',text_(row.jurisdicao))
     );
+
+    const meta=el('span',undefined,'proc-case-meta');
+    meta.append(
+      el('span',date_(row.distribuidoEm)),
+      el('span','›','proc-case-arrow')
+    );
+
+    item.append(icon,copy,meta);
+    item.onclick=()=>onOpen(row);
+    return item;
+  }
+
+  function detail_(root,row){
+    root.replaceChildren();
+
+    const head=el('div',undefined,'proc-detail-head');
+    const title=el('div');
+    title.append(
+      el('span','PROCESSO','proc-detail-kicker'),
+      el('h3',text_(row.numero)),
+      el('p',text_(row.pessoa),'hint')
+    );
+
+    const open=button(
+      'Abrir cadastro',
+      ()=>{
+        App.state.selection=row.pessoaId;
+        return go('ACOMP',row.pessoaId);
+      },
+      true
+    );
+
+    head.append(title,open);
+    root.append(head);
+
+    const facts=el('div',undefined,'proc-facts');
+    [
+      ['Pessoa',row.pessoa],
+      ['CPF',cpf_(row.cpf)],
+      ['Jurisdição',row.jurisdicao],
+      ['Distribuído em',date_(row.distribuidoEm)],
+      ['Responsável',row.responsavel]
+    ].forEach(([label,value])=>{
+      const box=el('div',undefined,'proc-fact');
+      box.append(el('span',label),el('strong',text_(value)));
+      facts.append(box);
+    });
+    root.append(facts);
+
+    const note=el('section',undefined,'proc-detail-note');
+    note.append(
+      el('h4','Registro processual'),
+      el(
+        'p',
+        'Os dados exibidos nesta tela são os registros existentes no sistema. Abra a ficha da pessoa para consultar documentos, atendimentos e demais informações vinculadas.',
+        'hint'
+      )
+    );
+    root.append(note);
   }
 
   return async function(ctx){
     const root=ctx.root;
-
-    root.append(
-      el(
-        'h2',
-        'Processos'
-      ),
-      el(
-        'p',
-        'Processos cadastrados automaticamente quando uma tarefa de distribuição é concluída.',
-        'hint'
-      )
-    );
-
-    const rows=
-      await call(
-        'processos'
-      );
-
+    const rows=await call('processos');
     if(!alive(ctx))return;
 
-    table(
-      root,
-      [
-        {
-          key:'numero',
-          label:'Processo TRF4'
-        },
-        {
-          key:'pessoa',
-          label:'Pessoa'
-        },
-        {
-          label:'CPF',
-          value:r=>cpf_(r.cpf)
-        },
-        {
-          key:'jurisdicao',
-          label:'Jurisdição'
-        },
-        {
-          label:'Distribuído em',
-          value:r=>date_(r.distribuidoEm)
-        },
-        {
-          key:'responsavel',
-          label:'Responsável'
-        }
-      ],
-      rows,
-      r=>[
-        button(
-          'Abrir cadastro',
-          ()=>{
-            App.state.selection=r.pessoaId;
-            return go(
-              'ACOMP',
-              r.pessoaId
-            );
-          }
-        )
-      ]
+    const toolbar=el('div',undefined,'proc-toolbar');
+    const search=el('input');
+    search.type='search';
+    search.placeholder='Buscar por número, pessoa, CPF ou jurisdição';
+    search.autocomplete='off';
+
+    const count=el(
+      'span',
+      (rows||[]).length+' processo'+((rows||[]).length===1?'':'s'),
+      'proc-count'
     );
+
+    toolbar.append(search,count);
+    root.append(toolbar);
+
+    const layout=el('div',undefined,'proc-layout');
+    const list=el('section',undefined,'proc-list');
+    const detail=el('section',undefined,'proc-detail');
+
+    layout.append(list,detail);
+    root.append(layout);
+
+    let selected=(rows||[])[0]||null;
+
+    const render=()=>{
+      const q=String(search.value||'').trim().toLowerCase();
+      const filtered=(rows||[]).filter(row=>{
+        if(!q)return true;
+        return [
+          row.numero,row.pessoa,row.cpf,row.jurisdicao,row.responsavel
+        ].some(v=>String(v||'').toLowerCase().includes(q));
+      });
+
+      count.textContent=
+        filtered.length+' processo'+(filtered.length===1?'':'s');
+
+      list.replaceChildren();
+
+      if(!filtered.length){
+        list.append(el('p','Nenhum processo encontrado.','proc-empty'));
+        detail.replaceChildren(
+          el('p','Ajuste os filtros para localizar um processo.','hint')
+        );
+        return;
+      }
+
+      if(!selected||!filtered.some(r=>r.id===selected.id)){
+        selected=filtered[0];
+      }
+
+      filtered.forEach(row=>{
+        list.append(
+          processItem_(
+            row,
+            selected&&row.id===selected.id,
+            chosen=>{
+              selected=chosen;
+              render();
+            }
+          )
+        );
+      });
+
+      detail_(detail,selected);
+    };
+
+    search.addEventListener('input',render);
+    render();
   };
 })();
 </script>
