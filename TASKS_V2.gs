@@ -219,10 +219,14 @@ function tasksCollectionV2_(q,mode){
 }
 
 function tasksManagementOpenV2_(q){
+  const usuariosTarefas=generalTaskAssignableUsers_();
+  const usuariosDistribuicao=distributionUsers_();
+
   return {
     tarefas:tasksCollectionV2_(q,'open'),
-    usuarios:generalTaskAssignableUsers_(),
-    usuariosDistribuicao:distributionUsers_(),
+    usuarios:usuariosDistribuicao,
+    usuariosDistribuicao,
+    usuariosTarefas,
     tags:taskTagCatalog_(),
     distribuicaoAutomatica:bool_(cfg_().distribuicaoAutomatica)
   };
