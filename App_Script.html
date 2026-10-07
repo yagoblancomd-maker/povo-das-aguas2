@@ -1550,6 +1550,56 @@ return d;
   section.prepend(hero);
  }
 
+
+ function renderInstantModuleShell_(code,root){
+  if(!root)return null;
+
+  const section=
+    el(
+      'section',
+      undefined,
+      'pda-instant-module pda-module-'+
+      String(code||'').toLowerCase()
+    );
+
+  if(code==='PAINEL'){
+    const band=
+      el(
+        'div',
+        undefined,
+        'pda-instant-home-band'
+      );
+
+    section.append(band);
+  }else{
+    decorateModule_(
+      code,
+      section
+    );
+  }
+
+  const surface=
+    el(
+      'div',
+      undefined,
+      'pda-instant-module-surface'
+    );
+
+  for(let i=0;i<3;i++){
+    surface.append(
+      el(
+        'span',
+        undefined,
+        'pda-instant-line line-'+i
+      )
+    );
+  }
+
+  section.append(surface);
+  root.replaceChildren(section);
+  return section;
+ }
+
  async function refreshCurrentModule_(options={}){
   const code=options.code||current;
   const pessoaId=
@@ -1722,6 +1772,7 @@ return d;
 
   const perfStart=
     performance.now();
+
   let perfBundle=0;
   let perfContent=0;
 
@@ -1740,8 +1791,6 @@ return d;
     return;
   }
 
-  const previousCode=current;
-
   if(pessoaId){
     selection=pessoaId;
   }else if(code==='ACOMP'){
@@ -1750,39 +1799,28 @@ return d;
 
   current=code;
   const token=++epoch;
-  status('Carregando…');
-
   const root=
     document.getElementById('app');
+
+  if(!root)return;
+
+  /*
+   * A navegação é confirmada visualmente no mesmo clique. Nenhuma leitura
+   * do Apps Script bloqueia a troca de módulo.
+   */
+  status('');
+  renderNavigation_();
+  renderInstantModuleShell_(
+    code,
+    root
+  );
 
   root.setAttribute(
     'aria-busy',
     'true'
   );
 
-  let moduleProcessingId=null;
-  let moduleProcessingDelay=null;
-  let stage=null;
-
   navigationLoading++;
-
-  /*
-   * Mantém a tela anterior visível. O loader grande só entra se a troca
-   * ultrapassar 460 ms.
-   */
-  moduleProcessingDelay=
-    setTimeout(
-      ()=>{
-        if(token===epoch){
-          moduleProcessingId=
-            safeBeginProcessing_(
-              'carregarModulo',
-              false
-            );
-        }
-      },
-      720
-    );
 
   try{
     const bundleStarted=
@@ -1804,7 +1842,7 @@ return d;
       module
     );
 
-    stage=
+    const stage=
       el(
         'div',
         undefined,
@@ -1815,10 +1853,6 @@ return d;
       module.style+
       module.view;
 
-    /*
-     * A nova árvore é preparada fora do DOM. Assim o CSS do próximo
-     * módulo não interfere na tela atual enquanto os dados chegam.
-     */
     const section=
       stage.querySelector(
         'section'
@@ -1830,44 +1864,21 @@ return d;
       );
     }
 
-    const contentStarted=
-      performance.now();
-
-    await window.PDA_MODULES[code]({
-      root:section,
-      token
-    });
-
-    perfContent=
-      performance.now()-
-      contentStarted;
-
-    decorateModule_(code,section);
-
-    if(token!==epoch){
-      stage.remove();
-      return;
-    }
-
-    if(moduleProcessingDelay){
-      clearTimeout(
-        moduleProcessingDelay
-      );
-      moduleProcessingDelay=null;
-    }
+    decorateModule_(
+      code,
+      section
+    );
 
     /*
-     * Troca atômica: só agora o conteúdo anterior é removido.
+     * HTML/CSS do módulo entram no DOM antes da consulta de dados. A função
+     * do módulo passa a preencher a tela progressivamente já visível.
      */
-    const nodes=
-      Array.from(
+    root.replaceChildren(
+      ...Array.from(
         stage.childNodes||
         stage.children||
         []
-      );
-
-    root.replaceChildren(
-      ...nodes
+      )
     );
 
     if(root.classList){
@@ -1885,14 +1896,37 @@ return d;
         ()=>root.classList.remove(
           'app-module-enter'
         ),
-        220
+        160
       );
     }
 
-    /*
-     * PESS e DEFESO já possuíam foco automático. Como a árvore foi
-     * preparada fora do DOM, restauramos esse detalhe depois da troca.
-     */
+    const liveSection=
+      root.querySelector(
+        'section'
+      );
+
+    if(!liveSection){
+      throw new Error(
+        'Não foi possível montar o módulo '+code+'.'
+      );
+    }
+
+    const contentStarted=
+      performance.now();
+
+    await window.PDA_MODULES[code]({
+      root:liveSection,
+      token
+    });
+
+    perfContent=
+      performance.now()-
+      contentStarted;
+
+    if(token!==epoch){
+      return;
+    }
+
     if(
       code==='PESS'||
       code==='DEFESO'
@@ -1915,9 +1949,6 @@ return d;
       });
     }
 
-    renderNavigation_();
-    status('');
-
     const perfTotal=
       performance.now()-
       perfStart;
@@ -1927,52 +1958,36 @@ return d;
 
     window.PDA_PERF.push({
       modulo:code,
-      bundleMs:Math.round(perfBundle),
-      conteudoDadosMs:Math.round(perfContent),
-      totalMs:Math.round(perfTotal),
-      em:new Date().toISOString()
+      bundleMs:
+        Math.round(
+          perfBundle
+        ),
+      conteudoDadosMs:
+        Math.round(
+          perfContent
+        ),
+      totalMs:
+        Math.round(
+          perfTotal
+        ),
+      em:
+        new Date()
+          .toISOString()
     });
 
-    if(window.PDA_PERF.length>40){
+    if(
+      window.PDA_PERF.length>
+      40
+    ){
       window.PDA_PERF.shift();
     }
 
-    console.info(
-      '[PDA desempenho]',
-      code,
-      {
-        bundleMs:Math.round(perfBundle),
-        conteudoDadosMs:Math.round(perfContent),
-        totalMs:Math.round(perfTotal),
-        bundleEmCache:
-          MODULE_CACHE.has(code)
-      }
-    );
-
-    endProcessing_(
-      moduleProcessingId,
-      true
-    );
-
     /*
-     * Depois da primeira tela pronta, aquece silenciosamente os demais
-     * módulos permitidos em uma única chamada ao Apps Script.
+     * Warmup continua em segundo plano; nunca segura o clique atual.
      */
     scheduleModuleWarmup_();
 
   }catch(e){
-    if(moduleProcessingDelay){
-      clearTimeout(
-        moduleProcessingDelay
-      );
-      moduleProcessingDelay=null;
-    }
-
-    endProcessing_(
-      moduleProcessingId,
-      false
-    );
-
     if(
       /AUTH:/.test(e.message)&&
       window.PDA_AUTH
@@ -4662,6 +4677,14 @@ f.insertBefore(file,f.firstChild);
 
     renderNavigation_();
     bindTaskNotifications_();
+
+    /*
+     * Assim que a sessão está pronta, todos os bundles permitidos começam
+     * a ser baixados em uma única chamada. O usuário não precisa esperar
+     * passar o mouse pelo menu para aquecer a aplicação.
+     */
+    runModuleWarmup_()
+      .catch(()=>{});
 
     window.PDA_AUTH
       .request(
