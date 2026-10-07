@@ -498,7 +498,41 @@ function tasksCollectionV2_(q,mode){
       if(mode==='open'&&isDone(task))return false;
       if(mode==='history'&&!isDone(task))return false;
       if(q.pessoaId&&task.pessoaId!==q.pessoaId)return false;
-      if(q.responsavel&&String(task.responsavel||'').toLowerCase()!==String(q.responsavel).toLowerCase())return false;
+
+      if(
+        q.responsavel&&
+        String(
+          task.responsavel||
+          ''
+        ).toLowerCase()!==
+        String(q.responsavel).toLowerCase()
+      )return false;
+
+      if(q.participante){
+        const participant=
+          String(
+            q.participante||
+            ''
+          ).toLowerCase();
+
+        const responsible=
+          String(
+            task.responsavel||
+            ''
+          ).toLowerCase();
+
+        const creator=
+          String(
+            task.criadoPor||
+            ''
+          ).toLowerCase();
+
+        if(
+          participant!==responsible&&
+          participant!==creator
+        )return false;
+      }
+
       if(q.tipo&&task.tipo!==q.tipo)return false;
 
       const assigned=String(task.atribuidaEm||task.criadoEm||'').slice(0,10);
@@ -633,16 +667,21 @@ function tasksHistoryV2_(q){
 
 function myTasksOpenV2_(q){
   q=Object.assign({},q||{},{
-    responsavel:String(identity_()||'').toLowerCase()
+    participante:String(identity_()||'').toLowerCase()
   });
+
+  delete q.responsavel;
+
   const result=tasksCollectionV2_(q,'open');
   return Object.assign({},result,{tags:taskTagCatalog_()});
 }
 
 function myTasksHistoryV2_(q){
   q=Object.assign({},q||{},{
-    responsavel:String(identity_()||'').toLowerCase()
+    participante:String(identity_()||'').toLowerCase()
   });
+
+  delete q.responsavel;
   const result=tasksCollectionV2_(q,'history');
   return Object.assign({},result,{tags:taskTagCatalog_()});
 }
