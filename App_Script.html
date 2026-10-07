@@ -1195,7 +1195,17 @@ n.className='status '+(error?'error':'ok');
       ?Math.max(
           0,
           Math.ceil(
-            processingState.manualRemaining
+            processingState.manualRemaining-
+            (
+              (
+                now-
+                (
+                  processingState.manualUpdatedAt||
+                  now
+                )
+              )/
+              1000
+            )
           )
         )
       :Math.max(
@@ -1322,7 +1332,8 @@ n.className='status '+(error?'error':'ok');
     manual:true,
     manualProgress:1,
     manualMessage:'Preparando…',
-    manualRemaining:Math.max(0,Number(seconds)||45)
+    manualRemaining:Math.max(0,Number(seconds)||45),
+    manualUpdatedAt:performance.now()
   };
 
   const overlay=ensureProcessingOverlay_();
@@ -1372,6 +1383,9 @@ n.className='status '+(error?'error':'ok');
     )
       ?Number(remainingSeconds)
       :processingState.manualRemaining;
+
+  processingState.manualUpdatedAt=
+    performance.now();
 
   renderProcessing_();
  }
