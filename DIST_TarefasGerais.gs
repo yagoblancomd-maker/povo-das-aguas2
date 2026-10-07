@@ -746,17 +746,43 @@ function myGeneralTasks_(){
   const attachmentCounts=
     generalTaskCountMap_(attachments);
 
+  const actor=
+    activeUser_();
+
   const tasks=
     all_('Tarefas')
-      .filter(task=>
-        task.tipo===
-          GENERAL_TASK_TYPE&&
-        String(
-          task.responsavel||
-          ''
-        ).toLowerCase()===
-          email
-      )
+      .filter(task=>{
+        if(
+          task.tipo!==
+            GENERAL_TASK_TYPE||
+          String(
+            task.responsavel||
+            ''
+          ).toLowerCase()!==
+            email
+        ){
+          return false;
+        }
+
+        if(
+          isColonyUser_(actor)&&
+          task.pessoaId
+        ){
+          const person=
+            findById_(
+              'Pessoas',
+              task.pessoaId
+            );
+
+          return !!person&&
+            personInUserScope_(
+              actor,
+              person
+            );
+        }
+
+        return true;
+      })
       .sort(generalTaskSort_)
       .map(task=>
         generalTaskSummary_(
