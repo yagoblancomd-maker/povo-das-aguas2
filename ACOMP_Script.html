@@ -18,6 +18,35 @@ window.PDA_MODULES.ACOMP = (()=>{
     ANEXO_TAREFA:'Anexo de tarefa'
   };
 
+  function isResidenceDateRecent_(value){
+    const text=String(value||'').trim();
+    const match=text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if(!match||!App.isValidDateBR(text)){
+      return false;
+    }
+
+    const date=new Date(
+      Number(match[3]),
+      Number(match[2])-1,
+      Number(match[1]),
+      12,0,0,0
+    );
+
+    const now=new Date();
+    const today=new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      12,0,0,0
+    );
+
+    const min=new Date(today);
+    min.setDate(min.getDate()-60);
+
+    return date>=min&&date<=today;
+  }
+
   function readFile_(file){
     return new Promise((resolve,reject)=>{
       const reader=new FileReader();
@@ -494,7 +523,7 @@ window.PDA_MODULES.ACOMP = (()=>{
             (
               !isResidence||
               (
-                App.isValidDateBR(
+                isResidenceDateRecent_(
                   String(residenceDate.value||'')
                 )&&
                 (
@@ -552,10 +581,13 @@ window.PDA_MODULES.ACOMP = (()=>{
           }
 
           residenceDate.setCustomValidity(
-            !residenceDate.value||
-            App.isValidDateBR(residenceDate.value)
+            !residenceDate.value
               ?''
-              :'Informe uma data válida no formato DD/MM/AAAA.'
+              :!App.isValidDateBR(residenceDate.value)
+                ?'Informe uma data válida no formato DD/MM/AAAA.'
+                :!isResidenceDateRecent_(residenceDate.value)
+                  ?'O comprovante deve ter data dos últimos 60 dias e não pode ser futuro.'
+                  :''
           );
 
           syncResidence();
@@ -600,14 +632,14 @@ window.PDA_MODULES.ACOMP = (()=>{
             const invalidResidence=rows.find(
               row=>
                 row.category.value==='RESIDENCIA'&&
-                !App.isValidDateBR(
+                !isResidenceDateRecent_(
                   String(row.residenceDate.value||'')
                 )
             );
 
             if(invalidResidence){
               throw new Error(
-                'Informe uma data válida no formato DD/MM/AAAA para cada comprovante de residência.'
+                'Cada comprovante de residência deve ter data dos últimos 60 dias e não pode ter data futura.'
               );
             }
 
