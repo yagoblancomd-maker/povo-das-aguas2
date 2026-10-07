@@ -63,8 +63,15 @@ window.PDA_MODULES.PROC = (()=>{
       el('p',text_(row.pessoa),'hint')
     );
 
+    const actions=el('div',undefined,'proc-detail-actions');
+
+    const preview=button(
+      'Visualizar cadastro',
+      ()=>App.openPersonDrawer(row.pessoaId)
+    );
+
     const open=button(
-      'Abrir cadastro',
+      'Abrir ficha completa',
       ()=>{
         App.state.selection=row.pessoaId;
         return go('ACOMP',row.pessoaId);
@@ -72,7 +79,8 @@ window.PDA_MODULES.PROC = (()=>{
       true
     );
 
-    head.append(title,open);
+    actions.append(preview,open);
+    head.append(title,actions);
     root.append(head);
 
     const facts=el('div',undefined,'proc-facts');
