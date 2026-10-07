@@ -208,14 +208,14 @@ function aquecerDadosModulos(codes,sessionToken){
           ()=>dashboard_()
         ],
         TAREFAS:[
-          'tarefasMinhas',
+          'tarefasMinhasAbertas',
           {},
-          ()=>myTasks_()
+          ()=>myTasksOpenV2_({})
         ],
         DIST:[
-          'distribuicaoFila',
+          'tarefasAbertasGestao',
           {},
-          ()=>distributionQueue_()
+          ()=>tasksManagementOpenV2_({})
         ],
         PROC:[
           'processos',
