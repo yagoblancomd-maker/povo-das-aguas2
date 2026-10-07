@@ -226,6 +226,16 @@ window.PDA_MODULES.DIST = (()=>{
       [
         'Responsável atual',
         task.responsavelNome||task.responsavel||'Não atribuído'
+      ],
+      [
+        'Distribuída em',
+        task.dataDistribuicao
+          ?dateTime_(task.dataDistribuicao)
+          :'—'
+      ],
+      [
+        'Prazo',
+        date_(task.prazo)
       ]
     ].forEach(([label,value])=>{
       const item=el('div');
