@@ -570,6 +570,8 @@ function apiAuthenticated_(action,q,sessionToken){
     usuarioExcluir:['administracao',userDelete_],
     usuariosAcessosGoogleSincronizar:['administracao',syncAllGoogleResources_],
     tarefaDistribuicaoAtribuir:['gestao_distribuicao',distributionTaskAssign_],
+    tarefasAtribuirLote:['gestao_distribuicao',taskBatchAssign_],
+    tarefaDistribuicaoAssumirProxima:['distribuicao',distributionClaimNext_],
     tarefaDistribuicaoConcluir:['distribuicao',completeDistributionTask_],
     tarefaDocumentosZipGerar:['distribuicao',distributionDocumentsZip_],
     tarefasDistribuicaoReconciliar:['gestao_distribuicao',reconcileDistributionTasks_],
