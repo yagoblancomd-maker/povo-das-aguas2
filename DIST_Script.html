@@ -2114,6 +2114,41 @@ window.PDA_MODULES.DIST = (()=>{
         true
       );
 
+      const selectVisible=
+        button(
+          'Selecionar visíveis',
+          ()=>{
+            const visible=
+              (data.tarefas||[])
+                .filter(
+                  matches_
+                );
+
+            const allSelected=
+              visible.length>0&&
+              visible.every(task=>
+                selectedTaskIds.has(
+                  task.id
+                )
+              );
+
+            visible.forEach(task=>{
+              if(allSelected){
+                selectedTaskIds.delete(
+                  task.id
+                );
+              }else{
+                selectedTaskIds.add(
+                  task.id
+                );
+              }
+            });
+
+            paintOpen_(data);
+          },
+          true
+        );
+
       const bulk=
         button(
           'Distribuir selecionadas',
@@ -2132,6 +2167,7 @@ window.PDA_MODULES.DIST = (()=>{
         autoLabel,
         toggle,
         run,
+        selectVisible,
         bulk,
         create,
         reconcile
