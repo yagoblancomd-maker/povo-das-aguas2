@@ -93,7 +93,19 @@ assert.match(authStyle,/font-family:Georgia/);
 assert.doesNotMatch(authStyle,/aurora|bubble|fisher-scene/);
 
 const dashboard=read('PAINEL_Style.html');
+assert.match(dashboard,/var\(--pda-photo-net\)/);
+assert.match(dashboard,/home-action-photo-community/);
+assert.match(dashboard,/home-action-photo-port/);
+assert.doesNotMatch(read('PAINEL_Script.html'),/function fishingArt_/);
+
+const photoAssets=read('PHOTO_Assets.html');
+for(const token of ['--pda-photo-net','--pda-photo-community','--pda-photo-boat','--pda-photo-port','--pda-photo-channel']){
+  assert.match(photoAssets,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\const dashboard=read('PAINEL_Style.html');
 assert.match(dashboard,/\.home-fishing-art\{display:none\}/);
-assert.match(dashboard,/border-bottom:1px solid var\(--pda-line\)/);
+assert.match(dashboard,/border-bottom:1px solid var\(--pda-line\)/);')));
+}
+
+const designSystem=read('DESIGN_SYSTEM.md');
+assert.match(designSystem,/Não criar testemunhos, reportagens, entrevistas, matérias, citações/);
 
 console.log('PASS identidade visual editorial, IDs funcionais e scripts preservados.');
