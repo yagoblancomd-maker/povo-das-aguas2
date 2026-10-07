@@ -5191,4 +5191,52 @@ body.pda-drawer-open{overflow:hidden}
   from{opacity:.42}
   to{opacity:.92}
 }
+
+
+/* Fluxos longos: loader informativo com imagem e frases */
+.processing-overlay.workflow-processing .processing-panel{
+  width:min(820px,calc(100vw - 28px))!important;
+  grid-template-columns:minmax(250px,.82fr) minmax(340px,1.18fr)!important;
+  gap:22px!important;
+  padding:18px!important
+}
+.processing-overlay.workflow-processing .processing-scene{
+  display:grid!important;
+  min-height:300px!important;
+  background-size:cover!important;
+  background-position:center!important
+}
+.processing-overlay.workflow-processing .processing-scene::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(180deg,rgba(3,36,49,.08),rgba(3,30,43,.38));
+  pointer-events:none
+}
+.processing-overlay.workflow-processing .processing-fisher-svg{
+  position:relative;
+  z-index:1;
+  opacity:.22
+}
+.processing-overlay.workflow-processing .processing-copy{
+  padding:12px 8px 12px 0!important
+}
+.processing-overlay.workflow-processing .processing-eyebrow,
+.processing-overlay.workflow-processing .processing-phrase-box,
+.processing-overlay.workflow-processing .processing-note{
+  display:block!important
+}
+.processing-overlay.workflow-processing .processing-phrase-box{
+  min-height:92px!important;
+  margin-top:14px!important
+}
+@media(max-width:760px){
+  .processing-overlay.workflow-processing .processing-panel{
+    grid-template-columns:1fr!important
+  }
+  .processing-overlay.workflow-processing .processing-scene{
+    min-height:180px!important
+  }
+}
 </style>
