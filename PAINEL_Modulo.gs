@@ -87,186 +87,54 @@ function dashboardActivityLabel_(h,peopleById,docsById){
 }
 
 function dashboard_(){
-  const pessoas=
-    all_('Pessoas');
+  const pessoas=all_('Pessoas');
 
   const documentos=
     all_('Documentos')
-      .filter(d=>
-        bool_(d.vigente)&&
-        !!personIdFromOwner_(
-          d.atendimentoId
-        )
+      .filter(doc=>
+        bool_(doc.vigente)&&
+        !!personIdFromOwner_(doc.atendimentoId)
       );
 
-  const processos=
-    all_('Processos');
+  const processos=all_('Processos');
 
-  const historico=
-    all_('Historico');
+  const iniciais=documentos.filter(doc=>
+    doc.categoria==='INICIAL_SEGURO_DEFESO_2025'
+  );
 
-  const peopleById=
-    new Map(
-      pessoas.map(p=>[
-        p.id,
-        p
-      ])
-    );
+  const relatorios=documentos.filter(doc=>
+    doc.categoria==='RELATORIO_SEGURO_DEFESO_2025'
+  );
 
-  const docsById=
-    new Map(
-      documentos.map(d=>[
-        d.id,
-        d
-      ])
-    );
+  const aConferir=documentos.filter(doc=>
+    !bool_(doc.conferido)
+  );
 
-  const iniciais=
-    documentos.filter(d=>
-      d.categoria===
-      'INICIAL_SEGURO_DEFESO_2025'
-    );
+  const peopleById=new Map(
+    pessoas.map(person=>[person.id,person])
+  );
 
-  const relatorios=
-    documentos.filter(d=>
-      d.categoria===
-      'RELATORIO_SEGURO_DEFESO_2025'
-    );
+  const valorCausas=pessoas.reduce(
+    (total,person)=>total+causeValueFromPerson_(person),
+    0
+  );
 
-  const aConferir=
-    documentos.filter(d=>
-      !bool_(
-        d.conferido
-      )
-    );
+  const valorCausasTramitacao=processos.reduce(
+    (total,process)=>{
+      const person=peopleById.get(process.pessoaId);
+      return total+causeValueFromPerson_(person);
+    },
+    0
+  );
 
-  const valorCausas=
-    pessoas.reduce(
-      (total,p)=>
-        total+
-        causeValueFromPerson_(p),
-      0
-    );
+  const currentEmail=String(identity_()||'').toLowerCase();
 
-  const valorCausasTramitacao=
-    processos.reduce(
-      (total,processo)=>{
-        const p=
-          peopleById.get(
-            processo.pessoaId
-          );
-
-        return (
-          total+
-          causeValueFromPerson_(p)
-        );
-      },
-      0
-    );
-
-  const currentEmail=
-    String(
-      identity_()||
-      ''
-    ).toLowerCase();
-
-  const minhasTarefas=
-    all_('Tarefas')
-      .filter(t=>
-        t.tipo===
-          DISTRIBUTION_TASK_TYPE&&
-        t.situacao!==
-          DISTRIBUTION_TASK_DONE&&
-        String(
-          t.responsavel||
-          ''
-        ).toLowerCase()===
-          currentEmail
-      ).length;
-
-  const ultimosCadastros=
-    pessoas
-      .slice()
-      .sort((a,b)=>
-        String(
-          b.criadoEm||''
-        ).localeCompare(
-          String(
-            a.criadoEm||''
-          )
-        )
-      )
-      .slice(
-        0,
-        6
-      )
-      .map(p=>({
-        id:p.id,
-        nome:p.nome,
-        cpf:p.cpf,
-        cidade:p.cidade,
-        jurisdicao:p.jurisdicao,
-        criadoEm:p.criadoEm,
-        documentos:
-          documentos.filter(d=>
-            d.atendimentoId===
-            personOwnerKey_(p.id)
-          ).length
-      }));
-
-  const atividades=
-    historico
-      .slice()
-      .sort((a,b)=>
-        String(
-          b.alteradoEm||
-          b.criadoEm||
-          ''
-        ).localeCompare(
-          String(
-            a.alteradoEm||
-            a.criadoEm||
-            ''
-          )
-        )
-      )
-      .slice(
-        0,
-        7
-      )
-      .map(h=>({
-        id:h.id,
-        entidade:h.entidade,
-        registroId:h.registroId,
-        data:
-          h.alteradoEm||
-          h.criadoEm||
-          '',
-        usuario:h.usuario||'',
-        descricao:
-          dashboardActivityLabel_(
-            h,
-            peopleById,
-            docsById
-          )
-      }));
-
-  const jurisdicoes=
-    pessoas.reduce(
-      (acc,p)=>{
-        const key=
-          String(
-            p.jurisdicao||
-            'NÃO DEFINIDA'
-          );
-
-        acc[key]=
-          (acc[key]||0)+1;
-
-        return acc;
-      },
-      {}
-    );
+  const minhasTarefas=all_('Tarefas')
+    .filter(task=>
+      task.situacao!==GENERAL_TASK_DONE&&
+      task.situacao!==DISTRIBUTION_TASK_DONE&&
+      String(task.responsavel||'').toLowerCase()===currentEmail
+    ).length;
 
   return {
     atualizadoEm:now_(),
@@ -278,9 +146,6 @@ function dashboard_(){
     acoesTramitacao:processos.length,
     minhasTarefas,
     valorCausas,
-    valorCausasTramitacao,
-    jurisdicoes,
-    ultimosCadastros,
-    atividades
+    valorCausasTramitacao
   };
 }
