@@ -556,21 +556,23 @@ function commit_(ctx,result){
     });
   });
 
-  changes.push({
-    entity:'Operacoes',
-    after:record_(
-      'Operacoes',
-      ctx.op,
-      {
-        hash:ctx.hash,
-        resultado:JSON.stringify(
-          result
-        )
-      },
-      null,
-      ctx.email
-    )
-  });
+  if(!ctx.ephemeral){
+    changes.push({
+      entity:'Operacoes',
+      after:record_(
+        'Operacoes',
+        ctx.op,
+        {
+          hash:ctx.hash,
+          resultado:JSON.stringify(
+            result
+          )
+        },
+        null,
+        ctx.email
+      )
+    });
+  }
 
   const deletes=
     changes
@@ -638,10 +640,12 @@ function commit_(ctx,result){
         );
 
       let index=
-        row_(
-          c.entity,
-          c.after.id
-        );
+        c.before
+          ?row_(
+              c.entity,
+              c.after.id
+            )
+          :null;
 
       if(index===null){
         if(
@@ -727,10 +731,12 @@ function commit_(ctx,result){
    * Invalida logicamente caches de leitura compartilhados. As chaves
    * antigas expiram sozinhas; novas leituras passam a usar outra revisão.
    */
-  props_().setProperty(
-    'PDA_DATA_REVISION',
-    uid_()
-  );
+  if(!ctx.ephemeral){
+    props_().setProperty(
+      'PDA_DATA_REVISION',
+      uid_()
+    );
+  }
 
   return result;
 }
