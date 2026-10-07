@@ -147,7 +147,15 @@
       "atribuidaEm",
       "concluidaEm",
       "processoId",
-      "observacoes"
+      "observacoes",
+      "titulo",
+      "descricao",
+      "criadoPor",
+      "prazo",
+      "prioridade",
+      "tags",
+      "modoDistribuicao",
+      "origem"
     ],
     "Processos": [
       "pessoaId",
