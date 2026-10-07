@@ -3,6 +3,103 @@ const PDA_AUTH_SESSION_HOURS=12;
 const PDA_AUTH_RECOVERY_MINUTES=30;
 const PDA_AUTH_PASSWORD_ALGORITHM='bcrypt-sha256-v1';
 
+const SELF_REGISTRATION_FUNCTIONS=Object.freeze([
+  'Professor',
+  'Residente',
+  'Colaborador',
+  'Aluno',
+  'Colônia de Pescador'
+]);
+
+function selfRegistrationAccess_(funcao){
+  const role={
+    Professor:'PROFESSOR_RESIDENTE',
+    Residente:'PROFESSOR_RESIDENTE',
+    Colaborador:'COLABORADOR',
+    Aluno:'ALUNO',
+    'Colônia de Pescador':'COLONIA_PESCADOR'
+  }[String(funcao||'')];
+
+  if(!role||!ROLES[role]){
+    fail_('Selecione sua função no projeto.');
+  }
+
+  return {
+    perfil:role,
+    permissoes:rolePermissions_(role)
+  };
+}
+
+function authUsername_(input){
+  const username=
+    String(input||'')
+      .trim()
+      .toLowerCase();
+
+  if(
+    username.length<3||
+    username.length>40||
+    !/^[a-z0-9._-]+$/.test(username)
+  ){
+    fail_(
+      'O nome de usuário deve ter de 3 a 40 caracteres e usar apenas letras sem acento, números, ponto, hífen ou sublinhado.'
+    );
+  }
+
+  return username;
+}
+
+function authFindUserByLogin_(input){
+  const login=
+    String(input||'')
+      .trim()
+      .toLowerCase();
+
+  if(!login){
+    return null;
+  }
+
+  return all_('Usuarios')
+    .find(user=>
+      String(
+        user.nomeUsuario||
+        ''
+      ).trim().toLowerCase()===
+        login||
+      String(
+        user.email||
+        ''
+      ).trim().toLowerCase()===
+        login
+    )||
+    null;
+}
+
+function authCheckAvailableUsername_(username,userId){
+  const normalized=
+    authUsername_(
+      username
+    );
+
+  if(
+    all_('Usuarios')
+      .some(user=>
+        user.id!==userId&&
+        String(
+          user.nomeUsuario||
+          ''
+        ).trim().toLowerCase()===
+          normalized
+      )
+  ){
+    fail_(
+      'Este nome de usuário já está em uso. Escolha outro.'
+    );
+  }
+
+  return normalized;
+}
+
 function authEnsureSchema_(){
   ['Usuarios','Sessoes','Recuperacoes'].forEach(entity=>{
     if(!ss_().getSheetByName(entity))ss_().insertSheet(entity);
@@ -241,40 +338,304 @@ function withAuthMutationSession_(token,fn){
 
 function authRegister(q){
   q=q||{};
-  const email=authEmail_(q.email),senha=authPassword_(q.senha);
-  const nome=String(q.nome||'').trim().replace(/\s+/g,' '),funcao=String(q.funcao||'').trim();
-  if(!nome||nome.length>140)fail_('Informe seu nome, com até 140 caracteres.');
-  if(!SELF_REGISTRATION_FUNCTIONS.includes(funcao))fail_('Selecione sua função no projeto.');
+
+  const email=
+    authEmail_(
+      q.email
+    );
+
+  const senha=
+    authPassword_(
+      q.senha
+    );
+
+  const nome=
+    String(
+      q.nome||
+      ''
+    )
+      .trim()
+      .replace(/\s+/g,' ');
+
+  const funcao=
+    String(
+      q.funcao||
+      ''
+    ).trim();
+
+  const nomeUsuario=
+    authUsername_(
+      q.nomeUsuario
+    );
+
+  if(
+    !nome||
+    nome.length>140
+  ){
+    fail_(
+      'Informe seu nome, com até 140 caracteres.'
+    );
+  }
+
+  if(
+    !SELF_REGISTRATION_FUNCTIONS
+      .includes(funcao)
+  ){
+    fail_(
+      'Selecione sua função no projeto.'
+    );
+  }
+
   return lock_(()=>{
-    resetData_();authEnsureSchema_();
-    authLimit_('register-global','global',40,60);authLimit_('register',email,5,15);
-    authCheckAvailableEmail_(email);
-    // Códigos por função são opcionais, sem aprovações individuais.
+    resetData_();
+    authEnsureSchema_();
+
+    authLimit_(
+      'register-global',
+      'global',
+      40,
+      60
+    );
+
+    authLimit_(
+      'register',
+      nomeUsuario,
+      5,
+      15
+    );
+
+    authCheckAvailableEmail_(
+      email
+    );
+
+    authCheckAvailableUsername_(
+      nomeUsuario
+    );
+
     let codes={};
-    try{codes=JSON.parse(props_().getProperty('AUTH_ROLE_CODES')||'{}');}catch(e){fail_('Configuração de códigos de acesso inválida.');}
-    if(codes[funcao]&&String(q.codigo||'')!==String(codes[funcao]))fail_('Código de acesso à função inválido.');
-    const access=selfRegistrationAccess_(funcao),ctx=authContext_(email);
-    const user=change_(ctx,'Usuarios',id_('USR',uid_()),Object.assign({
-      email,nome,nomeUsuario:nome,funcao,perfil:access.perfil,ativo:true,
-      permissoes:JSON.stringify(access.permissoes),permissoesVersao:2,
-      sessionVersion:1,ultimoLogin:now_(),emailsAnteriores:'[]'
-    },authPasswordFields_(senha)));
-    const result=authNewSession_(ctx,user);authPersist_(ctx);return result;
+
+    try{
+      codes=
+        JSON.parse(
+          props_()
+            .getProperty(
+              'AUTH_ROLE_CODES'
+            )||
+          '{}'
+        );
+    }catch(e){
+      fail_(
+        'Configuração de códigos de acesso inválida.'
+      );
+    }
+
+    if(
+      codes[funcao]&&
+      String(q.codigo||'')!==
+        String(codes[funcao])
+    ){
+      fail_(
+        'Código de acesso à função inválido.'
+      );
+    }
+
+    const access=
+      selfRegistrationAccess_(
+        funcao
+      );
+
+    let entidade='';
+
+    if(
+      access.perfil===
+      'COLONIA_PESCADOR'
+    ){
+      entidade=
+        String(
+          q.entidade||
+          ''
+        ).trim();
+
+      const allowed=
+        (cfg_().entidades||[])
+          .filter(value=>
+            String(value||'').trim()&&
+            String(value||'').trim()!==
+              'Outro'
+          );
+
+      if(
+        !entidade||
+        !allowed.includes(
+          entidade
+        )
+      ){
+        fail_(
+          'Selecione a entidade/Colônia à qual seu acesso está vinculado.'
+        );
+      }
+    }
+
+    const ctx=
+      authContext_(
+        email
+      );
+
+    const user=
+      change_(
+        ctx,
+        'Usuarios',
+        id_(
+          'USR',
+          uid_()
+        ),
+        Object.assign(
+          {
+            email,
+            nome,
+            nomeUsuario,
+            funcao,
+            perfil:access.perfil,
+            entidade,
+            ativo:true,
+            permissoes:
+              JSON.stringify(
+                access.permissoes
+              ),
+            permissoesVersao:2,
+            sessionVersion:1,
+            ultimoLogin:now_(),
+            emailsAnteriores:'[]'
+          },
+          authPasswordFields_(
+            senha
+          )
+        )
+      );
+
+    const result=
+      authNewSession_(
+        ctx,
+        user
+      );
+
+    authPersist_(
+      ctx
+    );
+
+    return result;
   });
 }
 
-function authLogin(emailInput,senhaInput){
-  const email=authEmail_(emailInput),senha=authPassword_(senhaInput);
+function authLogin(loginInput,senhaInput){
+  const login=
+    String(
+      loginInput||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+  if(
+    !login||
+    login.length>254
+  ){
+    fail_(
+      'Informe seu nome de usuário.'
+    );
+  }
+
+  const senha=
+    authPassword_(
+      senhaInput
+    );
+
   return lock_(()=>{
-    resetData_();authEnsureSchema_();authLimit_('login-global','global',120,1);
-    const limit=authLimit_('login',email,8,15),user=authFindUser_(email);
-    // Trabalho equivalente para e-mails inexistentes, sem revelar cadastro.
-    const ok=user&&user.senhaHash?authPasswordMatches_(user,senha):
-      (PDA_BCRYPT_.hashSync(hash_(senha),'$2a$12$......................')&&false);
-    if(!ok||!bool_(user.ativo))fail_('E-mail ou senha incorretos.');
-    const ctx=authContext_(email);
-    const updated=change_(ctx,'Usuarios',user.id,Object.assign({},user,{ultimoLogin:now_()}),user.versao);
-    const result=authNewSession_(ctx,updated);authPersist_(ctx);props_().deleteProperty(limit);return result;
+    resetData_();
+    authEnsureSchema_();
+
+    authLimit_(
+      'login-global',
+      'global',
+      120,
+      1
+    );
+
+    const limit=
+      authLimit_(
+        'login',
+        login,
+        8,
+        15
+      );
+
+    const user=
+      authFindUserByLogin_(
+        login
+      );
+
+    const ok=
+      user&&
+      user.senhaHash
+        ?authPasswordMatches_(
+            user,
+            senha
+          )
+        :(
+            PDA_BCRYPT_.hashSync(
+              hash_(senha),
+              '$2a$12$......................'
+            )&&
+            false
+          );
+
+    if(
+      !ok||
+      !bool_(
+        user.ativo
+      )
+    ){
+      fail_(
+        'Usuário ou senha incorretos.'
+      );
+    }
+
+    const ctx=
+      authContext_(
+        user.email
+      );
+
+    const updated=
+      change_(
+        ctx,
+        'Usuarios',
+        user.id,
+        Object.assign(
+          {},
+          user,
+          {
+            ultimoLogin:now_()
+          }
+        ),
+        user.versao
+      );
+
+    const result=
+      authNewSession_(
+        ctx,
+        updated
+      );
+
+    authPersist_(
+      ctx
+    );
+
+    props_()
+      .deleteProperty(
+        limit
+      );
+
+    return result;
   });
 }
 
@@ -338,8 +699,29 @@ function authResetPassword(token,senhaInput){
 function authPageBootstrap_(e){
   const reset=String(e&&e.parameter&&e.parameter.reset||'');
   let codes={};try{codes=JSON.parse(props_().getProperty('AUTH_ROLE_CODES')||'{}');}catch(error){}
-  return {appUrl:String(ScriptApp.getService().getUrl()||''),resetToken:/^[a-f0-9]{64}$/.test(reset)?reset:'',
-    funcoes:Array.from(SELF_REGISTRATION_FUNCTIONS),funcoesComCodigo:Object.keys(codes).filter(k=>!!codes[k])};
+  return {
+    appUrl:String(
+      ScriptApp.getService().getUrl()||
+      ''
+    ),
+    resetToken:
+      /^[a-f0-9]{64}$/.test(reset)
+        ?reset
+        :'',
+    funcoes:
+      Array.from(
+        SELF_REGISTRATION_FUNCTIONS
+      ),
+    funcoesComCodigo:
+      Object.keys(codes)
+        .filter(k=>!!codes[k]),
+    entidades:
+      (cfg_().entidades||[])
+        .filter(value=>
+          String(value||'').trim()&&
+          String(value||'').trim()!=='Outro'
+        )
+  };
 }
 
 
