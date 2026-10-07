@@ -193,7 +193,10 @@ window.PDA_MODULES.DIST = (()=>{
         task.situacao==='PENDENTE_ATRIBUICAO'
           ?'unassigned'
           :'assigned'
-      )
+      )+
+      (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
+      (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
     );
 
     const top=el('div',undefined,'dist-task-top');
