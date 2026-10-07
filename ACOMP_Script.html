@@ -928,7 +928,10 @@ window.PDA_MODULES.ACOMP = (()=>{
 
         actions.push(visualize);
 
-        if(can('gestao_distribuicao')){
+        if(
+          can('gestao_distribuicao')||
+          can('criar_tarefa_entidade')
+        ){
           const task=button(
             '+ Tarefa',
             ()=>App.createTaskForPerson(
