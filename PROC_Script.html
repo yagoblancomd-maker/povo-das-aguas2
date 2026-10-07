@@ -44,6 +44,73 @@ window.PDA_MODULES.PROC = (()=>{
     }[String(status||'NAO_SINCRONIZADO')]||String(status||'');
   }
 
+  function selectFilter_(placeholder){
+    const node=el('select');
+    node.append(
+      new Option(
+        placeholder,
+        ''
+      )
+    );
+    return node;
+  }
+
+  function fillSelect_(node,values,labeler){
+    const current=node.value;
+    node.replaceChildren(
+      new Option(
+        node.dataset.placeholder||'Todos',
+        ''
+      )
+    );
+
+    (values||[]).forEach(value=>{
+      if(
+        value&&
+        typeof value==='object'
+      ){
+        node.append(
+          new Option(
+            value.label||value.value,
+            value.value
+          )
+        );
+      }else{
+        node.append(
+          new Option(
+            labeler
+              ?labeler(value)
+              :String(value),
+            String(value)
+          )
+        );
+      }
+    });
+
+    if(
+      [...node.options]
+        .some(option=>
+          option.value===current
+        )
+    ){
+      node.value=current;
+    }
+  }
+
+  function tagBadge_(tag){
+    return el(
+      'span',
+      String(tag||''),
+      'proc-process-tag tag-'+
+      String(tag||'')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .replace(/[^a-z0-9]+/g,'-')
+        .replace(/^-|-$/g,'')
+    );
+  }
+
   function processItem_(row,active,onOpen){
     const item=el('button',undefined,'proc-case-item'+(active?' active':''));
     item.type='button';
@@ -57,6 +124,37 @@ window.PDA_MODULES.PROC = (()=>{
       el('span',text_(row.pessoa)),
       el('small',text_(row.jurisdicao))
     );
+
+    const tagLine=
+      el(
+        'span',
+        undefined,
+        'proc-case-tags'
+      );
+
+    if(row.datajudMarcoAtual){
+      tagLine.append(
+        tagBadge_(
+          row.datajudMarcoAtual
+        )
+      );
+    }
+
+    (row.datajudTags||[])
+      .filter(tag=>
+        tag&&
+        tag!==row.datajudMarcoAtual
+      )
+      .slice(0,2)
+      .forEach(tag=>
+        tagLine.append(
+          tagBadge_(tag)
+        )
+      );
+
+    if(tagLine.childElementCount){
+      copy.append(tagLine);
+    }
 
     const meta=el('span',undefined,'proc-case-meta');
     const badge=el(
@@ -200,6 +298,63 @@ window.PDA_MODULES.PROC = (()=>{
     root.append(localFacts);
 
     const dj=(data&&data.datajud)||{};
+
+    if(
+      (dj.tags&&dj.tags.length)||
+      dj.marcoAtual
+    ){
+      const tagsBox=
+        el(
+          'section',
+          undefined,
+          'proc-tags-summary'
+        );
+
+      tagsBox.append(
+        el(
+          'span',
+          'MARCOS PROCESSUAIS',
+          'proc-detail-kicker'
+        )
+      );
+
+      const chips=
+        el(
+          'div',
+          undefined,
+          'proc-tags-chips'
+        );
+
+      if(dj.marcoAtual){
+        const current=
+          tagBadge_(
+            dj.marcoAtual
+          );
+
+        current.classList.add(
+          'current'
+        );
+
+        current.title=
+          'Marco processual relevante mais recente';
+
+        chips.append(current);
+      }
+
+      (dj.tags||[])
+        .filter(tag=>
+          tag&&
+          tag!==dj.marcoAtual
+        )
+        .forEach(tag=>
+          chips.append(
+            tagBadge_(tag)
+          )
+        );
+
+      tagsBox.append(chips);
+      root.append(tagsBox);
+    }
     const status=el(
       'section',
       undefined,
@@ -277,12 +432,110 @@ window.PDA_MODULES.PROC = (()=>{
     const toolbar=el('div',undefined,'proc-toolbar');
     const search=el('input');
     search.type='search';
-    search.placeholder='Buscar por número, pessoa, CPF ou jurisdição';
+    search.placeholder='Buscar por número, pessoa, CPF, jurisdição ou dados do DataJud';
     search.autocomplete='off';
 
     const count=el('span','','proc-count');
     toolbar.append(search,count);
     root.append(toolbar);
+
+    const filters=
+      el(
+        'div',
+        undefined,
+        'proc-structured-filters'
+      );
+
+    const tribunal=
+      selectFilter_(
+        'Todos os tribunais'
+      );
+    tribunal.dataset.placeholder=
+      'Todos os tribunais';
+
+    const classe=
+      selectFilter_(
+        'Todas as classes'
+      );
+    classe.dataset.placeholder=
+      'Todas as classes';
+
+    const orgao=
+      selectFilter_(
+        'Todos os órgãos'
+      );
+    orgao.dataset.placeholder=
+      'Todos os órgãos';
+
+    const statusFilter=
+      selectFilter_(
+        'Status DataJud'
+      );
+    statusFilter.dataset.placeholder=
+      'Status DataJud';
+
+    const marco=
+      selectFilter_(
+        'Marco atual'
+      );
+    marco.dataset.placeholder=
+      'Marco atual';
+
+    const tag=
+      selectFilter_(
+        'Tag processual'
+      );
+    tag.dataset.placeholder=
+      'Tag processual';
+
+    const movDe=el('input');
+    movDe.type='date';
+    movDe.title='Última movimentação a partir de';
+
+    const movAte=el('input');
+    movAte.type='date';
+    movAte.title='Última movimentação até';
+
+    const clearFilters=
+      button(
+        'Limpar filtros',
+        ()=>{
+          [
+            tribunal,
+            classe,
+            orgao,
+            statusFilter,
+            marco,
+            tag,
+            movDe,
+            movAte
+          ].forEach(node=>
+            node.value=''
+          );
+
+          search.value='';
+          load_(0,false).catch(()=>{});
+        },
+        true
+      );
+
+    clearFilters.classList.add(
+      'proc-clear-filters'
+    );
+
+    filters.append(
+      tribunal,
+      classe,
+      orgao,
+      statusFilter,
+      marco,
+      tag,
+      movDe,
+      movAte,
+      clearFilters
+    );
+
+    root.append(filters);
 
     const layout=el('div',undefined,'proc-layout');
     const list=el('section',undefined,'proc-list');
@@ -405,6 +658,15 @@ window.PDA_MODULES.PROC = (()=>{
               '',
             datajudTribunal:
               fresh.datajud&&fresh.datajud.tribunal||
+              '',
+            datajudTags:
+              fresh.datajud&&fresh.datajud.tags||
+              [],
+            datajudMarcoAtual:
+              fresh.datajud&&fresh.datajud.marcoAtual||
+              '',
+            datajudUltimaMovimentacao:
+              fresh.datajud&&fresh.datajud.ultimaMovimentacao||
               ''
           });
 
@@ -466,7 +728,23 @@ window.PDA_MODULES.PROC = (()=>{
       const request=++requestSeq;
       const term=String(search.value||'').trim();
 
-      if(!term){
+      const filterPayload={
+        tribunal:tribunal.value,
+        classe:classe.value,
+        orgao:orgao.value,
+        status:statusFilter.value,
+        marco:marco.value,
+        tag:tag.value,
+        movDe:movDe.value,
+        movAte:movAte.value
+      };
+
+      const hasStructured=
+        Object.values(
+          filterPayload
+        ).some(Boolean);
+
+      if(!term&&!hasStructured){
         rows=[];
         total=0;
         hasMore=false;
@@ -475,14 +753,14 @@ window.PDA_MODULES.PROC = (()=>{
         list.replaceChildren(
           el(
             'p',
-            'Digite número do processo, nome, CPF ou jurisdição para pesquisar.',
+            'Digite um termo ou use um dos filtros estruturados acima.',
             'proc-empty'
           )
         );
         detail.replaceChildren(
           el(
             'p',
-            'Os processos somente serão carregados após informar um filtro.',
+            'Os processos somente serão carregados após informar uma busca ou filtro.',
             'hint'
           )
         );
@@ -507,11 +785,14 @@ window.PDA_MODULES.PROC = (()=>{
 
       const data=await call(
         'processos',
-        {
-          busca:term,
-          offset,
-          limit:50
-        },
+        Object.assign(
+          {
+            busca:term,
+            offset,
+            limit:50
+          },
+          filterPayload
+        ),
         false,
         {noLoader:true}
       );
@@ -552,6 +833,56 @@ window.PDA_MODULES.PROC = (()=>{
         260
       );
     });
+
+    [
+      tribunal,
+      classe,
+      orgao,
+      statusFilter,
+      marco,
+      tag,
+      movDe,
+      movAte
+    ].forEach(node=>{
+      node.addEventListener(
+        'change',
+        ()=>load_(0,false).catch(()=>{})
+      );
+    });
+
+    call(
+      'processoFiltros',
+      {},
+      false,
+      {noLoader:true}
+    )
+      .then(options=>{
+        fillSelect_(
+          tribunal,
+          options.tribunais
+        );
+        fillSelect_(
+          classe,
+          options.classes
+        );
+        fillSelect_(
+          orgao,
+          options.orgaos
+        );
+        fillSelect_(
+          statusFilter,
+          options.status
+        );
+        fillSelect_(
+          marco,
+          options.marcos
+        );
+        fillSelect_(
+          tag,
+          options.tags
+        );
+      })
+      .catch(()=>{});
 
     await load_(0,false);
   };
