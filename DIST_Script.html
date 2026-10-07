@@ -2044,6 +2044,15 @@ window.PDA_MODULES.DIST = (()=>{
       paintOpen_(openData);
     };
 
+    content.replaceChildren(
+      baseHead_('Distribuição e tarefas'),
+      el(
+        'div',
+        undefined,
+        'dist-instant-list'
+      )
+    );
+
     await renderOpen_();
   };
 })();
