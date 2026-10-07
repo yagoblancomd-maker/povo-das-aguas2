@@ -74,6 +74,37 @@ function ensureDistributionTask_(ctx,p){
       ?distributionAutoAssignee_(stagedTasks)
       :null;
 
+  const creatorEmail=
+    personCreatorEmail_(
+      p
+    );
+
+  const creatorUser=
+    all_('Usuarios')
+      .find(user=>
+        authUserEmailMatches_(
+          user,
+          creatorEmail
+        )
+      )||
+    null;
+
+  const createdByColony=
+    !!creatorUser&&
+    isColonyUser_(
+      creatorUser
+    );
+
+  const taskTags=
+    createdByColony
+      ?[
+          'PROCESSO',
+          'CRIADO PELA COLÔNIA'
+        ]
+      :[
+          'PROCESSO'
+        ];
+
   return change_(
     ctx,
     'Tarefas',
@@ -99,17 +130,27 @@ function ensureDistributionTask_(ctx,p){
       concluidaEm:'',
       processoId:'',
       observacoes:
-        autoUser
-          ?'Tarefa criada e distribuída automaticamente após a conclusão do cadastro.'
-          :'Tarefa criada automaticamente após a conclusão do cadastro.',
+        (
+          autoUser
+            ?'Tarefa criada e distribuída automaticamente após a conclusão do cadastro.'
+            :'Tarefa criada automaticamente após a conclusão do cadastro.'
+        )+
+        (
+          createdByColony
+            ?' Origem: '+String(p.entidade||'Colônia de Pescador')+'.'
+            :''
+        ),
       titulo:'Distribuir processo',
       descricao:'Distribuição processual decorrente da conclusão do cadastro.',
       criadoPor:String(ctx.email||'').toLowerCase(),
       prazo:taskDatePlusDays_(now_(),4),
       prioridade:'ALTA',
-      tags:JSON.stringify(['PROCESSO']),
+      tags:JSON.stringify(taskTags),
       modoDistribuicao:autoUser?'AUTOMATICA':'MANUAL',
-      origem:'CADASTRO'
+      origem:
+        createdByColony
+          ?'COLONIA'
+          :'CADASTRO'
     }
   );
 }
