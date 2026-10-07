@@ -214,6 +214,19 @@ function aquecerDadosModulos(codes,sessionToken){
           {},
           ()=>myTasksOpenV2_({})
         ],
+        ACOMP:[
+          'pessoasLeve',
+          {
+            busca:'',
+            offset:0,
+            limit:30
+          },
+          ()=>personListLite_({
+            busca:'',
+            offset:0,
+            limit:30
+          })
+        ],
         DIST:[
           'tarefasAbertasGestao',
           {},
@@ -223,6 +236,34 @@ function aquecerDadosModulos(codes,sessionToken){
           'processos',
           {},
           ()=>processList_()
+        ],
+        HIST:[
+          'historicoGeral',
+          {
+            tipo:'cadastros',
+            busca:'',
+            pessoa:'',
+            usuario:'',
+            de:'',
+            ate:'',
+            offset:0,
+            limit:50
+          },
+          ()=>globalHistory_({
+            tipo:'cadastros',
+            busca:'',
+            pessoa:'',
+            usuario:'',
+            de:'',
+            ate:'',
+            offset:0,
+            limit:50
+          })
+        ],
+        PERF:[
+          'perfilRanking',
+          {},
+          ()=>profileRanking_({})
         ],
         ADM:[
           'adminUsuarios',
