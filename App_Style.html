@@ -4958,4 +4958,47 @@ body.pda-drawer-open{overflow:hidden}
     min-height:70vh
   }
 }
+
+
+/* Refresh suave do shell */
+.pda-sidebar-user-actions .app-reload-button{
+  display:grid!important;
+  place-items:center!important;
+  width:31px!important;
+  min-width:31px!important;
+  height:31px!important;
+  min-height:31px!important;
+  padding:6px!important;
+  border:1px solid rgba(185,221,222,.16)!important;
+  border-radius:9px!important;
+  color:#d8ecee!important;
+  background:rgba(255,255,255,.035)!important;
+  box-shadow:none!important
+}
+.pda-sidebar-user-actions .app-reload-button:hover{
+  color:#fff!important;
+  border-color:rgba(190,231,232,.28)!important;
+  background:rgba(255,255,255,.10)!important;
+  transform:none!important
+}
+.app-reload-button svg{
+  width:17px;
+  height:17px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.app-reload-button.is-loading svg{
+  animation:pdaReloadSpin .75s linear infinite
+}
+@keyframes pdaReloadSpin{
+  to{transform:rotate(360deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-reload-button.is-loading svg{
+    animation:none
+  }
+}
 </style>
