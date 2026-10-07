@@ -1,67 +1,260 @@
 <script>
-window.PDA_MODULES.PERF=async(token)=>{
-  const App=window.App;
-  const {el,card,button,status}=App,root=token.root,auth=window.PDA_AUTH;
-  let result;
-  try{result=await auth.request('authProfile',auth.getSessionToken());}catch(e){if(/AUTH:/.test(e.message))auth.sessionExpired(e.message);throw e;}
-  if(!App.alive(token))return;
-  const user=result.usuario;
-  root.append(el('h2','Meu perfil'),el('p','Atualize seus dados e a senha de acesso.','hint'));
-  const layout=el('div',undefined,'perf-layout'),personal=card('Dados do perfil'),security=card('Alterar senha');security.classList.add('perf-security');layout.append(personal,security);root.append(layout);
-  const photo=el('img',undefined,'perf-avatar');photo.alt='Foto do perfil';photo.hidden=!result.foto;if(result.foto)photo.src=result.foto;personal.append(photo);
-  const controls=el('div',undefined,'perf-photo-controls'),file=el('input');file.type='file';file.accept='image/jpeg,image/png,image/webp';file.setAttribute('aria-label','Inserir ou alterar foto');controls.append(file);personal.append(controls);
-  let photoPayload=null,removePhoto=false,saving=false;
-  controls.append(button('Remover foto',()=>{if(saving)return;photoPayload=null;removePhoto=true;file.value='';photo.removeAttribute('src');photo.hidden=true;},true));
+window.PDA_MODULES.PERF=async ctx=>{
+  const {el,card,button,status}=App;
+  const root=ctx.root;
+  const auth=window.PDA_AUTH;
+  const boot=App.state.boot||{};
+  let user=Object.assign({},boot.usuario||{});
+  let currentPhoto=App.state.profilePhoto||'';
+  let saving=false;
+  let dirty=false;
+
+  root.append(
+    el('h2','Meu perfil'),
+    el('p','Seus dados aparecem imediatamente; a sincronização ocorre em segundo plano.','hint')
+  );
+
+  const layout=el('div',undefined,'perf-layout');
+  const personal=card('Dados do perfil');
+  const security=card('Alterar senha');
+  security.classList.add('perf-security');
+  layout.append(personal,security);
+  root.append(layout);
+
+  const photo=el('img',undefined,'perf-avatar');
+  photo.alt='Foto do perfil';
+  photo.hidden=!currentPhoto;
+  if(currentPhoto)photo.src=currentPhoto;
+  personal.append(photo);
+
+  const controls=el('div',undefined,'perf-photo-controls');
+  const file=el('input');
+  file.type='file';
+  file.accept='image/jpeg,image/png,image/webp';
+  file.setAttribute('aria-label','Inserir ou alterar foto');
+  controls.append(file);
+  personal.append(controls);
+
+  let photoPayload=null;
+  let removePhoto=false;
+
+  controls.append(
+    button(
+      'Remover foto',
+      ()=>{
+        if(saving)return;
+        dirty=true;
+        photoPayload=null;
+        removePhoto=true;
+        file.value='';
+        photo.removeAttribute('src');
+        photo.hidden=true;
+      },
+      true
+    )
+  );
+
   async function readPhoto(selected){
-    if(!selected||selected.size>10*1024*1024)throw Error('Selecione uma imagem de até 10 MB.');
+    if(!selected||selected.size>10*1024*1024){
+      throw Error('Selecione uma imagem de até 10 MB.');
+    }
+
     const url=URL.createObjectURL(selected);
+
     try{
-      const image=new Image();image.src=url;await image.decode();
-      const canvas=document.createElement('canvas'),scale=Math.min(1,320/Math.max(image.width,image.height));
-      canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
-      const ctx=canvas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      const data=canvas.toDataURL('image/jpeg',.85);return {base64:data.split(',')[1],mime:'image/jpeg',preview:data};
-    }finally{URL.revokeObjectURL(url);}
+      const image=new Image();
+      image.src=url;
+      await image.decode();
+
+      const canvas=document.createElement('canvas');
+      const scale=Math.min(1,320/Math.max(image.width,image.height));
+      canvas.width=Math.max(1,Math.round(image.width*scale));
+      canvas.height=Math.max(1,Math.round(image.height*scale));
+
+      const context=canvas.getContext('2d');
+      context.fillStyle='#ffffff';
+      context.fillRect(0,0,canvas.width,canvas.height);
+      context.drawImage(image,0,0,canvas.width,canvas.height);
+
+      const data=canvas.toDataURL('image/jpeg',.85);
+
+      return {
+        base64:data.split(',')[1],
+        mime:'image/jpeg',
+        preview:data
+      };
+    }finally{
+      URL.revokeObjectURL(url);
+    }
   }
+
   file.onchange=async()=>{
     if(saving)return;
     file.disabled=true;
-    try{if(!file.files[0])return;const payload=await readPhoto(file.files[0]);if(!App.alive(token))return;photoPayload=payload;removePhoto=false;photo.src=payload.preview;photo.hidden=false;status('Foto preparada. Clique em Salvar perfil para confirmar.');}
-    catch(e){file.value='';status(e.message||String(e),true);}finally{file.disabled=false;}
+
+    try{
+      if(!file.files[0])return;
+      const payload=await readPhoto(file.files[0]);
+      if(!App.alive(ctx))return;
+      dirty=true;
+      photoPayload=payload;
+      removePhoto=false;
+      photo.src=payload.preview;
+      photo.hidden=false;
+      status('Foto preparada. Clique em Salvar perfil para confirmar.');
+    }catch(e){
+      file.value='';
+      status(e.message||String(e),true);
+    }finally{
+      file.disabled=false;
+    }
   };
+
   function input(form,label,name,value='',type='text',required=true){
-    const wrap=el('label',label),n=el('input');n.name=name;n.type=type;n.value=value;n.required=required;
-    if(type==='password'){n.maxLength=4096;n.autocomplete=name==='novaSenha'?'new-password':'current-password';}else n.maxLength=name==='nome'?140:name==='nomeUsuario'?80:254;
-    wrap.append(n);form.append(wrap);return n;
+    const wrap=el('label',label);
+    const node=el('input');
+    node.name=name;
+    node.type=type;
+    node.value=value||'';
+    node.required=required;
+
+    if(type==='password'){
+      node.maxLength=4096;
+      node.autocomplete=name==='novaSenha'?'new-password':'current-password';
+    }else{
+      node.maxLength=name==='nome'?140:name==='nomeUsuario'?80:254;
+      node.addEventListener('input',()=>{dirty=true;});
+    }
+
+    wrap.append(node);
+    form.append(wrap);
+    return node;
   }
-  const form=el('form',undefined,'perf-form');personal.append(form);
-  const name=input(form,'Nome completo','nome',user.nome),username=input(form,'Nome de usuário','nomeUsuario',user.nomeUsuario||user.nome),email=input(form,'E-mail de acesso','email',user.email,'email'),current=input(form,'Senha atual (para trocar o e-mail)','senhaAtual','','password',false);
-  const save=el('button','Salvar perfil');save.type='submit';form.append(save);
-  const passForm=el('form',undefined,'perf-form');security.append(passForm);
-  const oldPass=input(passForm,'Senha atual','senhaAtual','','password'),newPass=input(passForm,'Nova senha','novaSenha','','password');
-  const change=el('button','Alterar senha');change.type='submit';passForm.append(change);
+
+  const form=el('form',undefined,'perf-form');
+  personal.append(form);
+
+  const name=input(form,'Nome completo','nome',user.nome);
+  const username=input(form,'Nome de usuário','nomeUsuario',user.nomeUsuario||user.nome);
+  const email=input(form,'E-mail de acesso','email',user.email,'email');
+  const current=input(form,'Senha atual (para trocar o e-mail)','senhaAtual','','password',false);
+
+  const save=el('button','Salvar perfil');
+  save.type='submit';
+  form.append(save);
+
+  const passForm=el('form',undefined,'perf-form');
+  security.append(passForm);
+
+  const oldPass=input(passForm,'Senha atual','senhaAtual','','password');
+  const newPass=input(passForm,'Nova senha','novaSenha','','password');
+  const change=el('button','Alterar senha');
+  change.type='submit';
+  passForm.append(change);
+
+  const setDisabled_=value=>{
+    root.querySelectorAll('button,input').forEach(node=>node.disabled=value);
+  };
+
   async function saveAction(job){
-    if(saving)return;saving=true;root.setAttribute('aria-busy','true');root.querySelectorAll('button,input').forEach(n=>n.disabled=true);
-    try{await job();}catch(e){if(/AUTH:/.test(e.message))auth.sessionExpired(e.message);status(e.message||String(e),true);}
-    finally{saving=false;root.removeAttribute('aria-busy');root.querySelectorAll('button,input').forEach(n=>n.disabled=false);}
+    if(saving)return;
+    saving=true;
+    root.setAttribute('aria-busy','true');
+    setDisabled_(true);
+
+    try{
+      await job();
+    }catch(e){
+      if(/AUTH:/.test(e.message))auth.sessionExpired(e.message);
+      status(e.message||String(e),true);
+    }finally{
+      saving=false;
+      root.removeAttribute('aria-busy');
+      setDisabled_(false);
+    }
   }
-  form.onsubmit=e=>{e.preventDefault();saveAction(async()=>{
-    const response=await auth.request('authUpdateProfile',auth.getSessionToken(),{
-      versao:user.versao,nome:name.value,nomeUsuario:username.value,email:email.value,senhaAtual:current.value,
-      removerFoto:removePhoto,base64:photoPayload?photoPayload.base64:'',mime:photoPayload?photoPayload.mime:''
+
+  form.onsubmit=event=>{
+    event.preventDefault();
+
+    saveAction(async()=>{
+      const response=await auth.request(
+        'authUpdateProfile',
+        auth.getSessionToken(),
+        {
+          versao:user.versao,
+          nome:name.value,
+          nomeUsuario:username.value,
+          email:email.value,
+          senhaAtual:current.value,
+          removerFoto:removePhoto,
+          base64:photoPayload?photoPayload.base64:'',
+          mime:photoPayload?photoPayload.mime:''
+        }
+      );
+
+      current.value='';
+      auth.acceptSession(response);
+      user=Object.assign({},user,response.usuario||{});
+      App.state.boot=Object.assign({},App.state.boot,{
+        usuario:Object.assign({},App.state.boot.usuario||{},user),
+        email:user.email||App.state.boot.email
+      });
+
+      if(photoPayload){
+        App.state.profilePhoto=photoPayload.preview;
+      }else if(removePhoto){
+        App.state.profilePhoto='';
+      }
+
+      photoPayload=null;
+      removePhoto=false;
+      dirty=false;
+      status('Perfil atualizado.');
     });
-    current.value='';
-    auth.acceptSession(response);
-    App.state.boot=await App.call('bootstrap',{light:true});
-    await App.refreshCurrent({code:'PERF'});
-    status('Perfil atualizado.');
-  });};
-  passForm.onsubmit=e=>{e.preventDefault();saveAction(async()=>{
-    const response=await auth.request('authChangePassword',auth.getSessionToken(),oldPass.value,newPass.value);
-    oldPass.value='';
-    newPass.value='';
-    auth.acceptSession(response);
-    status('Senha alterada. As outras sessões foram encerradas.');
-  });};
+  };
+
+  passForm.onsubmit=event=>{
+    event.preventDefault();
+
+    saveAction(async()=>{
+      const response=await auth.request(
+        'authChangePassword',
+        auth.getSessionToken(),
+        oldPass.value,
+        newPass.value
+      );
+
+      oldPass.value='';
+      newPass.value='';
+      auth.acceptSession(response);
+      status('Senha alterada. As outras sessões foram encerradas.');
+    });
+  };
+
+  /*
+   * O perfil já foi desenhado com bootstrap. A consulta abaixo não bloqueia
+   * a abertura e apenas reconcilia versão/foto caso tenham mudado.
+   */
+  auth.request('authProfile',auth.getSessionToken())
+    .then(result=>{
+      if(!App.alive(ctx)||!result||!result.usuario)return;
+
+      user=Object.assign({},user,result.usuario);
+
+      if(!dirty){
+        name.value=user.nome||'';
+        username.value=user.nomeUsuario||user.nome||'';
+        email.value=user.email||'';
+      }
+
+      if(result.foto&&!photoPayload&&!removePhoto){
+        currentPhoto=result.foto;
+        App.state.profilePhoto=result.foto;
+        photo.src=result.foto;
+        photo.hidden=false;
+      }
+    })
+    .catch(()=>{});
 };
 </script>
