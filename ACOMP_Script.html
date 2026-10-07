@@ -748,101 +748,243 @@ window.PDA_MODULES.ACOMP = (()=>{
     root.append(el('h2','Consultar Cadastros'));
 
     if(!App.state.selection){
+      const STATE_KEY='PDA_ACOMP_LIST_V2';
+      let state={
+        busca:'',
+        offset:0,
+        limit:30,
+        scrollY:0
+      };
+
+      try{
+        state=Object.assign(
+          state,
+          JSON.parse(
+            sessionStorage.getItem(STATE_KEY)||
+            '{}'
+          )
+        );
+      }catch(e){}
+
+      const saveState_=()=>{
+        try{
+          sessionStorage.setItem(
+            STATE_KEY,
+            JSON.stringify(state)
+          );
+        }catch(e){}
+      };
+
       const listCard=card('Pessoas cadastradas');
+      listCard.classList.add('acomp-list-v2');
       root.append(listCard);
 
-      listCard.append(
-        el(
-          'p',
-          'Todas as pessoas cadastradas são carregadas automaticamente. Use o campo abaixo apenas para filtrar a lista por nome, CPF ou município.',
-          'hint'
-        )
-      );
-
+      const toolbar=el('div',undefined,'acomp-list-toolbar');
       const filter=el('input');
       filter.type='search';
-      filter.placeholder='Filtrar por nome, CPF ou município';
-      filter.setAttribute('aria-label','Filtrar pessoas');
+      filter.placeholder='Buscar por nome, CPF, município, jurisdição ou entidade';
+      filter.setAttribute('aria-label','Buscar cadastros');
+      filter.value=state.busca||'';
 
-      listCard.append(filter);
+      const meta=el('div',undefined,'acomp-list-meta');
+      toolbar.append(filter,meta);
+      listCard.append(toolbar);
 
-      const results=el('div');
-      listCard.append(results);
+      const results=el('div',undefined,'acomp-list-results');
+      const pager=el('div',undefined,'acomp-list-pager');
+      listCard.append(results,pager);
 
-      const pessoas=await call(
-        'pessoas',
-        {busca:''}
-      );
+      let requestSeq=0;
+      let debounce=null;
+      let current=null;
 
-      if(!alive(ctx))return;
+      const actionButtons_=person=>{
+        const actions=[];
 
-      const render=()=>{
-        const term=String(filter.value||'')
-          .trim()
-          .toLowerCase();
+        const visualize=button(
+          'Visualizar',
+          ()=>App.openPersonDrawer(
+            person.id,
+            {
+              summary:person,
+              onDeleted:async()=>{
+                await loadPage_(Math.max(0,state.offset-state.limit));
+              }
+            }
+          )
+        );
 
-        const rows=pessoas.filter(p=>{
-          if(!term)return true;
+        visualize.classList.add('acomp-action-primary');
+        visualize.addEventListener('mouseenter',()=>{
+          App.prefetchPersonSummary(person.id);
+        },{passive:true});
 
-          const cpf=String(p.cpf||'')
-            .replace(/\D/g,'');
+        actions.push(visualize);
 
-          const typedCpf=term
-            .replace(/\D/g,'');
-
-          return (
-            String(p.nome||'').toLowerCase().includes(term)||
-            String(p.cidade||'').toLowerCase().includes(term)||
-            (
-              typedCpf&&
-              cpf.includes(typedCpf)
-            )
+        if(can('gestao_distribuicao')){
+          const task=button(
+            '+ Tarefa',
+            ()=>App.createTaskForPerson(
+              person,
+              async()=>{
+                await loadPage_(state.offset);
+              }
+            ),
+            true
           );
-        });
+          task.classList.add('acomp-action-task');
+          actions.push(task);
+        }
 
+        const full=button(
+          'Abrir ficha',
+          ()=>{
+            state.scrollY=window.scrollY;
+            saveState_();
+            return go('ACOMP',person.id);
+          },
+          true
+        );
+        actions.push(full);
+
+        if(can('administracao')){
+          const remove=button(
+            'Excluir',
+            ()=>App.deletePerson(
+              person,
+              async()=>{
+                await loadPage_(Math.max(0,state.offset-state.limit));
+              }
+            ),
+            true
+          );
+          remove.classList.add('acomp-action-delete');
+          actions.push(remove);
+        }
+
+        return actions;
+      };
+
+      const render_=data=>{
+        current=data;
         results.replaceChildren();
+        pager.replaceChildren();
+
+        const rows=data.pessoas||[];
+
+        meta.textContent=
+          data.total+
+          ' cadastro(s) · exibindo '+
+          (rows.length?data.offset+1:0)+
+          '–'+
+          Math.min(data.offset+rows.length,data.total);
 
         table(
           results,
           [
+            {key:'nome',label:'Pessoa'},
+            {key:'cpfFormatado',label:'CPF'},
+            {key:'cidade',label:'Município'},
+            {key:'jurisdicao',label:'Jurisdição'},
             {
-              key:'nome',
-              label:'Pessoa'
+              label:'Entidade',
+              value:person=>
+                person.entidade==='Outro'
+                  ?person.outraEntidade||'Outro'
+                  :person.entidade||'—'
             },
             {
-              label:'CPF',
-              value:p=>{
-                const cpf=String(p.cpf||'').replace(/\D/g,'');
-
-                return cpf.length===11
-                  ?cpf.replace(
-                      /(\d{3})(\d{3})(\d{3})(\d{2})/,
-                      '$1.$2.$3-$4'
-                    )
-                  :String(p.cpf||'');
-              }
+              label:'Parcelas',
+              value:person=>person.parcelasNaoRecebidas||'0'
             },
             {
-              key:'cidade',
-              label:'Município'
+              label:'Vínculos',
+              value:person=>
+                (person.tarefasAbertas||0)+' tarefa(s) · '+
+                (person.processos||0)+' processo(s)'
+            },
+            {
+              label:'Criado por',
+              value:person=>person.criadoPorNome||person.criadoPor||'—'
             }
           ],
           rows,
-          p=>[
-            button(
-              'Abrir ficha',
-              ()=>go('ACOMP',p.id)
-            )
-          ]
+          actionButtons_
         );
+
+        const prev=button(
+          '← Anterior',
+          ()=>loadPage_(Math.max(0,data.offset-data.limit)),
+          true
+        );
+        prev.disabled=data.offset<=0;
+
+        const next=button(
+          'Próxima →',
+          ()=>loadPage_(data.offset+data.limit),
+          true
+        );
+        next.disabled=!data.hasMore;
+
+        pager.append(prev,next);
       };
 
-      filter.addEventListener(
-        'input',
-        render
-      );
+      const loadPage_=async offset=>{
+        const seq=++requestSeq;
+        state.offset=Math.max(0,Number(offset)||0);
+        state.busca=String(filter.value||'').trim();
+        saveState_();
 
-      render();
+        results.setAttribute('aria-busy','true');
+        results.classList.add('loading');
+
+        try{
+          const data=await call(
+            'pessoasLeve',
+            {
+              busca:state.busca,
+              offset:state.offset,
+              limit:state.limit
+            }
+          );
+
+          if(seq!==requestSeq||!alive(ctx))return;
+          render_(data);
+        }finally{
+          if(seq===requestSeq){
+            results.removeAttribute('aria-busy');
+            results.classList.remove('loading');
+          }
+        }
+      };
+
+      filter.addEventListener('input',()=>{
+        state.busca=filter.value;
+        state.offset=0;
+        saveState_();
+
+        if(debounce)clearTimeout(debounce);
+        debounce=setTimeout(
+          ()=>loadPage_(0),
+          280
+        );
+      });
+
+      filter.addEventListener('search',()=>{
+        state.offset=0;
+        loadPage_(0);
+      });
+
+      await loadPage_(state.offset);
+
+      if(!alive(ctx))return;
+
+      requestAnimationFrame(()=>{
+        if(state.scrollY){
+          window.scrollTo(0,state.scrollY);
+        }
+      });
+
       return;
     }
 
