@@ -3728,9 +3728,9 @@ f.insertBefore(file,f.firstChild);
             offset:0
           }
         )
-          .catch(error=>{
+          .catch(()=>{
             tasksOpenPromise=null;
-            throw error;
+            return null;
           });
     }
 
@@ -3745,9 +3745,9 @@ f.insertBefore(file,f.firstChild);
             offset:0
           }
         )
-          .catch(error=>{
+          .catch(()=>{
             tasksDonePromise=null;
-            throw error;
+            return null;
           });
     }
 
@@ -3761,9 +3761,9 @@ f.insertBefore(file,f.firstChild);
             offset:0
           }
         )
-          .catch(error=>{
+          .catch(()=>{
             historyPromise=null;
-            throw error;
+            return null;
           });
     }
   };
