@@ -1470,19 +1470,26 @@ function taskNotifications_(){
       ''
     );
 
-  const maps=
-    generalTaskUserMaps_();
+  const maps=taskMapsV2_();
 
   const tasks=
     all_('Tarefas')
       .filter(task=>
-        task.tipo===
-          GENERAL_TASK_TYPE&&
         String(
           task.responsavel||
           ''
         ).toLowerCase()===
-          email
+          email&&
+        task.situacao!==
+          GENERAL_TASK_DONE&&
+        task.situacao!==
+          DISTRIBUTION_TASK_DONE
+      )
+      .map(task=>
+        taskSummaryV2_(
+          task,
+          maps
+        )
       )
       .sort((a,b)=>
         String(
@@ -1520,31 +1527,26 @@ function taskNotifications_(){
       tasks.filter(isNew).length,
     ultimoVistoEm:lastSeen,
     itens:
-      tasks.slice(0,15)
-        .map(task=>{
-          const when=
-            String(
-              task.atribuidaEm||
-              task.criadoEm||
-              ''
-            );
-
-          return {
-            id:task.id,
-            titulo:task.titulo||'Tarefa',
-            criadoPor:task.criadoPor||'',
-            criadoPorNome:
-              generalTaskDisplayUser_(
-                task.criadoPor,
-                maps.byEmail
-              ),
-            prioridade:task.prioridade||'NORMAL',
-            prazo:task.prazo||'',
-            situacao:task.situacao||GENERAL_TASK_ASSIGNED,
-            atribuidaEm:when,
-            nova:isNew(task)
-          };
-        })
+      tasks.slice(0,20)
+        .map(task=>({
+          id:task.id,
+          titulo:task.titulo||'Tarefa',
+          criadoPor:task.criadoPor||'',
+          criadoPorNome:task.criadoPorNome||'',
+          prioridade:task.prioridade||'NORMAL',
+          prazo:task.prazo||'',
+          situacao:task.situacao||'',
+          atribuidaEm:
+            task.atribuidaEm||
+            task.criadoEm||
+            '',
+          tipo:task.tipo,
+          tipoLabel:task.tipoLabel,
+          pessoa:task.pessoa||'',
+          vencimentoEstado:
+            task.vencimentoEstado,
+          nova:isNew(task)
+        }))
   };
 }
 
