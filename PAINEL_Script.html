@@ -76,12 +76,28 @@ window.PDA_MODULES.PAINEL = (()=>{
     );
   }
 
+  const ACTION_PHOTOS=Object.freeze({
+    PESS:'community',
+    ACOMP:'channel',
+    DEFESO:'boat',
+    TAREFAS:'net',
+    DIST:'boat',
+    PROC:'port',
+    MIN:'channel',
+    ADM:'port'
+  });
+
   function actionCard_(item){
     const b=
       el(
         'button',
         undefined,
-        'home-action-card '+(item.primary?'primary ':'')+'home-action-'+String(item.code||'').toLowerCase()
+        'home-action-card '+(item.primary?'primary ':'')+
+        'home-action-'+String(item.code||'').toLowerCase()+
+        ' home-action-photo-'+(
+          ACTION_PHOTOS[item.code]||
+          'channel'
+        )
       );
 
     b.type='button';
@@ -181,41 +197,6 @@ window.PDA_MODULES.PAINEL = (()=>{
     return box;
   }
 
-  function fishingArt_(){
-    const art=
-      el(
-        'div',
-        undefined,
-        'home-fishing-art'
-      );
-
-    art.innerHTML=
-      '<svg viewBox="0 0 1200 430" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'+
-      '<g class="water-lines">'+
-      '<path d="M-40 315 C90 278 180 355 330 315 S580 280 720 320 S980 360 1240 308"></path>'+
-      '<path d="M-60 347 C110 310 215 387 380 347 S670 312 830 350 S1060 390 1260 340"></path>'+
-      '<path d="M-30 382 C130 350 250 414 425 380 S720 345 900 385 S1110 415 1250 378"></path>'+
-      '</g>'+
-      '<g class="boat-scene">'+
-      '<path class="boat" d="M720 285h250l-34 42H758z"></path>'+
-      '<path class="boat-edge" d="M735 286h221"></path>'+
-      '<path class="mast" d="M825 286V138"></path>'+
-      '<path class="net-line" d="M826 167c55 18 91 53 119 105"></path>'+
-      '<path class="net-line" d="M826 178c-40 28-63 58-73 99"></path>'+
-      '<path class="net" d="M752 277c35-7 70-5 104 5"></path>'+
-      '<circle class="person-head" cx="870" cy="232" r="13"></circle>'+
-      '<path class="person" d="M870 245l-10 41m10-31 28 16m-35-7-24 22"></path>'+
-      '<path class="rod" d="M895 260l72-78"></path>'+
-      '<path class="line" d="M968 182c22 38 18 73 0 104"></path>'+
-      '</g>'+
-      '<g class="birds">'+
-      '<path d="M190 116q18-18 36 0q18-18 36 0"></path>'+
-      '<path d="M350 82q12-12 24 0q12-12 24 0"></path>'+
-      '</g>'+
-      '</svg>';
-
-    return art;
-  }
 
   return async function(ctx){
     const root=ctx.root;
@@ -240,10 +221,6 @@ window.PDA_MODULES.PAINEL = (()=>{
         undefined,
         'home-hero'
       );
-
-    hero.append(
-      fishingArt_()
-    );
 
     const heroContent=
       el(
@@ -433,11 +410,11 @@ window.PDA_MODULES.PAINEL = (()=>{
     sectionTitle.firstChild.append(
       el(
         'h3',
-        'O que você precisa fazer?'
+        'Acesse os principais módulos'
       ),
       el(
         'p',
-        'Acesse diretamente as ferramentas disponíveis para o seu perfil.',
+        'Ferramentas do sistema organizadas para o seu fluxo de trabalho.',
         'hint'
       )
     );
