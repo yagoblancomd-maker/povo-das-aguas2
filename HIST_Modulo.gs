@@ -40,7 +40,19 @@ function globalHistory_(q){
 
   batchAll_(dependencies);
 
-  const people=all_('Pessoas');
+  const currentUser=
+    activeUser_();
+
+  const people=
+    filterPeopleByUserScope_(
+      all_('Pessoas'),
+      currentUser
+    );
+
+  const visiblePersonIds=
+    new Set(
+      people.map(person=>person.id)
+    );
 
   const hasFilters=
     !!(
@@ -165,7 +177,13 @@ function globalHistory_(q){
       ].filter(Boolean).join(' · ')
     }));
   }else if(type==='documentos'){
-    rows=documents.map(doc=>{
+    rows=documents
+      .filter(doc=>
+        visiblePersonIds.has(
+          personFromDocument_(doc)
+        )
+      )
+      .map(doc=>{
       const personId=personFromDocument_(doc);
       const person=peopleById.get(personId);
       return {
@@ -184,7 +202,13 @@ function globalHistory_(q){
       };
     });
   }else if(type==='processos'){
-    rows=processes.map(proc=>{
+    rows=processes
+      .filter(proc=>
+        visiblePersonIds.has(
+          proc.pessoaId
+        )
+      )
+      .map(proc=>{
       const person=peopleById.get(proc.pessoaId);
       return {
         id:proc.id,
@@ -229,7 +253,19 @@ function globalHistory_(q){
         cpf:person?person.cpf:'',
         detalhe:'Registro '+String(item.registroId||'')
       };
-    });
+    })
+      .filter(row=>
+        !!row&&
+        (
+          !isColonyUser_(currentUser)||
+          (
+            row.pessoaId&&
+            visiblePersonIds.has(
+              row.pessoaId
+            )
+          )
+        )
+      );
   }
 
   rows=rows.filter(row=>{
