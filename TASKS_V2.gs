@@ -141,8 +141,11 @@ function distributionAutoRun_(ctx){
 }
 
 function taskTagCatalog_(){
-  ensureGeneralTaskSchema_();
-
+  /*
+   * Leituras não executam migração estrutural. As mutações de tarefas
+   * garantem o schema quando necessário; isso evita cinco verificações de
+   * cabeçalho a cada abertura de Tarefas/Distribuição.
+   */
   const persisted=generalTaskRows_('TarefaTags')
     .filter(tag=>bool_(tag.ativo));
 
