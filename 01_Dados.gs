@@ -191,11 +191,22 @@ function commit_(ctx,result){
             target.id,
           antes:
             JSON.stringify(
-              authAuditRecord_(c.entity,c.before)
+              ctx.redactDeletionAudit&&
+              c.before&&
+              c.after===null
+                ?{
+                    excluido:true,
+                    entidade:c.entity
+                  }
+                :authAuditRecord_(c.entity,c.before)
             ),
           depois:
             JSON.stringify(
-              authAuditRecord_(c.entity,c.after)
+              ctx.redactDeletionAudit&&
+              c.before&&
+              c.after===null
+                ?null
+                :authAuditRecord_(c.entity,c.after)
             ),
           operacao:ctx.op
         },
