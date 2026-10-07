@@ -173,11 +173,11 @@ function carregarModulos(codes,sessionToken){
 
 
 /**
- * Aquece a aplicação em uma única execução do Apps Script.
- * Reaproveita a mesma sessão, a mesma abertura da planilha e o mesmo
- * DATA_CACHE para preparar os bundles e as leituras iniciais dos módulos.
+ * Pré-carrega apenas os dados iniciais dos módulos em uma execução única.
+ * Os bundles são carregados antes por carregarModulos(), para que HTML/CSS/JS
+ * cheguem ao navegador o quanto antes e não aguardem consultas ao Sheets.
  */
-function aquecerAplicacao(codes,sessionToken){
+function aquecerDadosModulos(codes,sessionToken){
   return withAuthSession_(
     sessionToken,
     ()=>{
@@ -198,16 +198,6 @@ function aquecerAplicacao(codes,sessionToken){
             )
         )
       ].slice(0,Object.keys(MODULES).length);
-
-      const modules={};
-
-      unique.forEach(code=>{
-        modules[code]={
-          view:include_(code+'_View'),
-          style:include_(code+'_Style'),
-          script:include_(code+'_Script')
-        };
-      });
 
       const data={};
 
@@ -278,22 +268,20 @@ function aquecerAplicacao(codes,sessionToken){
 
         const action=spec[0];
         const query=spec[1];
-        const result=
-          serverCachedRead_(
-            action,
-            query,
-            spec[2]
-          );
 
         data[code]={
           action,
           query,
-          result
+          result:
+            serverCachedRead_(
+              action,
+              query,
+              spec[2]
+            )
         };
       });
 
       return {
-        modules,
         data,
         preparadoEm:now_()
       };
@@ -301,6 +289,47 @@ function aquecerAplicacao(codes,sessionToken){
   );
 }
 
+/**
+ * Mantido como compatibilidade para clientes antigos. Novos clientes usam
+ * carregarModulos() primeiro e aquecerDadosModulos() em seguida.
+ */
+function aquecerAplicacao(codes,sessionToken){
+  return withAuthSession_(
+    sessionToken,
+    ()=>{
+      const allowed=availableModules_(activeUser_());
+      const unique=[
+        ...new Set(
+          (Array.isArray(codes)?codes:[])
+            .map(code=>String(code||'').trim())
+            .filter(code=>
+              MODULES[code]&&
+              Object.prototype.hasOwnProperty.call(
+                allowed,
+                code
+              )
+            )
+        )
+      ];
+
+      const modules={};
+
+      unique.forEach(code=>{
+        modules[code]={
+          view:include_(code+'_View'),
+          style:include_(code+'_Style'),
+          script:include_(code+'_Script')
+        };
+      });
+
+      return {
+        modules,
+        data:{},
+        preparadoEm:now_()
+      };
+    }
+  );
+}
 
 const SERVER_CACHEABLE_READS=new Set([
   'painel',
