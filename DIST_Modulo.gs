@@ -524,6 +524,10 @@ function distributionTaskDetail_(q){
       task.pessoaId
     );
 
+  authorizePersonScope_(
+    p
+  );
+
   const owner=
     personOwnerKey_(
       p.id
@@ -690,6 +694,10 @@ function distributionDocumentsZip_(ctx,q){
       'Pessoas',
       task.pessoaId
     );
+
+  authorizePersonScope_(
+    p
+  );
 
   const owner=
     personOwnerKey_(
@@ -1439,6 +1447,10 @@ function completeDistributionTask_(ctx,q){
       'Pessoas',
       task.pessoaId
     );
+
+  authorizePersonScope_(
+    p
+  );
 
   const processId=
     id_(
