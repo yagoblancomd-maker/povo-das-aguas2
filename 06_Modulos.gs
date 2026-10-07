@@ -225,42 +225,9 @@ function aquecerDadosModulos(codes,sessionToken){
           ()=>processList_()
         ],
         ADM:[
-          'admin',
+          'adminUsuarios',
           {},
-          ()=>({
-            configuracoes:all_('Configuracoes'),
-            usuarios:all_('Usuarios').map(u=>
-              Object.assign(
-                {},
-                authPublicUser_(u),
-                {
-                  permissoesEfetivas:
-                    effectivePermissions_(u)
-                }
-              )
-            ),
-            perfis:Object.keys(ROLES),
-            perfisDetalhes:Object.fromEntries(
-              Object.keys(ROLES).map(perfil=>[
-                perfil,
-                {
-                  descricao:ROLE_DESCRIPTIONS[perfil]||'',
-                  permissoes:rolePermissions_(perfil)
-                }
-              ])
-            ),
-            permissoes:Object.entries(PERMISSIONS).map(
-              ([key,value])=>({
-                key,
-                label:value.label,
-                descricao:value.descricao
-              })
-            ),
-            modelo:templateStatus_(),
-            portalTransparencia:portalTransparenciaStatus_(),
-            deepseek:deepseekStatus_(),
-            tagsTarefas:taskTagAdminList_()
-          })
+          ()=>adminUsersData_()
         ]
       };
 
