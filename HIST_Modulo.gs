@@ -41,6 +41,84 @@ function globalHistory_(q){
   batchAll_(dependencies);
 
   const people=all_('Pessoas');
+
+  const hasFilters=
+    !!(
+      from||
+      to||
+      userFilter||
+      personFilter||
+      search
+    );
+
+  /*
+   * A tela inicial do Histórico abre em "Cadastros". Quando não há
+   * filtros, não é necessário transformar todos os cadastros em objetos
+   * de histórico para depois descartar quase todos pela paginação.
+   * Ordena-se a coleção bruta e somente a página visível é materializada.
+   */
+  if(
+    type==='cadastros'&&
+    !hasFilters
+  ){
+    const ordered=
+      people
+        .slice()
+        .sort((a,b)=>
+          String(
+            b.criadoEm||
+            b.alteradoEm||
+            ''
+          ).localeCompare(
+            String(
+              a.criadoEm||
+              a.alteradoEm||
+              ''
+            )
+          )
+        );
+
+    const total=ordered.length;
+
+    return {
+      tipo:type,
+      itens:
+        ordered
+          .slice(
+            offset,
+            offset+limit
+          )
+          .map(person=>({
+            id:person.id,
+            tipo:'Cadastro',
+            data:
+              person.criadoEm||
+              person.alteradoEm||
+              '',
+            usuario:
+              person.criadoPor||
+              person.usuario||
+              '',
+            pessoaId:person.id,
+            pessoa:person.nome||'',
+            cpf:person.cpf||'',
+            detalhe:[
+              person.cidade,
+              person.jurisdicao,
+              person.entidade
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          })),
+      total,
+      offset,
+      limit,
+      hasMore:
+        offset+limit<
+        total
+    };
+  }
+
   const documents=
     dependencies.includes('Documentos')
       ?all_('Documentos')
