@@ -30,7 +30,12 @@ function adminUsersData_(){
         label:value.label,
         descricao:value.descricao
       })
-    )
+    ),
+    entidades:(cfg_().entidades||[])
+      .filter(entidade=>
+        String(entidade||'').trim()&&
+        String(entidade||'').trim()!=='Outro'
+      )
   };
 }
 
