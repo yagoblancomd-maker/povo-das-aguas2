@@ -293,15 +293,49 @@ window.PDA_AUTH=(()=>{
     });
     const login=node('pda-auth-login-form'),register=node('pda-auth-register-form'),recovery=node('pda-auth-recovery-form'),reset=node('pda-auth-reset-form');
     const field=(form,name)=>form.elements.namedItem(name);
-    login.onsubmit=e=>{e.preventDefault();submit(login,async()=>finish(await raw('authLogin',field(login,'email').value,field(login,'senha').value)));};
+
+    const entitySelect=field(register,'entidade');
+    const entityLabel=node('pda-auth-entity-label');
+
+    if(entitySelect){
+      (boot.entidades||[]).forEach(value=>{
+        entitySelect.append(
+          new Option(
+            value,
+            value
+          )
+        );
+      });
+    }
+
+    login.onsubmit=e=>{e.preventDefault();submit(login,async()=>finish(await raw('authLogin',field(login,'login').value,field(login,'senha').value)));};
+
     register.onsubmit=e=>{e.preventDefault();submit(register,async()=>finish(await raw('authRegister',{
-      nome:field(register,'nome').value,email:field(register,'email').value,funcao:field(register,'funcao').value,
-      senha:field(register,'senha').value,codigo:field(register,'codigo').value
+      nome:field(register,'nome').value,
+      nomeUsuario:field(register,'nomeUsuario').value,
+      email:field(register,'email').value,
+      funcao:field(register,'funcao').value,
+      entidade:field(register,'entidade').value,
+      senha:field(register,'senha').value,
+      codigo:field(register,'codigo').value
     })));};
-    field(register,'funcao').onchange=()=>{
-      const required=(boot.funcoesComCodigo||[]).includes(field(register,'funcao').value);
-      node('pda-auth-code-label').hidden=!required;field(register,'codigo').required=required;
+
+    const syncRegistrationFields_=()=>{
+      const funcao=field(register,'funcao').value;
+      const requiredCode=(boot.funcoesComCodigo||[]).includes(funcao);
+      node('pda-auth-code-label').hidden=!requiredCode;
+      field(register,'codigo').required=requiredCode;
+
+      const colony=funcao==='Colônia de Pescador';
+      if(entityLabel)entityLabel.hidden=!colony;
+      if(entitySelect){
+        entitySelect.required=colony;
+        if(!colony)entitySelect.value='';
+      }
     };
+
+    field(register,'funcao').onchange=syncRegistrationFields_;
+    syncRegistrationFields_();
     recovery.onsubmit=e=>{e.preventDefault();submit(recovery,async()=>setMessage((await raw('authRequestRecovery',field(recovery,'email').value)).mensagem));};
     reset.onsubmit=e=>{e.preventDefault();submit(reset,async()=>{
       const result=await raw('authResetPassword',boot.resetToken,field(reset,'senha').value);
