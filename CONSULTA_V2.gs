@@ -214,29 +214,165 @@ function personListLite_(q){
 }
 
 function personQuickSummary_(q){
-  const person=get_('Pessoas',required_(q.id,'pessoa'));
-  const indexes=personQueryIndexes_();
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.id,
+        'pessoa'
+      )
+    );
+
+  const creatorEmail=
+    String(
+      person.criadoPor||
+      person.usuario||
+      ''
+    ).toLowerCase();
+
+  const creator=
+    all_('Usuarios')
+      .find(user=>
+        String(
+          user.email||
+          ''
+        ).toLowerCase()===
+        creatorEmail
+      );
+
+  const attendances=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    );
+
+  const owner=
+    personOwnerKey_(
+      person.id
+    );
+
+  const attendanceIds=
+    attendances.map(row=>row.id);
+
+  const documents=[
+    ...where_(
+      'Documentos',
+      'atendimentoId',
+      owner
+    )
+  ];
+
+  attendanceIds.forEach(attendanceId=>{
+    documents.push(
+      ...where_(
+        'Documentos',
+        'atendimentoId',
+        attendanceId
+      )
+    );
+  });
+
+  const tasks=
+    where_(
+      'Tarefas',
+      'pessoaId',
+      person.id
+    );
+
+  const processes=
+    where_(
+      'Processos',
+      'pessoaId',
+      person.id
+    );
+
+  const openTasks=
+    tasks.filter(task=>
+      task.situacao!==GENERAL_TASK_DONE&&
+      task.situacao!==DISTRIBUTION_TASK_DONE
+    );
+
+  const doneTasks=
+    tasks.filter(task=>
+      task.situacao===GENERAL_TASK_DONE||
+      task.situacao===DISTRIBUTION_TASK_DONE
+    );
+
   const user=activeUser_();
 
-  return Object.assign(
-    {},
-    personLiteRow_(person,indexes),
-    {
-      telefone:person.telefone||'',
-      email:person.email||'',
-      nascimento:person.nascimento||'',
-      cep:person.cep||'',
-      tipoVia:person.tipoVia||'',
-      endereco:person.endereco||person.logradouro||'',
-      numero:person.numero||'',
-      complemento:person.complemento||'',
-      bairro:person.bairro||'',
-      podeRetificar:canRetifyPerson_(user,person),
-      podeGerenciarConteudo:canWritePersonContent_(user,person),
-      podeCriarTarefa:hasPermission_(user,'gestao_distribuicao'),
-      podeExcluir:hasPermission_(user,'administracao')
-    }
-  );
+  return {
+    id:person.id,
+    versao:person.versao,
+    nome:person.nome||'',
+    cpf:person.cpf||'',
+    cpfFormatado:
+      personCpfDisplay_(
+        person.cpf
+      ),
+    cidade:person.cidade||'',
+    uf:person.uf||'',
+    jurisdicao:
+      person.jurisdicao||
+      jurisdicaoPessoa_(person)||
+      '',
+    entidade:person.entidade||'',
+    outraEntidade:
+      person.outraEntidade||
+      '',
+    parcelasNaoRecebidas:
+      person.parcelasNaoRecebidas||
+      '',
+    criadoPor:creatorEmail,
+    criadoPorNome:
+      creator
+        ?creator.nome||creator.email
+        :creatorEmail,
+    criadoEm:person.criadoEm||'',
+    telefone:person.telefone||'',
+    email:person.email||'',
+    nascimento:person.nascimento||'',
+    cep:person.cep||'',
+    tipoVia:person.tipoVia||'',
+    endereco:
+      person.endereco||
+      person.logradouro||
+      '',
+    numero:person.numero||'',
+    complemento:
+      person.complemento||
+      '',
+    bairro:person.bairro||'',
+    documentos:
+      documents.filter(row=>
+        bool_(row.vigente)
+      ).length,
+    processos:processes.length,
+    tarefasAbertas:
+      openTasks.length,
+    tarefasConcluidas:
+      doneTasks.length,
+    podeRetificar:
+      canRetifyPerson_(
+        user,
+        person
+      ),
+    podeGerenciarConteudo:
+      canWritePersonContent_(
+        user,
+        person
+      ),
+    podeCriarTarefa:
+      hasPermission_(
+        user,
+        'gestao_distribuicao'
+      ),
+    podeExcluir:
+      hasPermission_(
+        user,
+        'administracao'
+      )
+  };
 }
 
 function personFichaMeta_(q){
