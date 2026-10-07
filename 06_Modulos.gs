@@ -528,6 +528,7 @@ function apiAuthenticated_(action,q,sessionToken){
     tarefaGeralReabrir:['consulta',generalTaskReopen_],
     tarefaGeralMensagemEnviar:['consulta',generalTaskMessageSend_],
     tarefaGeralAnexoAdicionar:['consulta',generalTaskAttachmentAdd_],
+    tarefaMarcarVista:['consulta',taskViewMark_],
     notificacoesTarefasMarcarLidas:['consulta',taskNotificationsMarkSeen_],
     distribuicaoAutomaticaSalvar:['gestao_distribuicao',distributionAutoSave_],
     distribuicaoAutomaticaExecutar:['gestao_distribuicao',distributionAutoRun_],
