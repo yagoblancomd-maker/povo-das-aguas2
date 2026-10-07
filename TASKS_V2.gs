@@ -928,26 +928,185 @@ function distributionRanking_(q){
 }
 
 function profileRanking_(q){
+  q=q||{};
+
   const email=
     String(
       identity_()||
       ''
     ).toLowerCase();
 
-  const data=
-    rankingData_(q);
+  const explicitRange=
+    !!(
+      q.de||
+      q.ate||
+      q.inicio||
+      q.fim
+    );
+
+  if(explicitRange){
+    const data=
+      rankingData_(q);
+
+    const row=
+      data.linhas.find(item=>
+        String(item.email||'').toLowerCase()===
+        email
+      )||null;
+
+    return {
+      de:data.de,
+      ate:data.ate,
+      totalUsuarios:data.totalUsuarios,
+      usuario:row,
+      comparativo:null
+    };
+  }
+
+  const today=
+    Utilities.formatDate(
+      new Date(),
+      PDA.tz,
+      'yyyy-MM-dd'
+    );
+
+  const parts=
+    today
+      .split('-')
+      .map(Number);
+
+  const year=parts[0];
+  const month=parts[1];
+
+  const pad_=value=>
+    String(value)
+      .padStart(2,'0');
+
+  const currentStart=
+    year+
+    '-'+
+    pad_(month)+
+    '-01';
+
+  let previousYear=year;
+  let previousMonth=month-1;
+
+  if(previousMonth<1){
+    previousMonth=12;
+    previousYear--;
+  }
+
+  const previousStart=
+    previousYear+
+    '-'+
+    pad_(previousMonth)+
+    '-01';
+
+  const previousLastDay=
+    new Date(
+      Date.UTC(
+        previousYear,
+        previousMonth,
+        0
+      )
+    ).getUTCDate();
+
+  const previousEnd=
+    previousYear+
+    '-'+
+    pad_(previousMonth)+
+    '-'+
+    pad_(previousLastDay);
+
+  const current=
+    rankingData_({
+      de:currentStart,
+      ate:today
+    });
+
+  const previous=
+    rankingData_({
+      de:previousStart,
+      ate:previousEnd
+    });
 
   const row=
-    data.linhas.find(item=>
+    current.linhas.find(item=>
       String(item.email||'').toLowerCase()===
       email
     )||null;
 
+  const prior=
+    previous.linhas.find(item=>
+      String(item.email||'').toLowerCase()===
+      email
+    )||null;
+
+  const valueDelta_=(key)=>
+    Number(
+      row&&row[key]||
+      0
+    )-
+    Number(
+      prior&&prior[key]||
+      0
+    );
+
+  /*
+   * Delta positivo de posição significa evolução: 5º -> 3º = +2.
+   */
+  const rankDelta_=(key)=>{
+    if(
+      !row||
+      !prior||
+      !row[key]||
+      !prior[key]
+    ){
+      return 0;
+    }
+
+    return (
+      Number(prior[key])-
+      Number(row[key])
+    );
+  };
+
   return {
-    de:data.de,
-    ate:data.ate,
-    totalUsuarios:data.totalUsuarios,
-    usuario:row
+    de:current.de,
+    ate:current.ate,
+    totalUsuarios:current.totalUsuarios,
+    usuario:row,
+    comparativo:{
+      de:previous.de,
+      ate:previous.ate,
+      anterior:prior,
+      evolucao:{
+        cadastros:
+          valueDelta_(
+            'cadastros'
+          ),
+        tarefasConcluidas:
+          valueDelta_(
+            'tarefasConcluidas'
+          ),
+        processosDistribuidos:
+          valueDelta_(
+            'processosDistribuidos'
+          ),
+        rankCadastros:
+          rankDelta_(
+            'rankCadastros'
+          ),
+        rankTarefas:
+          rankDelta_(
+            'rankTarefas'
+          ),
+        rankProcessos:
+          rankDelta_(
+            'rankProcessos'
+          )
+      }
+    }
   };
 }
 
