@@ -5159,4 +5159,36 @@ body.pda-drawer-open{overflow:hidden}
     padding:8px
   }
 }
+
+
+/* Abas da ficha: resposta visual imediata, sem texto de carregamento */
+.pda-drawer-tab-skeleton{
+  display:grid;
+  gap:8px;
+  padding:12px 2px
+}
+.pda-drawer-tab-skeleton-line{
+  display:block;
+  height:9px;
+  border-radius:999px;
+  background:linear-gradient(
+    90deg,
+    rgba(14,101,111,.05),
+    rgba(14,101,111,.12),
+    rgba(14,101,111,.05)
+  )
+}
+.pda-drawer-tab-skeleton-line.line-0{width:56%}
+.pda-drawer-tab-skeleton-line.line-1{width:82%}
+.pda-drawer-tab-skeleton-line.line-2{width:68%}
+.pda-drawer-tab-skeleton-line.line-3{width:42%}
+@media(prefers-reduced-motion:no-preference){
+  .pda-drawer-tab-skeleton-line{
+    animation:pdaDrawerSync .9s ease-in-out infinite alternate
+  }
+}
+@keyframes pdaDrawerSync{
+  from{opacity:.42}
+  to{opacity:.92}
+}
 </style>
