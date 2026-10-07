@@ -648,7 +648,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
   }
 
   async function openGeneralDialog_(root,task,refresh){
-    const detail=await call(
+    let detail=await call(
       'tarefaGeralDetalhe',
       {id:task.id}
     );
@@ -681,16 +681,22 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const body=el('div',undefined,'task-general-dialog-body');
     const overview=el('div',undefined,'task-general-overview');
 
-    [
-      ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
-      ['Prioridade',priority_(detail.tarefa.prioridade)],
-      ['Prazo',date_(detail.tarefa.prazo)],
-      ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
-    ].forEach(([label,value])=>{
-      const item=el('div');
-      item.append(el('span',label),el('strong',value||'—'));
-      overview.append(item);
-    });
+    const renderOverview=()=>{
+      overview.replaceChildren();
+
+      [
+        ['Responsável',detail.tarefa.responsavelNome||detail.tarefa.responsavel],
+        ['Prioridade',priority_(detail.tarefa.prioridade)],
+        ['Prazo',date_(detail.tarefa.prazo)],
+        ['Situação',detail.tarefa.situacao==='CONCLUIDA'?'Concluída':'Em andamento']
+      ].forEach(([label,value])=>{
+        const item=el('div');
+        item.append(el('span',label),el('strong',value||'—'));
+        overview.append(item);
+      });
+    };
+
+    renderOverview();
 
     body.append(
       overview,
@@ -726,10 +732,16 @@ window.PDA_MODULES.TAREFAS = (()=>{
         input.files
       );
 
+      detail=await call(
+        'tarefaGeralDetalhe',
+        {id:detail.tarefa.id}
+      );
+
+      renderGeneralAttachments_(fileGrid,detail);
+      input.value='';
       status('PDF(s) anexado(s).');
-      dialog.close();
-      await refresh();
-      await openGeneralDialog_(root,detail.tarefa,refresh);
+
+      refresh().catch(()=>{});
     });
 
     filesHead.append(add,input);
@@ -769,10 +781,17 @@ window.PDA_MODULES.TAREFAS = (()=>{
             true
           );
 
+          detail=await call(
+            'tarefaGeralDetalhe',
+            {id:detail.tarefa.id}
+          );
+
+          renderGeneralMessages_(messages,detail);
+          renderOverview();
+          textarea.value='';
           status('Mensagem enviada.');
-          dialog.close();
-          await refresh();
-          await openGeneralDialog_(root,detail.tarefa,refresh);
+
+          refresh().catch(()=>{});
         }
       )
     );
