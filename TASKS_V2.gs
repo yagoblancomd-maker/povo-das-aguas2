@@ -583,154 +583,488 @@ function distributionRanking_(q){
   };
 }
 
+function uniqueRowsById_(rows){
+  const seen=new Set();
+
+  return (rows||[])
+    .filter(row=>{
+      if(
+        !row||
+        !row.id||
+        seen.has(row.id)
+      ){
+        return false;
+      }
+
+      seen.add(row.id);
+      return true;
+    });
+}
+
 function personDeletePreview_(q){
-  const person=get_('Pessoas',required_(q.id,'pessoa'));
-  const attendance=all_('Atendimentos').filter(row=>row.pessoaId===person.id);
-  const attendanceIds=new Set(attendance.map(row=>row.id));
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.id,
+        'pessoa'
+      )
+    );
 
-  const documents=all_('Documentos').filter(row=>
-    row.atendimentoId===personOwnerKey_(person.id)||
-    attendanceIds.has(row.atendimentoId)
-  );
+  const attendance=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    );
 
-  const tasks=all_('Tarefas').filter(row=>row.pessoaId===person.id);
-  const processes=all_('Processos').filter(row=>row.pessoaId===person.id);
+  const tasks=
+    where_(
+      'Tarefas',
+      'pessoaId',
+      person.id
+    );
+
+  const processes=
+    where_(
+      'Processos',
+      'pessoaId',
+      person.id
+    );
+
+  const documents=[
+    ...where_(
+      'Documentos',
+      'atendimentoId',
+      personOwnerKey_(person.id)
+    )
+  ];
+
+  attendance.forEach(row=>{
+    documents.push(
+      ...where_(
+        'Documentos',
+        'atendimentoId',
+        row.id
+      )
+    );
+  });
+
+  const uniqueDocuments=
+    uniqueRowsById_(
+      documents
+    );
 
   return {
     id:person.id,
     nome:person.nome,
     cpf:person.cpf,
-    atendimentos:attendance.length,
-    documentos:documents.length,
-    tarefas:tasks.length,
-    processos:processes.length,
-    exigeConfirmacaoReforcada:!!(tasks.length||processes.length)
+    atendimentos:
+      attendance.length,
+    documentos:
+      uniqueDocuments.length,
+    tarefas:
+      tasks.length,
+    processos:
+      processes.length,
+    exigeConfirmacaoReforcada:
+      !!(
+        tasks.length||
+        processes.length
+      )
   };
 }
 
 function personFolderCandidates_(person){
-  const root=DriveApp.getFolderById(PDA.parent);
-  const desired=safeName_(person.nome)+' - '+cpfDisplay_(person.cpf);
-  const rawCpf=String(person.cpf||'');
-  const formatted=cpfDisplay_(person.cpf);
   const out=[];
-  const iterator=root.getFolders();
+  const seen=new Set();
 
-  while(iterator.hasNext()){
-    const folder=iterator.next();
-    const name=folder.getName();
-    if(
-      name===desired||
-      name.includes(person.id)||
-      (rawCpf&&name.includes(rawCpf))||
-      (formatted&&name.includes(formatted))
-    ){
-      out.push(folder);
+  const add_=folder=>{
+    if(!folder)return;
+
+    const id=
+      folder.getId();
+
+    if(seen.has(id)){
+      return;
     }
-  }
+
+    seen.add(id);
+    out.push(folder);
+  };
+
+  /*
+   * O folderId dos atendimentos é o caminho mais rápido e evita percorrer
+   * todas as pastas da raiz do projeto.
+   */
+  where_(
+    'Atendimentos',
+    'pessoaId',
+    person.id
+  )
+    .forEach(row=>{
+      if(!row.folderId)return;
+
+      try{
+        add_(
+          DriveApp.getFolderById(
+            row.folderId
+          )
+        );
+      }catch(e){}
+    });
+
+  const root=
+    DriveApp.getFolderById(
+      PDA.parent
+    );
+
+  const desired=
+    safeName_(person.nome)+
+    ' - '+
+    cpfDisplay_(person.cpf);
+
+  try{
+    const exact=
+      root.getFoldersByName(
+        desired
+      );
+
+    while(exact.hasNext()){
+      add_(
+        exact.next()
+      );
+    }
+  }catch(e){}
+
   return out;
 }
 
 function personDeleteCascade_(ctx,q){
-  const person=get_('Pessoas',required_(q.id,'pessoa'));
+  const person=
+    get_(
+      'Pessoas',
+      required_(
+        q.id,
+        'pessoa'
+      )
+    );
 
   if(!bool_(q.confirmar)){
-    fail_('Confirme explicitamente a exclusão definitiva do cadastro.');
+    fail_(
+      'Confirme explicitamente a exclusão definitiva do cadastro.'
+    );
   }
 
-  version_(person,q.versao);
+  version_(
+    person,
+    q.versao
+  );
 
-  const preview=personDeletePreview_({id:person.id});
+  const preview=
+    personDeletePreview_({
+      id:person.id
+    });
 
-  if(preview.exigeConfirmacaoReforcada&&!bool_(q.confirmarVinculos)){
-    fail_('Este cadastro possui processos ou tarefas. Confirme também a exclusão dos vínculos.');
+  if(
+    preview.exigeConfirmacaoReforcada&&
+    !bool_(q.confirmarVinculos)
+  ){
+    fail_(
+      'Este cadastro possui processos ou tarefas. Confirme também a exclusão dos vínculos.'
+    );
   }
 
-  const attendance=all_('Atendimentos').filter(row=>row.pessoaId===person.id);
-  const attendanceIds=new Set(attendance.map(row=>row.id));
-  const tasks=all_('Tarefas').filter(row=>row.pessoaId===person.id);
-  const taskIds=new Set(tasks.map(row=>row.id));
-  const processes=all_('Processos').filter(row=>row.pessoaId===person.id);
-  const processIds=new Set(processes.map(row=>row.id));
+  const attendance=
+    where_(
+      'Atendimentos',
+      'pessoaId',
+      person.id
+    );
 
-  const documents=all_('Documentos').filter(row=>
-    row.atendimentoId===personOwnerKey_(person.id)||
-    attendanceIds.has(row.atendimentoId)
-  );
-  const documentIds=new Set(documents.map(row=>row.id));
+  const tasks=
+    where_(
+      'Tarefas',
+      'pessoaId',
+      person.id
+    );
 
-  const minutas=all_('Minutas').filter(row=>attendanceIds.has(row.atendimentoId));
-  const pendencias=all_('Pendencias').filter(row=>attendanceIds.has(row.atendimentoId));
-  const messages=all_('TarefaMensagens').filter(row=>taskIds.has(row.tarefaId));
-  const attachments=all_('TarefaAnexos').filter(row=>taskIds.has(row.tarefaId));
-  const distributions=all_('Distribuicao').filter(row=>
-    attendanceIds.has(row.atendimentoId)||
-    processIds.has(row.processoId)
-  );
+  const processes=
+    where_(
+      'Processos',
+      'pessoaId',
+      person.id
+    );
 
-  const relatedIds=new Set([
-    person.id,
-    ...attendance.map(row=>row.id),
-    ...tasks.map(row=>row.id),
-    ...processes.map(row=>row.id),
-    ...documents.map(row=>row.id),
-    ...minutas.map(row=>row.id),
-    ...pendencias.map(row=>row.id),
-    ...messages.map(row=>row.id),
-    ...attachments.map(row=>row.id),
-    ...distributions.map(row=>row.id)
-  ]);
+  const documents=[
+    ...where_(
+      'Documentos',
+      'atendimentoId',
+      personOwnerKey_(person.id)
+    )
+  ];
 
-  const priorHistory=all_('Historico').filter(row=>relatedIds.has(row.registroId));
-
-  const priorOperations=all_('Operacoes').filter(row=>{
-    const result=String(row.resultado||'');
-    return (
-      result.includes(person.id)||
-      (
-        String(person.cpf||'')&&
-        result.includes(String(person.cpf))
+  attendance.forEach(row=>{
+    documents.push(
+      ...where_(
+        'Documentos',
+        'atendimentoId',
+        row.id
       )
     );
   });
 
+  const uniqueDocuments=
+    uniqueRowsById_(
+      documents
+    );
+
+  const minutas=[];
+  const pendencias=[];
+
+  attendance.forEach(row=>{
+    minutas.push(
+      ...where_(
+        'Minutas',
+        'atendimentoId',
+        row.id
+      )
+    );
+
+    pendencias.push(
+      ...where_(
+        'Pendencias',
+        'atendimentoId',
+        row.id
+      )
+    );
+  });
+
+  const messages=[];
+  const attachments=[];
+
+  tasks.forEach(task=>{
+    messages.push(
+      ...where_(
+        'TarefaMensagens',
+        'tarefaId',
+        task.id
+      )
+    );
+
+    attachments.push(
+      ...where_(
+        'TarefaAnexos',
+        'tarefaId',
+        task.id
+      )
+    );
+  });
+
+  const distributions=[];
+
+  attendance.forEach(row=>{
+    distributions.push(
+      ...where_(
+        'Distribuicao',
+        'atendimentoId',
+        row.id
+      )
+    );
+  });
+
+  processes.forEach(row=>{
+    distributions.push(
+      ...where_(
+        'Distribuicao',
+        'processoId',
+        row.id
+      )
+    );
+  });
+
+  const uniqueMinutas=
+    uniqueRowsById_(
+      minutas
+    );
+
+  const uniquePendencias=
+    uniqueRowsById_(
+      pendencias
+    );
+
+  const uniqueMessages=
+    uniqueRowsById_(
+      messages
+    );
+
+  const uniqueAttachments=
+    uniqueRowsById_(
+      attachments
+    );
+
+  const uniqueDistributions=
+    uniqueRowsById_(
+      distributions
+    );
+
+  const relatedIds=[
+    person.id,
+    ...attendance.map(row=>row.id),
+    ...tasks.map(row=>row.id),
+    ...processes.map(row=>row.id),
+    ...uniqueDocuments.map(row=>row.id),
+    ...uniqueMinutas.map(row=>row.id),
+    ...uniquePendencias.map(row=>row.id),
+    ...uniqueMessages.map(row=>row.id),
+    ...uniqueAttachments.map(row=>row.id),
+    ...uniqueDistributions.map(row=>row.id)
+  ];
+
+  const history=[];
+
+  relatedIds.forEach(registroId=>{
+    history.push(
+      ...where_(
+        'Historico',
+        'registroId',
+        registroId
+      )
+    );
+  });
+
+  const priorHistory=
+    uniqueRowsById_(
+      history
+    );
+
+  /*
+   * Operações antigas não têm uma coluna pessoaId. Esta é a única relação
+   * que ainda exige varredura textual, executada uma única vez.
+   */
+  const priorOperations=
+    all_('Operacoes')
+      .filter(row=>{
+        const result=
+          String(
+            row.resultado||
+            ''
+          );
+
+        return (
+          result.includes(
+            person.id
+          )||
+          (
+            String(
+              person.cpf||
+              ''
+            )&&
+            result.includes(
+              String(
+                person.cpf
+              )
+            )
+          )
+        );
+      });
+
   ctx.redactDeletionAudit=true;
 
   [
-    ['TarefaMensagens',messages],
-    ['TarefaAnexos',attachments],
-    ['Tarefas',tasks],
-    ['Distribuicao',distributions],
-    ['Processos',processes],
-    ['Minutas',minutas],
-    ['Pendencias',pendencias],
-    ['Documentos',documents],
-    ['Atendimentos',attendance],
-    ['Historico',priorHistory],
-    ['Operacoes',priorOperations],
-    ['Pessoas',[person]]
+    [
+      'TarefaMensagens',
+      uniqueMessages
+    ],
+    [
+      'TarefaAnexos',
+      uniqueAttachments
+    ],
+    [
+      'Tarefas',
+      tasks
+    ],
+    [
+      'Distribuicao',
+      uniqueDistributions
+    ],
+    [
+      'Processos',
+      processes
+    ],
+    [
+      'Minutas',
+      uniqueMinutas
+    ],
+    [
+      'Pendencias',
+      uniquePendencias
+    ],
+    [
+      'Documentos',
+      uniqueDocuments
+    ],
+    [
+      'Atendimentos',
+      attendance
+    ],
+    [
+      'Historico',
+      priorHistory
+    ],
+    [
+      'Operacoes',
+      priorOperations
+    ],
+    [
+      'Pessoas',
+      [person]
+    ]
   ].forEach(([entity,rows])=>{
-    rows.forEach(row=>remove_(ctx,entity,row.id,row.versao));
+    rows.forEach(row=>
+      remove_(
+        ctx,
+        entity,
+        row.id,
+        row.versao
+      )
+    );
   });
 
-  personFolderCandidates_(person).forEach(folder=>{
-    try{
-      folder.setTrashed(true);
-      ctx.effects.push('Pasta da pessoa movida para a lixeira: '+folder.getName());
-    }catch(e){
-      ctx.effects.push('Não foi possível mover uma pasta para a lixeira: '+(e.message||e));
-    }
-  });
+  personFolderCandidates_(
+    person
+  )
+    .forEach(folder=>{
+      try{
+        folder.setTrashed(true);
+
+        ctx.effects.push(
+          'Pasta da pessoa movida para a lixeira: '+
+          folder.getName()
+        );
+
+      }catch(e){
+        ctx.effects.push(
+          'Não foi possível remover uma pasta vinculada ao cadastro: '+
+          (e.message||e)
+        );
+      }
+    });
 
   return {
     ok:true,
     excluidos:{
       pessoas:1,
-      atendimentos:attendance.length,
-      documentos:documents.length,
-      tarefas:tasks.length,
-      processos:processes.length
+      atendimentos:
+        attendance.length,
+      documentos:
+        uniqueDocuments.length,
+      tarefas:
+        tasks.length,
+      processos:
+        processes.length
     },
-    mensagem:'Cadastro e vínculos relacionados excluídos definitivamente.'
+    mensagem:
+      'Cadastro e vínculos relacionados excluídos definitivamente.'
   };
 }
