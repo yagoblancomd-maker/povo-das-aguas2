@@ -1,5 +1,8 @@
 function dossier_(q){
-  const p=get_('Pessoas',q.pessoaId);
+  const p=
+    getScopedPerson_(
+      q.pessoaId
+    );
   const owner=personOwnerKey_(p.id);
 
   const docs=
