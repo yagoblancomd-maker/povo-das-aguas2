@@ -302,10 +302,26 @@ function visualRandomImage_(q){
   const data=
     visualLibraryList_();
 
+  const excluded=
+    new Set(
+      (
+        Array.isArray(q.excluirIds)
+          ?q.excluirIds
+          :[]
+      )
+        .map(value=>
+          String(value||'')
+        )
+        .filter(Boolean)
+    );
+
   const eligible=
     data.imagens
       .filter(item=>
         item.ativo&&
+        !excluded.has(
+          String(item.id||'')
+        )&&
         (
           !usage||
           (item.usos||[])
@@ -334,10 +350,16 @@ function visualRandomImage_(q){
  * Uso público restrito ao portal de login.
  * Não recebe IDs e só retorna uma imagem da pasta visual dedicada.
  */
-function visualPortalPhoto(){
+function visualPortalPhoto(q){
+  q=q||{};
+
   try{
     return visualRandomImage_({
-      uso:'LOGIN'
+      uso:'LOGIN',
+      excluirIds:
+        Array.isArray(q.excluirIds)
+          ?q.excluirIds
+          :[]
     });
   }catch(e){
     return null;
