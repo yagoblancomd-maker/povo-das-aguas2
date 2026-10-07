@@ -415,7 +415,7 @@ function serverCachedRead_(action,q,producer){
       cache.put(
         key,
         json,
-        60
+        300
       );
     }
   }catch(e){}
