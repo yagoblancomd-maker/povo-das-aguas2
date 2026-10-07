@@ -19,6 +19,115 @@ window.PDA_MODULES.ADM=(()=>{
     });
   }
 
+  async function optimizeImage_(file){
+    if(!file){
+      throw new Error('Selecione uma imagem.');
+    }
+
+    if(
+      !/^image\/(jpeg|png|webp)$/.test(
+        file.type||
+        ''
+      )
+    ){
+      throw new Error(
+        'Use imagens JPEG, PNG ou WebP.'
+      );
+    }
+
+    if(file.size>12*1024*1024){
+      throw new Error(
+        'A imagem original deve ter no máximo 12 MB.'
+      );
+    }
+
+    const url=
+      URL.createObjectURL(
+        file
+      );
+
+    try{
+      const image=
+        new Image();
+
+      image.src=url;
+      await image.decode();
+
+      const maxWidth=1800;
+      const maxHeight=1200;
+      const scale=
+        Math.min(
+          1,
+          maxWidth/image.width,
+          maxHeight/image.height
+        );
+
+      const canvas=
+        document.createElement(
+          'canvas'
+        );
+
+      canvas.width=
+        Math.max(
+          1,
+          Math.round(
+            image.width*
+            scale
+          )
+        );
+
+      canvas.height=
+        Math.max(
+          1,
+          Math.round(
+            image.height*
+            scale
+          )
+        );
+
+      const context=
+        canvas.getContext(
+          '2d'
+        );
+
+      context.drawImage(
+        image,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const data=
+        canvas.toDataURL(
+          'image/jpeg',
+          .80
+        );
+
+      return {
+        nome:
+          String(
+            file.name||
+            'imagem'
+          )
+            .replace(
+              /\.[^.]+$/,
+              ''
+            )+
+          '.jpg',
+        mime:'image/jpeg',
+        base64:
+          data.split(',')[1],
+        preview:data
+      };
+
+    }finally{
+      URL.revokeObjectURL(
+        url
+      );
+    }
+  }
+
   function field_(label,node,hint=''){
     const wrap=el('label',undefined,'field');
     wrap.append(el('span',label),node);
@@ -64,6 +173,7 @@ window.PDA_MODULES.ADM=(()=>{
       ['tags','Tags de tarefas','adminTags'],
       ['modelo','Modelo de minuta','adminIntegracoes'],
       ['apis','Integrações / APIs','adminIntegracoes'],
+      ['imagens','Biblioteca de imagens','adminImagens'],
       ['config','Configurações','adminConfiguracoes']
     ];
 
@@ -483,6 +593,542 @@ window.PDA_MODULES.ADM=(()=>{
       panel.append(portal,deep);
     }
 
+    async function renderImages_(data){
+      panel.replaceChildren();
+
+      const intro=
+        el(
+          'section',
+          undefined,
+          'card adm-v3-card adm-images-intro'
+        );
+
+      intro.append(
+        el(
+          'h3',
+          'Biblioteca visual do Povo das Águas'
+        ),
+        el(
+          'p',
+          'As imagens ficam armazenadas no Google Drive. O sistema carrega apenas a fotografia necessária para cada tela, evitando prejudicar o desempenho.',
+          'hint'
+        )
+      );
+
+      const upload=
+        el(
+          'form',
+          undefined,
+          'adm-image-upload'
+        );
+
+      const files=
+        input_(
+          'file'
+        );
+
+      files.accept=
+        'image/jpeg,image/png,image/webp';
+
+      files.multiple=true;
+
+      const uses=
+        [
+          ['LOGIN','Login'],
+          ['PAINEL','Painel'],
+          ['TERRITORIO','Território / fundos'],
+          ['INSTITUCIONAL','Institucional']
+        ];
+
+      const useBox=
+        el(
+          'div',
+          undefined,
+          'adm-image-uses'
+        );
+
+      uses.forEach(
+        ([value,label])=>{
+          const wrapper=
+            el(
+              'label',
+              undefined,
+              'adm-image-use'
+            );
+
+          const check=
+            input_(
+              'checkbox'
+            );
+
+          check.value=value;
+          check.checked=
+            value==='LOGIN'||
+            value==='PAINEL';
+
+          wrapper.append(
+            check,
+            el(
+              'span',
+              label
+            )
+          );
+
+          useBox.append(
+            wrapper
+          );
+        }
+      );
+
+      const uploadButton=
+        el(
+          'button',
+          'Adicionar imagens'
+        );
+
+      uploadButton.type='submit';
+
+      upload.append(
+        field_(
+          'Fotos',
+          files,
+          'É possível selecionar várias imagens de uma vez. Elas serão redimensionadas e comprimidas no navegador antes do envio.'
+        ),
+        field_(
+          'Onde podem aparecer',
+          useBox
+        ),
+        uploadButton
+      );
+
+      intro.append(upload);
+      panel.append(intro);
+
+      const count=
+        el(
+          'p',
+          String(
+            data.quantidade||
+            0
+          )+
+          ' imagem(ns) na biblioteca.',
+          'hint adm-image-count'
+        );
+
+      panel.append(count);
+
+      const grid=
+        el(
+          'div',
+          undefined,
+          'adm-image-grid'
+        );
+
+      const renderRows_=()=>{
+        grid.replaceChildren();
+
+        const rows=
+          data.imagens||
+          [];
+
+        if(!rows.length){
+          grid.append(
+            el(
+              'p',
+              'Nenhuma imagem cadastrada.',
+              'hint'
+            )
+          );
+          return;
+        }
+
+        rows.forEach(
+          item=>{
+            const card=
+              el(
+                'article',
+                undefined,
+                'adm-image-card'+
+                (
+                  item.ativo
+                    ?''
+                    :' is-disabled'
+                )
+              );
+
+            const preview=
+              el(
+                'div',
+                undefined,
+                'adm-image-preview'
+              );
+
+            preview.append(
+              el(
+                'span',
+                'Carregar prévia',
+                'hint'
+              )
+            );
+
+            let previewLoaded=false;
+
+            preview.onclick=
+              async()=>{
+                if(previewLoaded){
+                  return;
+                }
+
+                previewLoaded=true;
+                preview.classList.add(
+                  'is-loading'
+                );
+
+                try{
+                  const image=
+                    await call(
+                      'imagemSistemaConteudo',
+                      {id:item.id},
+                      false,
+                      {noLoader:true}
+                    );
+
+                  if(!image)return;
+
+                  preview.replaceChildren();
+
+                  const node=
+                    el(
+                      'img'
+                    );
+
+                  node.alt=
+                    item.legenda||
+                    item.nome||
+                    '';
+
+                  node.src=
+                    'data:'+
+                    image.mime+
+                    ';base64,'+
+                    image.base64;
+
+                  preview.append(node);
+
+                }catch(error){
+                  previewLoaded=false;
+                  preview.replaceChildren(
+                    el(
+                      'span',
+                      'Não foi possível carregar a prévia.',
+                      'warn'
+                    )
+                  );
+
+                }finally{
+                  preview.classList.remove(
+                    'is-loading'
+                  );
+                }
+              };
+
+            const title=
+              el(
+                'strong',
+                item.nome
+              );
+
+            const legend=
+              input_(
+                'text',
+                item.legenda||
+                ''
+              );
+
+            legend.placeholder=
+              'Legenda opcional';
+
+            const activeBox=
+              input_(
+                'checkbox'
+              );
+
+            activeBox.checked=
+              item.ativo!==false;
+
+            const usageGrid=
+              el(
+                'div',
+                undefined,
+                'adm-image-card-uses'
+              );
+
+            const controls=[];
+
+            uses.forEach(
+              ([value,label])=>{
+                const wrapper=
+                  el(
+                    'label'
+                  );
+
+                const check=
+                  input_(
+                    'checkbox'
+                  );
+
+                check.value=value;
+                check.checked=
+                  (
+                    item.usos||
+                    []
+                  )
+                    .includes(
+                      value
+                    );
+
+                controls.push(
+                  check
+                );
+
+                wrapper.append(
+                  check,
+                  el(
+                    'span',
+                    label
+                  )
+                );
+
+                usageGrid.append(
+                  wrapper
+                );
+              }
+            );
+
+            const actions=
+              el(
+                'div',
+                undefined,
+                'actions'
+              );
+
+            actions.append(
+              button(
+                'Salvar',
+                async()=>{
+                  const result=
+                    await call(
+                      'imagemSistemaSalvar',
+                      {
+                        id:item.id,
+                        ativo:
+                          activeBox.checked,
+                        legenda:
+                          legend.value,
+                        usos:
+                          controls
+                            .filter(
+                              control=>
+                                control.checked
+                            )
+                            .map(
+                              control=>
+                                control.value
+                            )
+                      },
+                      true
+                    );
+
+                  Object.assign(
+                    item,
+                    result
+                  );
+
+                  status(
+                    'Imagem atualizada.'
+                  );
+                },
+                true
+              ),
+              button(
+                'Excluir',
+                async()=>{
+                  if(
+                    !window.confirm(
+                      'Excluir esta imagem da biblioteca?'
+                    )
+                  ){
+                    return;
+                  }
+
+                  await call(
+                    'imagemSistemaExcluir',
+                    {id:item.id},
+                    true
+                  );
+
+                  data.imagens=
+                    (
+                      data.imagens||
+                      []
+                    )
+                      .filter(
+                        row=>
+                          row.id!==
+                          item.id
+                      );
+
+                  data.quantidade=
+                    data.imagens.length;
+
+                  count.textContent=
+                    data.quantidade+
+                    ' imagem(ns) na biblioteca.';
+
+                  renderRows_();
+
+                  status(
+                    'Imagem excluída.'
+                  );
+                },
+                true
+              )
+            );
+
+            card.append(
+              preview,
+              title,
+              field_(
+                'Legenda',
+                legend
+              ),
+              field_(
+                'Ativa',
+                activeBox
+              ),
+              usageGrid,
+              actions
+            );
+
+            grid.append(card);
+          }
+        );
+      };
+
+      panel.append(grid);
+      renderRows_();
+
+      upload.onsubmit=
+        async event=>{
+          event.preventDefault();
+
+          const selected=
+            Array.from(
+              files.files||
+              []
+            );
+
+          if(!selected.length){
+            throw new Error(
+              'Selecione ao menos uma imagem.'
+            );
+          }
+
+          const selectedUses=
+            Array.from(
+              useBox.querySelectorAll(
+                'input:checked'
+              )
+            )
+              .map(
+                control=>
+                  control.value
+              );
+
+          if(!selectedUses.length){
+            throw new Error(
+              'Selecione ao menos um local de uso.'
+            );
+          }
+
+          uploadButton.disabled=true;
+
+          try{
+            let uploaded=0;
+
+            for(const file of selected){
+              uploadButton.textContent=
+                'Otimizando '+
+                (
+                  uploaded+
+                  1
+                )+
+                ' de '+
+                selected.length+
+                '…';
+
+              const prepared=
+                await optimizeImage_(
+                  file
+                );
+
+              const row=
+                await call(
+                  'imagemSistemaUpload',
+                  {
+                    nome:
+                      prepared.nome,
+                    mime:
+                      prepared.mime,
+                    base64:
+                      prepared.base64,
+                    usos:
+                      selectedUses
+                  },
+                  true,
+                  {silent:true}
+                );
+
+              data.imagens=
+                [
+                  ...(
+                    data.imagens||
+                    []
+                  ),
+                  row
+                ];
+
+              uploaded++;
+            }
+
+            data.quantidade=
+              data.imagens.length;
+
+            files.value='';
+
+            count.textContent=
+              data.quantidade+
+              ' imagem(ns) na biblioteca.';
+
+            renderRows_();
+
+            status(
+              uploaded+
+              (
+                uploaded===1
+                  ?' imagem adicionada.'
+                  :' imagens adicionadas.'
+              )
+            );
+
+          }finally{
+            uploadButton.disabled=false;
+            uploadButton.textContent=
+              'Adicionar imagens';
+          }
+        };
+    }
+
     async function renderConfig_(data){
       panel.replaceChildren();
       const rows=data.configuracoes||[];
@@ -573,6 +1219,7 @@ window.PDA_MODULES.ADM=(()=>{
       if(key==='tags')return renderTags_(data);
       if(key==='modelo')return renderModel_(data);
       if(key==='apis')return renderApis_(data);
+      if(key==='imagens')return renderImages_(data);
       return renderConfig_(data);
     };
 
