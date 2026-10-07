@@ -587,4 +587,115 @@
       color-mix(in srgb,var(--task-accent,var(--pda-sea)) 78%,#07364b)
     )!important
 }
+
+
+/* =========================================================
+   TAREFAS — LISTA OPERACIONAL COMPACTA
+   ========================================================= */
+.tasks-grid{
+  grid-template-columns:1fr!important;
+  gap:5px!important
+}
+.task-card{
+  display:grid!important;
+  grid-template-columns:minmax(230px,1.2fr) minmax(360px,1.8fr) minmax(110px,.65fr) auto;
+  gap:8px 12px!important;
+  align-items:center!important;
+  min-height:70px!important;
+  padding:8px 10px!important;
+  border-radius:9px!important
+}
+.task-card-top{
+  align-items:center!important;
+  margin:0!important
+}
+.task-card-top strong{
+  font-size:9.6px!important;
+  line-height:1.2!important
+}
+.task-status{
+  padding:3px 5px!important;
+  font-size:6.8px!important
+}
+.task-card-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:4px 7px!important;
+  margin:0!important
+}
+.task-card-meta span{
+  font-size:6.9px!important
+}
+.task-card-meta b{
+  margin-top:0!important;
+  font-size:8px!important
+}
+.task-general-description{
+  display:none!important
+}
+.task-tags{
+  align-content:center!important;
+  margin:0!important;
+  gap:3px!important
+}
+.task-tag{
+  min-height:18px!important;
+  padding:2px 5px!important;
+  font-size:6.4px!important
+}
+.task-card .actions{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  gap:4px!important;
+  margin:0!important;
+  padding:0!important
+}
+.task-card .actions button{
+  min-height:28px!important;
+  padding:5px 7px!important;
+  white-space:nowrap!important;
+  font-size:7px!important
+}
+.task-card.due-96,
+.task-card.due-24,
+.task-card.overdue{
+  box-shadow:
+    inset 3px 0 0 var(--task-accent,var(--pda-sea)),
+    var(--pda-shadow-soft)!important
+}
+.task-card.due-96{
+  --task-accent:#d49a42
+}
+.task-card.due-24{
+  --task-accent:#dc704d
+}
+.task-card.overdue{
+  --task-accent:#c65349
+}
+@media(max-width:1180px){
+  .task-card{
+    grid-template-columns:minmax(210px,1fr) minmax(330px,1.5fr) auto!important
+  }
+  .task-card .task-tags{
+    display:none
+  }
+}
+@media(max-width:850px){
+  .task-card{
+    grid-template-columns:1fr!important;
+    gap:6px!important;
+    min-height:0!important
+  }
+  .task-card-meta{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+  .task-card .task-tags{
+    display:flex
+  }
+  .task-card .actions{
+    justify-content:flex-start!important
+  }
+}
 </style>
