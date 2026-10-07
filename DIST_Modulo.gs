@@ -90,9 +90,15 @@ function ensureDistributionTask_(ctx,p){
     null;
 
   const createdByColony=
-    !!creatorUser&&
-    isColonyUser_(
-      creatorUser
+    String(
+      p.origemCadastro||
+      ''
+    ).toUpperCase()==='COLONIA'||
+    (
+      !!creatorUser&&
+      isColonyUser_(
+        creatorUser
+      )
     );
 
   const taskTags=
