@@ -230,4 +230,82 @@
     justify-content:flex-start
   }
 }
+
+
+/* Consulta de cadastros V2 — lista leve */
+.acomp-list-v2{padding:0!important;overflow:hidden}
+.acomp-list-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 13px;
+  border-bottom:1px solid #e3ded5;
+  background:#fffdfa
+}
+.acomp-list-toolbar input{
+  width:min(680px,100%);
+  min-height:38px!important
+}
+.acomp-list-meta{
+  flex:0 0 auto;
+  color:#6e7d79;
+  font-size:8px;
+  font-weight:700
+}
+.acomp-list-results{
+  min-height:120px;
+  transition:opacity .12s ease
+}
+.acomp-list-results.loading{opacity:.58}
+.acomp-list-results .scroll{margin:0!important}
+.acomp-list-results table{
+  min-width:1050px
+}
+.acomp-list-results th{
+  position:sticky;
+  top:0;
+  z-index:1
+}
+.acomp-list-results td:last-child{
+  min-width:290px
+}
+.acomp-list-results td:last-child button{
+  min-height:30px!important;
+  margin:2px 4px 2px 0!important;
+  padding:5px 8px!important;
+  font-size:7.5px!important
+}
+.acomp-action-primary{
+  color:#fff!important;
+  border-color:var(--pda-sea)!important;
+  background:var(--pda-sea)!important
+}
+.acomp-action-task{
+  color:#785e18!important;
+  border-color:#dfc781!important;
+  background:#fff8dc!important
+}
+.acomp-action-delete{
+  color:#91382f!important;
+  border-color:#e0b3ad!important;
+  background:#fff5f3!important
+}
+.acomp-list-pager{
+  display:flex;
+  justify-content:flex-end;
+  gap:7px;
+  padding:10px 13px;
+  border-top:1px solid #e3ded5;
+  background:#fbf9f4
+}
+.acomp-list-pager button{min-height:31px!important;font-size:8px!important}
+
+@media(max-width:780px){
+  .acomp-list-toolbar{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .acomp-list-meta{align-self:flex-end}
+}
 </style>
