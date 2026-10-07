@@ -2469,6 +2469,621 @@ f.insertBefore(file,f.firstChild);
     );
  }
 
+
+ let activePersonDrawer=null;
+
+ function cpfDrawer_(value){
+  const digits=String(value||'').replace(/\D/g,'');
+  return digits.length===11
+    ?digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')
+    :String(value||'');
+ }
+
+ function closePersonDrawer_(){
+  if(!activePersonDrawer)return;
+  activePersonDrawer.remove();
+  activePersonDrawer=null;
+  document.body.classList.remove('pda-drawer-open');
+ }
+
+ async function createTaskForPerson_(person,onSaved){
+  if(!can('gestao_distribuicao')){
+    throw new Error('Você não possui permissão para criar e distribuir tarefas.');
+  }
+
+  const options=await call('tarefaCriarOpcoes');
+  const overlay=el('div',undefined,'pda-modal-overlay');
+  const modal=el('section',undefined,'pda-task-create-modal');
+  const head=el('div',undefined,'pda-modal-head');
+  const titleWrap=el('div');
+  titleWrap.append(
+    el('strong','Nova tarefa'),
+    el('small','Vinculada a '+(person.nome||'este cadastro'))
+  );
+  const close=el('button','×','pda-modal-close');
+  close.type='button';
+  head.append(titleWrap,close);
+
+  const formNode=el('form',undefined,'pda-task-create-form');
+  const title=el('input');
+  title.name='titulo';
+  title.required=true;
+  title.maxLength=160;
+  title.placeholder='Título da tarefa';
+
+  const description=el('textarea');
+  description.name='descricao';
+  description.maxLength=6000;
+  description.placeholder='Informações e orientações para o responsável';
+
+  const assignee=el('select');
+  assignee.name='responsavel';
+  assignee.required=true;
+  assignee.append(new Option('Selecione o responsável',''));
+  (options.usuarios||[]).forEach(user=>{
+    assignee.append(
+      new Option(
+        [user.nome||user.email,user.funcao].filter(Boolean).join(' · '),
+        user.email
+      )
+    );
+  });
+
+  const priority=el('select');
+  priority.name='prioridade';
+  ['NORMAL','ALTA','URGENTE'].forEach(value=>
+    priority.append(new Option(value,value))
+  );
+
+  const due=el('input');
+  due.type='date';
+  due.name='prazo';
+
+  const tags=el('div',undefined,'pda-task-tag-picker');
+  const selectedTags=new Set();
+  (options.tags||[]).forEach(tag=>{
+    const label=el('label',undefined,'pda-task-tag-option');
+    label.style.setProperty('--task-tag-color',tag.cor||'#176e7d');
+    const input=el('input');
+    input.type='checkbox';
+    input.value=tag.nome;
+    input.onchange=()=>{
+      if(input.checked)selectedTags.add(tag.nome);
+      else selectedTags.delete(tag.nome);
+    };
+    label.append(input,el('span',tag.nome));
+    tags.append(label);
+  });
+
+  const grid=el('div',undefined,'pda-task-create-grid');
+  const field_=(label,node)=>{
+    const wrap=el('label',undefined,'field');
+    wrap.append(el('span',label),node);
+    return wrap;
+  };
+
+  grid.append(
+    field_('Título',title),
+    field_('Responsável',assignee),
+    field_('Prioridade',priority),
+    field_('Prazo',due)
+  );
+
+  const descriptionField=field_('Descrição',description);
+  descriptionField.classList.add('wide');
+
+  const actions=el('div',undefined,'actions');
+  const cancel=button('Cancelar',()=>overlay.remove(),true);
+  const save=el('button','Criar tarefa');
+  save.type='submit';
+  actions.append(cancel,save);
+
+  formNode.append(
+    grid,
+    descriptionField,
+    el('span','Tags','pda-task-tag-label'),
+    tags,
+    actions
+  );
+
+  modal.append(head,formNode);
+  overlay.append(modal);
+  document.body.append(overlay);
+
+  const dismiss=()=>{
+    overlay.remove();
+  };
+  close.onclick=dismiss;
+  overlay.addEventListener('click',event=>{
+    if(event.target===overlay)dismiss();
+  });
+
+  formNode.onsubmit=async event=>{
+    event.preventDefault();
+    if(!formNode.reportValidity())return;
+    save.disabled=true;
+    save.textContent='Criando…';
+
+    try{
+      const result=await call(
+        'tarefaGeralCriar',
+        {
+          titulo:title.value,
+          descricao:description.value,
+          responsavel:assignee.value,
+          prioridade:priority.value,
+          prazo:due.value,
+          pessoaId:person.id,
+          tags:Array.from(selectedTags)
+        },
+        true
+      );
+
+      dismiss();
+      status(result.mensagem||'Tarefa criada.');
+      if(typeof onSaved==='function'){
+        await onSaved(result);
+      }
+    }catch(e){
+      save.disabled=false;
+      save.textContent='Criar tarefa';
+      throw e;
+    }
+  };
+ }
+
+ async function deletePersonFromUi_(person,onDeleted){
+  if(!can('administracao')){
+    throw new Error('Somente a Administração pode excluir cadastros.');
+  }
+
+  const preview=await call(
+    'pessoaExcluirPreview',
+    {id:person.id}
+  );
+
+  const summary=[
+    preview.tarefas+' tarefa(s)',
+    preview.processos+' processo(s)',
+    preview.atendimentos+' atendimento(s)',
+    preview.documentos+' documento(s)'
+  ].join(' · ');
+
+  if(!window.confirm(
+    'Excluir definitivamente o cadastro de '+person.nome+'?\n\n'+
+    summary+
+    '\n\nA pasta da pessoa e todos os vínculos relacionados também serão apagados.'
+  ))return;
+
+  let confirmarVinculos=false;
+
+  if(preview.exigeConfirmacaoReforcada){
+    confirmarVinculos=window.confirm(
+      'Este cadastro possui processos ou tarefas vinculadas.\n\n'+
+      'Confirmar também a exclusão desses vínculos?'
+    );
+    if(!confirmarVinculos)return;
+  }
+
+  const typed=window.prompt(
+    'Para concluir, digite o CPF do cadastro:\n'+
+    (person.cpfFormatado||person.cpf||'')
+  );
+
+  if(
+    String(typed||'').replace(/\D/g,'')!==
+    String(person.cpf||'').replace(/\D/g,'')
+  ){
+    status('Exclusão cancelada: o CPF não confere.',true);
+    return;
+  }
+
+  const result=await call(
+    'pessoaExcluirDefinitivo',
+    {
+      id:person.id,
+      versao:person.versao,
+      confirmar:true,
+      confirmarVinculos
+    },
+    true
+  );
+
+  status(result.mensagem||'Cadastro excluído definitivamente.');
+  closePersonDrawer_();
+
+  if(typeof onDeleted==='function'){
+    await onDeleted(result);
+  }
+ }
+
+ function drawerInfoGrid_(person){
+  const grid=el('div',undefined,'pda-person-info-grid');
+  [
+    ['CPF',person.cpfFormatado||cpfDrawer_(person.cpf)],
+    ['Município',[person.cidade,person.uf].filter(Boolean).join(' / ')],
+    ['Jurisdição',person.jurisdicao||'—'],
+    ['Entidade',person.entidade||person.outraEntidade||'—'],
+    ['Telefone',person.telefone||'—'],
+    ['E-mail',person.email||'—'],
+    ['Parcelas não recebidas',person.parcelasNaoRecebidas||'0'],
+    ['Criado por',person.criadoPorNome||person.criadoPor||'—']
+  ].forEach(([label,value])=>{
+    const item=el('div',undefined,'pda-person-info-item');
+    item.append(el('span',label),el('strong',String(value||'—')));
+    grid.append(item);
+  });
+  return grid;
+ }
+
+ function drawerCounters_(person){
+  const row=el('div',undefined,'pda-person-counters');
+  [
+    ['Documentos',person.documentos||0],
+    ['Processos',person.processos||0],
+    ['Tarefas abertas',person.tarefasAbertas||0],
+    ['Tarefas concluídas',person.tarefasConcluidas||0]
+  ].forEach(([label,value])=>{
+    const item=el('div',undefined,'pda-person-counter');
+    item.append(el('strong',String(value)),el('span',label));
+    row.append(item);
+  });
+  return row;
+ }
+
+ function drawerTable_(columns,rows){
+  const wrap=el('div',undefined,'scroll pda-drawer-table');
+  const t=el('table');
+  const head=el('tr');
+  columns.forEach(column=>head.append(el('th',column.label)));
+  const thead=el('thead');
+  thead.append(head);
+  const body=el('tbody');
+  rows.forEach(row=>{
+    const tr=el('tr');
+    columns.forEach(column=>{
+      const value=typeof column.value==='function'
+        ?column.value(row)
+        :(row[column.key]||'—');
+      tr.append(el('td',String(value===undefined?'—':value)));
+    });
+    body.append(tr);
+  });
+  t.append(thead,body);
+  wrap.append(t);
+  return wrap;
+ }
+
+ function drawerPagedSection_(config){
+  const box=el('div',undefined,'pda-drawer-paged');
+  const list=el('div',undefined,'pda-drawer-paged-content');
+  const more=button('Carregar mais',async()=>{
+    more.disabled=true;
+    more.textContent='Carregando…';
+    try{
+      const next=await config.fetch(config.rows.length);
+      config.rows.push(...(next[config.key]||[]));
+      config.hasMore=!!next.hasMore;
+      render();
+    }finally{
+      more.disabled=false;
+      more.textContent='Carregar mais';
+    }
+  },true);
+
+  const render=()=>{
+    list.replaceChildren();
+    if(!config.rows.length){
+      list.append(el('p',config.empty||'Nenhum registro.','hint'));
+    }else{
+      list.append(config.render(config.rows));
+    }
+    more.hidden=!config.hasMore;
+  };
+
+  box.append(list,more);
+  render();
+  return box;
+ }
+
+ async function openPersonDrawer_(id,options={}){
+  closePersonDrawer_();
+
+  const overlay=el('div',undefined,'pda-drawer-overlay');
+  const drawer=el('aside',undefined,'pda-person-drawer');
+  drawer.setAttribute('aria-label','Ficha do cadastro');
+  overlay.append(drawer);
+  activePersonDrawer=overlay;
+  document.body.append(overlay);
+  document.body.classList.add('pda-drawer-open');
+
+  const head=el('div',undefined,'pda-person-drawer-head');
+  const headCopy=el('div');
+  headCopy.append(
+    el('span','CADASTRO','pda-drawer-kicker'),
+    el('h2',options.summary&&options.summary.nome||'Carregando cadastro…')
+  );
+  const close=el('button','×','pda-drawer-close');
+  close.type='button';
+  close.onclick=closePersonDrawer_;
+  head.append(headCopy,close);
+
+  const actions=el('div',undefined,'pda-person-drawer-actions');
+  const body=el('div',undefined,'pda-person-drawer-body');
+  const summaryBox=el('div',undefined,'pda-person-summary');
+  const fullArea=el('div',undefined,'pda-person-full');
+  drawer.append(head,actions,body);
+  body.append(summaryBox,fullArea);
+
+  overlay.addEventListener('click',event=>{
+    if(event.target===overlay)closePersonDrawer_();
+  });
+
+  let person=options.summary||{id};
+  const tabCache=new Map();
+
+  const renderSummary=()=>{
+    headCopy.querySelector('h2').textContent=person.nome||'Cadastro';
+    summaryBox.replaceChildren(
+      drawerCounters_(person),
+      drawerInfoGrid_(person)
+    );
+  };
+
+  renderSummary();
+
+  const openFull=button(
+    'Abrir ficha em tela cheia',
+    ()=>{
+      closePersonDrawer_();
+      return go('ACOMP',id);
+    },
+    true
+  );
+
+  const createTask=button(
+    '+ Nova tarefa',
+    ()=>createTaskForPerson_(person,async()=>{
+      tabCache.delete('tarefas');
+      try{
+        person=await call('pessoaResumo',{id});
+        renderSummary();
+      }catch(e){}
+    })
+  );
+  createTask.hidden=!can('gestao_distribuicao');
+
+  const deleteButton=button(
+    'Excluir',
+    ()=>deletePersonFromUi_(person,options.onDeleted),
+    true
+  );
+  deleteButton.classList.add('danger');
+  deleteButton.hidden=!can('administracao');
+
+  const loadFull=button(
+    'Carregar ficha completa',
+    async()=>{
+      loadFull.disabled=true;
+      loadFull.textContent='Preparando ficha…';
+      try{
+        person=await call('pessoaFichaMeta',{id});
+        renderSummary();
+        renderTabs();
+        loadFull.remove();
+      }catch(e){
+        loadFull.disabled=false;
+        loadFull.textContent='Carregar ficha completa';
+        throw e;
+      }
+    }
+  );
+
+  actions.append(createTask,loadFull,openFull,deleteButton);
+
+  const renderTabs=()=>{
+    fullArea.replaceChildren();
+
+    const tabs=el('div',undefined,'pda-person-tabs');
+    const panel=el('div',undefined,'pda-person-tab-panel');
+
+    const definitions=[
+      ['resumo','Resumo'],
+      ['dados','Dados'],
+      ['documentos','Documentos'],
+      ['atendimentos','Atendimentos'],
+      ['processos','Processos'],
+      ['tarefas','Tarefas'],
+      ['historico','Histórico']
+    ];
+
+    const activate=async key=>{
+      tabs.querySelectorAll('button').forEach(button=>{
+        button.classList.toggle('active',button.dataset.tab===key);
+      });
+      panel.replaceChildren(el('p','Carregando…','hint'));
+
+      if(tabCache.has(key)){
+        panel.replaceChildren(tabCache.get(key));
+        return;
+      }
+
+      let node;
+
+      if(key==='resumo'){
+        node=el('div',undefined,'pda-person-tab-summary');
+        node.append(drawerInfoGrid_(person));
+      }else if(key==='dados'){
+        const data=await call('pessoa',{id});
+        node=el('div',undefined,'pda-person-data-list');
+        const fields=personFields();
+        fields.forEach(field=>{
+          const item=el('div',undefined,'pda-person-data-item');
+          let value=data[field.key];
+          if(field.type==='checkbox')value=(value===true||value==='true')?'Sim':'Não';
+          item.append(el('span',field.label),el('strong',String(value||'—')));
+          node.append(item);
+        });
+      }else if(key==='documentos'){
+        const first=await call('pessoaDocumentos',{pessoaId:id,limit:20,offset:0});
+        const config={
+          key:'documentos',
+          rows:[...(first.documentos||[])],
+          hasMore:!!first.hasMore,
+          empty:'Nenhum documento vinculado.',
+          fetch:offset=>call('pessoaDocumentos',{pessoaId:id,limit:20,offset}),
+          render:rows=>drawerTable_(
+            [
+              {label:'Documento',value:row=>row.categoria||'Documento'},
+              {label:'Arquivo',value:row=>row.nome||row.fileId||'—'},
+              {label:'Conferido',value:row=>(row.conferido===true||row.conferido==='true')?'Sim':'Não'}
+            ],
+            rows
+          )
+        };
+        node=drawerPagedSection_(config);
+      }else if(key==='atendimentos'){
+        const first=await call('pessoaAtendimentos',{pessoaId:id,limit:20,offset:0});
+        const config={
+          key:'atendimentos',
+          rows:[...(first.atendimentos||[])],
+          hasMore:!!first.hasMore,
+          empty:'Nenhum atendimento vinculado.',
+          fetch:offset=>call('pessoaAtendimentos',{pessoaId:id,limit:20,offset}),
+          render:rows=>drawerTable_(
+            [
+              {label:'Data',value:row=>String(row.criadoEm||row.alteradoEm||'').slice(0,10).split('-').reverse().join('/')},
+              {label:'Responsável',key:'responsavel'},
+              {label:'Situação',key:'situacao'}
+            ],
+            rows
+          )
+        };
+        node=drawerPagedSection_(config);
+      }else if(key==='processos'){
+        const first=await call('pessoaProcessos',{pessoaId:id,limit:20,offset:0});
+        const config={
+          key:'processos',
+          rows:[...(first.processos||[])],
+          hasMore:!!first.hasMore,
+          empty:'Nenhum processo judicial vinculado.',
+          fetch:offset=>call('pessoaProcessos',{pessoaId:id,limit:20,offset}),
+          render:rows=>drawerTable_(
+            [
+              {label:'Processo',key:'numero'},
+              {label:'Jurisdição',value:row=>row.juizo||row.jurisdicao||'—'},
+              {label:'Responsável',key:'responsavel'}
+            ],
+            rows
+          )
+        };
+        node=drawerPagedSection_(config);
+      }else if(key==='tarefas'){
+        const open=await call('tarefasPessoa',{pessoaId:id,historico:false,limit:100,offset:0});
+        node=el('div',undefined,'pda-person-task-tab');
+        const renderTasks=(rows,cls='')=>{
+          const list=el('div',undefined,'pda-person-task-list '+cls);
+          if(!rows.length){
+            list.append(el('p','Nenhuma tarefa nesta situação.','hint'));
+          }
+          rows.forEach(task=>{
+            const row=el('div',undefined,'pda-person-task-row');
+            row.append(
+              el('strong',task.titulo||task.tipoLabel||'Tarefa'),
+              el('small',[
+                task.tipoLabel,
+                task.responsavelNome||task.responsavel,
+                task.prazo?'Prazo '+String(task.prazo).split('-').reverse().join('/'):''
+              ].filter(Boolean).join(' · '))
+            );
+            list.append(row);
+          });
+          return list;
+        };
+        node.append(el('h4','Tarefas abertas ('+open.total+')'),renderTasks(open.tarefas||[]));
+
+        const historyButton=button('Consultar histórico de tarefas',async()=>{
+          historyButton.disabled=true;
+          historyButton.textContent='Carregando…';
+          try{
+            const done=await call('tarefasPessoa',{pessoaId:id,historico:true,limit:100,offset:0});
+            const section=el('div',undefined,'pda-person-task-history');
+            section.append(
+              el('h4','Concluídas ('+done.total+')'),
+              renderTasks(done.tarefas||[],'done')
+            );
+            node.append(section);
+            historyButton.remove();
+          }catch(e){
+            historyButton.disabled=false;
+            historyButton.textContent='Consultar histórico de tarefas';
+            throw e;
+          }
+        },true);
+        node.append(historyButton);
+      }else{
+        const first=await call('pessoaHistorico',{pessoaId:id,limit:30,offset:0});
+        const config={
+          key:'historico',
+          rows:[...(first.historico||[])],
+          hasMore:!!first.hasMore,
+          empty:'Nenhuma movimentação localizada.',
+          fetch:offset=>call('pessoaHistorico',{pessoaId:id,limit:30,offset}),
+          render:rows=>{
+            const list=el('div',undefined,'pda-person-history-list');
+            rows.forEach(item=>{
+              const row=el('div',undefined,'pda-person-history-row');
+              row.append(
+                el('strong',[item.entidade,item.usuario].filter(Boolean).join(' · ')),
+                el('small',item.alteradoEm||'')
+              );
+              list.append(row);
+            });
+            return list;
+          }
+        };
+        node=drawerPagedSection_(config);
+      }
+
+      tabCache.set(key,node);
+      panel.replaceChildren(node);
+    };
+
+    definitions.forEach(([key,label])=>{
+      const tab=el('button',label);
+      tab.type='button';
+      tab.dataset.tab=key;
+      tab.onclick=()=>activate(key).catch(error=>status(error.message||String(error),true));
+      tabs.append(tab);
+    });
+
+    fullArea.append(tabs,panel);
+    activate('resumo').catch(error=>status(error.message||String(error),true));
+  };
+
+  try{
+    const fresh=await call('pessoaResumo',{id});
+    if(activePersonDrawer!==overlay)return;
+    person=Object.assign({},person,fresh);
+    renderSummary();
+  }catch(e){
+    if(!options.summary){
+      summaryBox.replaceChildren(
+        el('p',e.message||String(e),'warn')
+      );
+    }
+  }
+
+  return overlay;
+ }
+
+ function prefetchPersonSummary_(id){
+  return prefetchRead_(
+    'pessoaResumo',
+    {id}
+  );
+ }
+
  function renderNavigation_(){
   if(!boot)return;
 
@@ -2891,7 +3506,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,refreshCurrent:refreshCurrentModule_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;
