@@ -1,315 +1,22 @@
 /**
- * Camada operacional V2 de tarefas, histórico, distribuição automática,
- * ranking e vínculos com cadastros.
+ * POVO DAS ÁGUAS — TAREFAS / DISTRIBUIÇÃO V2
+ * Etapa 1: regras, consultas lazy, tags, ranking, distribuição automática
+ * e exclusão administrativa em cascata.
  */
 
-function taskDatePlusDays_(value,days){
-  const base=value?new Date(value):new Date();
-  if(Number.isNaN(base.getTime()))return '';
-  base.setDate(base.getDate()+Number(days||0));
-  return Utilities.formatDate(base,PDA.tz,'yyyy-MM-dd');
-}
-
-function taskTagAdminList_(){
-  ensureGeneralTaskSchema_();
-
-  const rows=generalTaskRows_('TarefaTags');
-  const byName=new Map(
-    rows.map(row=>[
-      String(row.nome||'').toUpperCase(),
-      row
-    ])
-  );
-
-  const result=[];
-
-  DEFAULT_TASK_TAGS.forEach((tag,index)=>{
-    const key=String(tag.nome||'').toUpperCase();
-    const stored=byName.get(key);
-
-    if(stored){
-      result.push({
-        id:stored.id,
-        nome:stored.nome,
-        cor:stored.cor||tag.cor,
-        ativo:bool_(stored.ativo),
-        padrao:true
-      });
-      byName.delete(key);
-    }else{
-      result.push({
-        id:'DEFAULT_'+index,
-        nome:tag.nome,
-        cor:tag.cor,
-        ativo:true,
-        padrao:true
-      });
-    }
-  });
-
-  byName.forEach(row=>{
-    result.push({
-      id:row.id,
-      nome:row.nome,
-      cor:row.cor||'#176e7d',
-      ativo:bool_(row.ativo),
-      padrao:false
-    });
-  });
-
-  return result.sort((a,b)=>
-    String(a.nome||'').localeCompare(
-      String(b.nome||''),
-      'pt-BR',
-      {sensitivity:'base'}
-    )
-  );
-}
-
-function taskTagCatalog_(){
-  return taskTagAdminList_()
-    .filter(tag=>tag.ativo)
-    .map(tag=>({
-      id:tag.id,
-      nome:tag.nome,
-      cor:tag.cor
-    }));
-}
-
-function taskTagColorMap_(){
-  return new Map(
-    taskTagCatalog_().map(tag=>[
-      String(tag.nome||'').toUpperCase(),
-      tag.cor
-    ])
-  );
-}
-
-function taskTagSave_(ctx,q){
-  ensureGeneralTaskSchema_();
-  const nome=String(required_(q.nome,'nome da tag')).trim().toUpperCase();
-  const cor=String(q.cor||'#176e7d').trim();
-
-  if(nome.length>40)fail_('A tag deve ter no máximo 40 caracteres.');
-  if(!/^#[0-9a-fA-F]{6}$/.test(cor))fail_('Informe a cor no formato #RRGGBB.');
-
-  const existing=q.id
-    ?get_('TarefaTags',q.id)
-    :all_('TarefaTags').find(row=>String(row.nome||'').toUpperCase()===nome);
-
-  return change_(
-    ctx,
-    'TarefaTags',
-    existing?existing.id:id_('TAG',nome),
-    {
-      nome,
-      cor,
-      ativo:q.ativo===undefined?true:bool_(q.ativo)
-    },
-    existing?existing.versao:undefined
-  );
-}
-
-function taskTagDelete_(ctx,q){
-  const tag=get_('TarefaTags',required_(q.id,'tag'));
-  return remove_(ctx,'TarefaTags',tag.id,tag.versao);
-}
-
-function taskDefaultDue_(task){
-  if(task.prazo)return task.prazo;
-  if(task.tipo===DISTRIBUTION_TASK_TYPE){
-    return taskDatePlusDays_(task.criadoEm||now_(),4);
-  }
-  return '';
-}
-
-function taskMapsV2_(){
-  const users=all_('Usuarios');
-  const people=all_('Pessoas');
-  const messages=generalTaskRows_('TarefaMensagens');
-  const attachments=generalTaskRows_('TarefaAnexos');
-
-  return {
-    usersByEmail:new Map(users.map(u=>[String(u.email||'').toLowerCase(),u])),
-    peopleById:new Map(people.map(p=>[p.id,p])),
-    messageCounts:generalTaskCountMap_(messages),
-    attachmentCounts:generalTaskCountMap_(attachments),
-    tagColors:taskTagColorMap_()
-  };
-}
-
-function taskSummaryV2_(task,maps){
-  const person=maps.peopleById.get(task.pessoaId)||null;
-  const responsible=maps.usersByEmail.get(String(task.responsavel||'').toLowerCase())||null;
-  const creator=maps.usersByEmail.get(String(task.criadoPor||'').toLowerCase())||null;
-  const tags=taskTagsParse_(task.tags);
-
-  if(task.tipo===DISTRIBUTION_TASK_TYPE&&!tags.includes('PROCESSO')){
-    tags.unshift('PROCESSO');
-  }
-
-  const prazo=taskDefaultDue_(task);
-  const due=taskDueState_(Object.assign({},task,{prazo}));
-
-  return {
-    id:task.id,
-    versao:task.versao,
-    tipo:task.tipo,
-    tipoLabel:task.tipo===DISTRIBUTION_TASK_TYPE?'Distribuição processual':'Tarefa interna',
-    titulo:task.tipo===DISTRIBUTION_TASK_TYPE
-      ?'Distribuir processo — '+(person?person.nome:'Cadastro')
-      :(task.titulo||'Tarefa'),
-    descricao:task.descricao||task.observacoes||'',
-    pessoaId:task.pessoaId||'',
-    pessoa:person?person.nome:'',
-    cpf:person?person.cpf:'',
-    cidade:person?person.cidade:'',
-    processoId:task.processoId||'',
-    responsavel:task.responsavel||'',
-    responsavelNome:responsible?(responsible.nome||responsible.email):'',
-    criadoPor:task.criadoPor||'',
-    criadoPorNome:creator?(creator.nome||creator.email):'',
-    situacao:task.situacao||'',
-    prioridade:task.prioridade||(
-      task.tipo===DISTRIBUTION_TASK_TYPE?'ALTA':'NORMAL'
-    ),
-    prazo,
-    criadoEm:task.criadoEm||'',
-    atribuidaEm:task.atribuidaEm||'',
-    concluidaEm:task.concluidaEm||'',
-    jurisdicao:task.jurisdicao||(person?person.jurisdicao:''),
-    valorCausa:Number(task.valorCausa||0),
-    tags:tags.map(nome=>({
-      nome,
-      cor:maps.tagColors.get(String(nome).toUpperCase())||'#176e7d'
-    })),
-    mensagens:Number(maps.messageCounts.get(task.id)||0),
-    anexos:Number(maps.attachmentCounts.get(task.id)||0),
-    vencimentoEstado:due.estado,
-    horasRestantes:due.horas,
-    modoDistribuicao:task.modoDistribuicao||'MANUAL',
-    dataDistribuicao:task.atribuidaEm||task.criadoEm||''
-  };
-}
-
-function taskFilterV2_(summary,q){
-  q=q||{};
-
-  if(q.pessoaId&&summary.pessoaId!==q.pessoaId)return false;
-  if(q.responsavel&&String(summary.responsavel).toLowerCase()!==String(q.responsavel).toLowerCase())return false;
-  if(q.tipo&&summary.tipo!==q.tipo)return false;
-
-  const de=String(q.de||'');
-  const ate=String(q.ate||'');
-  const ref=String(summary.dataDistribuicao||summary.criadoEm||'').slice(0,10);
-
-  if(de&&ref<de)return false;
-  if(ate&&ref>ate)return false;
-
-  const prazoDe=String(q.prazoDe||'');
-  const prazoAte=String(q.prazoAte||'');
-
-  if(prazoDe&&String(summary.prazo||'')<prazoDe)return false;
-  if(prazoAte&&String(summary.prazo||'')>prazoAte)return false;
-
-  const busca=String(q.busca||'').trim().toLowerCase();
-  if(busca){
-    const hay=[
-      summary.titulo,
-      summary.descricao,
-      summary.pessoa,
-      summary.cpf,
-      summary.responsavelNome,
-      summary.processoId,
-      summary.jurisdicao,
-      ...(summary.tags||[]).map(t=>t.nome)
-    ].join(' ').toLowerCase();
-
-    if(!hay.includes(busca))return false;
-  }
-
-  const tag=String(q.tag||'').trim().toUpperCase();
-  if(tag&&!(summary.tags||[]).some(t=>String(t.nome).toUpperCase()===tag))return false;
-
-  return true;
-}
-
-function tasksCollectionV2_(q,mode){
-  const maps=taskMapsV2_();
-  const email=String(identity_()||'').toLowerCase();
-
-  let tasks=all_('Tarefas')
-    .filter(task=>{
-      const done=task.situacao===DISTRIBUTION_TASK_DONE||task.situacao===GENERAL_TASK_DONE;
-      if(mode==='open'&&done)return false;
-      if(mode==='history'&&!done)return false;
-      if(mode==='mine'&&String(task.responsavel||'').toLowerCase()!==email)return false;
-      if(mode==='mineHistory'&&(!done||String(task.responsavel||'').toLowerCase()!==email))return false;
-      return true;
-    })
-    .map(task=>taskSummaryV2_(task,maps))
-    .filter(task=>taskFilterV2_(task,q));
-
-  tasks.sort((a,b)=>{
-    if(mode==='history'||mode==='mineHistory'){
-      return String(b.concluidaEm||b.criadoEm).localeCompare(String(a.concluidaEm||a.criadoEm));
-    }
-    const aDue=a.prazo||'9999-12-31';
-    const bDue=b.prazo||'9999-12-31';
-    if(aDue!==bDue)return aDue.localeCompare(bDue);
-    return String(b.dataDistribuicao).localeCompare(String(a.dataDistribuicao));
-  });
-
-  return tasks.slice(0,Math.min(500,Math.max(1,Number(q&&q.limit||500))));
-}
-
-function tasksManagementOpenV2_(q){
-  const usuariosTarefas=generalTaskAssignableUsers_();
-  const usuariosDistribuicao=distributionUsers_();
-
-  return {
-    tarefas:tasksCollectionV2_(q,'open'),
-    usuarios:usuariosDistribuicao,
-    usuariosDistribuicao,
-    usuariosTarefas,
-    tags:taskTagCatalog_(),
-    distribuicaoAutomatica:bool_(cfg_().distribuicaoAutomatica)
-  };
-}
-
-function tasksHistoryV2_(q){
-  return {
-    tarefas:tasksCollectionV2_(q,'history'),
-    tags:taskTagCatalog_()
-  };
-}
-
-function myTasksOpenV2_(q){
-  return {
-    tarefas:tasksCollectionV2_(q,'mine'),
-    tags:taskTagCatalog_()
-  };
-}
-
-function myTasksHistoryV2_(q){
-  return {
-    tarefas:tasksCollectionV2_(q,'mineHistory'),
-    tags:taskTagCatalog_()
-  };
-}
-
-function personTasksV2_(q){
-  required_(q.pessoaId,'pessoa');
-  get_('Pessoas',q.pessoaId);
-  const mode=bool_(q.historico)?'history':'open';
-  return {
-    tarefas:tasksCollectionV2_(Object.assign({},q,{pessoaId:q.pessoaId}),mode),
-    tags:taskTagCatalog_()
-  };
+function taskDatePlusDays_(base,days){
+  const parsed=new Date(base||now_());
+  if(Number.isNaN(parsed.getTime()))return '';
+  parsed.setUTCDate(parsed.getUTCDate()+Number(days||0));
+  return Utilities.formatDate(parsed,PDA.tz,'yyyy-MM-dd');
 }
 
 function distributionAutoEnabled_(){
-  return bool_(cfg_().distribuicaoAutomatica);
+  try{
+    return bool_(cfg_().distribuicaoAutomatica);
+  }catch(e){
+    return false;
+  }
 }
 
 function distributionAutoAssignee_(tasks){
@@ -318,32 +25,40 @@ function distributionAutoAssignee_(tasks){
 
   const open=(tasks||all_('Tarefas')).filter(task=>
     task.tipo===DISTRIBUTION_TASK_TYPE&&
-    task.situacao!==DISTRIBUTION_TASK_DONE&&
-    String(task.responsavel||'').trim()
+    task.situacao!==DISTRIBUTION_TASK_DONE
   );
 
-  const metrics=users.map(user=>{
-    const email=String(user.email||'').toLowerCase();
-    const own=open.filter(task=>String(task.responsavel||'').toLowerCase()===email);
-    const last=own
-      .map(task=>String(task.atribuidaEm||task.criadoEm||''))
-      .sort()
-      .pop()||'';
+  const stats=new Map(
+    users.map(user=>[
+      String(user.email||'').toLowerCase(),
+      {
+        user,
+        abertas:0,
+        ultima:''
+      }
+    ])
+  );
 
-    return {
-      user,
-      abertas:own.length,
-      ultima:last
-    };
+  open.forEach(task=>{
+    const email=String(task.responsavel||'').toLowerCase();
+    const stat=stats.get(email);
+    if(!stat)return;
+    stat.abertas++;
+    const when=String(task.atribuidaEm||task.criadoEm||'');
+    if(when>stat.ultima)stat.ultima=when;
   });
 
-  metrics.sort((a,b)=>
-    a.abertas-b.abertas||
-    String(a.ultima||'').localeCompare(String(b.ultima||''))||
-    String(a.user.nome||a.user.email).localeCompare(String(b.user.nome||b.user.email),'pt-BR')
-  );
-
-  return metrics[0].user;
+  return Array.from(stats.values())
+    .sort((a,b)=>{
+      if(a.abertas!==b.abertas)return a.abertas-b.abertas;
+      if(a.ultima!==b.ultima){
+        if(!a.ultima)return -1;
+        if(!b.ultima)return 1;
+        return a.ultima.localeCompare(b.ultima);
+      }
+      return String(a.user.nome||a.user.email)
+        .localeCompare(String(b.user.nome||b.user.email),'pt-BR',{sensitivity:'base'});
+    })[0].user;
 }
 
 function distributionAutoSave_(ctx,q){
@@ -358,22 +73,23 @@ function distributionAutoSave_(ctx,q){
 }
 
 function distributionAutoRun_(ctx){
-  const users=distributionUsers_();
-  if(!users.length)fail_('Nenhum usuário está habilitado para distribuir processos.');
+  if(!distributionAutoEnabled_()){
+    fail_('Ative a distribuição automática antes de distribuir as tarefas pendentes.');
+  }
 
-  const allTasks=all_('Tarefas');
-  const pending=allTasks
+  const staged=all_('Tarefas').map(task=>Object.assign({},task));
+  const pending=staged
     .filter(task=>
       task.tipo===DISTRIBUTION_TASK_TYPE&&
-      task.situacao===DISTRIBUTION_TASK_PENDING
+      task.situacao===DISTRIBUTION_TASK_PENDING&&
+      !String(task.responsavel||'').trim()
     )
     .sort((a,b)=>String(a.criadoEm||'').localeCompare(String(b.criadoEm||'')));
 
-  const shadow=allTasks.map(task=>Object.assign({},task));
-  const assigned=[];
+  let assigned=0;
 
   pending.forEach(task=>{
-    const user=distributionAutoAssignee_(shadow);
+    const user=distributionAutoAssignee_(staged);
     if(!user)return;
 
     const updated=change_(
@@ -384,215 +100,456 @@ function distributionAutoRun_(ctx){
         responsavel:String(user.email||'').toLowerCase(),
         situacao:DISTRIBUTION_TASK_ASSIGNED,
         atribuidaEm:now_(),
-        prazo:taskDefaultDue_(task),
-        prioridade:task.prioridade||'ALTA',
-        tags:task.tags||JSON.stringify(['PROCESSO']),
-        modoDistribuicao:'AUTOMATICA'
+        modoDistribuicao:'AUTOMATICA',
+        observacoes:String(task.observacoes||'')+
+          (task.observacoes?'\n':'')+
+          'Atribuída automaticamente por equilíbrio de carga.'
       }),
       task.versao
     );
 
-    const shadowIndex=shadow.findIndex(item=>item.id===task.id);
-    if(shadowIndex>=0)shadow[shadowIndex]=updated;
-
-    assigned.push({
-      tarefaId:task.id,
-      pessoaId:task.pessoaId,
-      responsavel:user.email,
-      responsavelNome:user.nome||user.email
-    });
+    const index=staged.findIndex(item=>item.id===task.id);
+    if(index>=0)staged[index]=updated;
+    assigned++;
   });
 
   return {
-    quantidade:assigned.length,
-    atribuicoes:assigned,
-    mensagem:assigned.length
-      ?assigned.length+' tarefa(s) distribuída(s) automaticamente.'
-      :'Não havia tarefas sem responsável.'
+    atribuidas:assigned,
+    mensagem:assigned
+      ?assigned+' tarefa(s) distribuída(s) automaticamente.'
+      :'Não havia tarefas pendentes para distribuição automática.'
   };
+}
+
+function taskTagCatalog_(){
+  ensureGeneralTaskSchema_();
+
+  const persisted=generalTaskRows_('TarefaTags')
+    .filter(tag=>bool_(tag.ativo));
+
+  const byName=new Map();
+
+  DEFAULT_TASK_TAGS.forEach(tag=>{
+    byName.set(String(tag.nome).toUpperCase(),{
+      id:'DEFAULT_'+hash_(tag.nome).slice(0,10),
+      nome:tag.nome,
+      cor:tag.cor,
+      ativo:true,
+      padrao:true
+    });
+  });
+
+  persisted.forEach(tag=>{
+    const name=String(tag.nome||'').trim();
+    if(!name)return;
+    byName.set(name.toUpperCase(),{
+      id:tag.id,
+      nome:name,
+      cor:String(tag.cor||'#176e7d'),
+      ativo:bool_(tag.ativo),
+      padrao:false
+    });
+  });
+
+  return Array.from(byName.values())
+    .sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
+}
+
+function taskTagAdminList_(){
+  const persisted=generalTaskRows_('TarefaTags');
+  const catalog=taskTagCatalog_();
+  const seen=new Set(catalog.map(tag=>String(tag.nome).toUpperCase()));
+
+  persisted
+    .filter(tag=>!bool_(tag.ativo)&&!seen.has(String(tag.nome||'').toUpperCase()))
+    .forEach(tag=>{
+      catalog.push({
+        id:tag.id,
+        nome:tag.nome,
+        cor:tag.cor||'#176e7d',
+        ativo:false,
+        padrao:false
+      });
+    });
+
+  return catalog;
+}
+
+function taskTagColor_(name){
+  const wanted=String(name||'').toUpperCase();
+  const tag=taskTagCatalog_().find(item=>String(item.nome||'').toUpperCase()===wanted);
+  return tag?tag.cor:'#176e7d';
+}
+
+function taskTagsDecorated_(value,colorMap){
+  return taskTagsParse_(value).map(nome=>({
+    nome,
+    cor:colorMap
+      ?(colorMap.get(String(nome).toUpperCase())||'#176e7d')
+      :taskTagColor_(nome)
+  }));
+}
+
+function taskTagSave_(ctx,q){
+  ensureGeneralTaskSchema_();
+
+  const nome=String(required_(q.nome,'nome da tag')).trim().slice(0,40);
+  const cor=String(q.cor||'#176e7d').trim();
+
+  if(!/^#[0-9a-fA-F]{6}$/.test(cor)){
+    fail_('Informe a cor da tag no formato hexadecimal #RRGGBB.');
+  }
+
+  const existing=q.id
+    ?generalTaskRows_('TarefaTags').find(tag=>tag.id===q.id)
+    :generalTaskRows_('TarefaTags').find(tag=>
+        String(tag.nome||'').toUpperCase()===nome.toUpperCase()
+      );
+
+  if(existing){
+    return {
+      tag:change_(ctx,'TarefaTags',existing.id,{
+        nome,
+        cor,
+        ativo:q.ativo===undefined?true:bool_(q.ativo)
+      },existing.versao),
+      mensagem:'Tag atualizada.'
+    };
+  }
+
+  return {
+    tag:change_(ctx,'TarefaTags',id_('TAG',ctx.op),{
+      nome,
+      cor,
+      ativo:q.ativo===undefined?true:bool_(q.ativo)
+    }),
+    mensagem:'Tag criada.'
+  };
+}
+
+function taskTagDelete_(ctx,q){
+  const tag=get_('TarefaTags',required_(q.id,'tag'));
+  remove_(ctx,'TarefaTags',tag.id,tag.versao);
+  return {ok:true,mensagem:'Tag excluída.'};
+}
+
+function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap){
+  let base;
+
+  if(task.tipo===DISTRIBUTION_TASK_TYPE){
+    base=distributionTaskSummary_(task,peopleById,usersByEmail);
+    base.tipo=DISTRIBUTION_TASK_TYPE;
+    base.tipoLabel='Distribuição processual';
+    base.titulo=task.titulo||'Distribuir processo';
+    base.descricao=task.descricao||'';
+    base.criadoPor=task.criadoPor||'';
+    base.criadoPorNome=generalTaskDisplayUser_(task.criadoPor,usersByEmail);
+    base.prioridade=task.prioridade||'ALTA';
+    base.prazo=task.prazo||'';
+    base.tags=taskTagsDecorated_(task.tags||JSON.stringify(['PROCESSO']),tagColorMap);
+    base.modoDistribuicao=task.modoDistribuicao||'MANUAL';
+    base.mensagens=Number(messageCounts.get(task.id)||0);
+    base.anexos=Number(attachmentCounts.get(task.id)||0);
+  }else{
+    base=generalTaskSummary_(task,usersByEmail,messageCounts,attachmentCounts);
+    base.tipoLabel='Tarefa interna';
+    base.tags=taskTagsDecorated_(task.tags,tagColorMap);
+  }
+
+  const due=taskDueState_(task);
+  base.vencimentoEstado=due.estado;
+  base.horasRestantes=due.horas;
+  base.dataDistribuicao=task.atribuidaEm||task.criadoEm||'';
+
+  return base;
+}
+
+function tasksCollectionV2_(q,mode){
+  q=q||{};
+
+  const people=all_('Pessoas');
+  const users=all_('Usuarios');
+  const peopleById=new Map(people.map(p=>[p.id,p]));
+  const usersByEmail=new Map(users.map(u=>[String(u.email||'').toLowerCase(),u]));
+  const messageCounts=generalTaskCountMap_(generalTaskRows_('TarefaMensagens'));
+  const attachmentCounts=generalTaskCountMap_(generalTaskRows_('TarefaAnexos'));
+  const tagCatalog=taskTagCatalog_();
+  const tagColorMap=new Map(
+    tagCatalog.map(tag=>[
+      String(tag.nome||'').toUpperCase(),
+      tag.cor||'#176e7d'
+    ])
+  );
+
+  const isDone=task=>
+    task.situacao===GENERAL_TASK_DONE||
+    task.situacao===DISTRIBUTION_TASK_DONE;
+
+  let rows=all_('Tarefas')
+    .filter(task=>{
+      if(mode==='open'&&isDone(task))return false;
+      if(mode==='history'&&!isDone(task))return false;
+      if(q.pessoaId&&task.pessoaId!==q.pessoaId)return false;
+      if(q.responsavel&&String(task.responsavel||'').toLowerCase()!==String(q.responsavel).toLowerCase())return false;
+      if(q.tipo&&task.tipo!==q.tipo)return false;
+
+      const assigned=String(task.atribuidaEm||task.criadoEm||'').slice(0,10);
+      const due=String(task.prazo||'').slice(0,10);
+      if(q.atribuidaDe&&assigned<q.atribuidaDe)return false;
+      if(q.atribuidaAte&&assigned>q.atribuidaAte)return false;
+      if(q.prazoDe&&due<q.prazoDe)return false;
+      if(q.prazoAte&&due>q.prazoAte)return false;
+      return true;
+    })
+    .map(task=>taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCounts,tagColorMap));
+
+  const term=String(q.busca||'').trim().toLowerCase();
+  if(term){
+    rows=rows.filter(task=>[
+      task.titulo,task.descricao,task.pessoa,task.cpf,task.jurisdicao,
+      task.responsavelNome,task.criadoPorNome,
+      ...(task.tags||[]).map(tag=>tag.nome||tag)
+    ].join(' ').toLowerCase().includes(term));
+  }
+
+  rows.sort((a,b)=>{
+    if(mode==='history'){
+      return String(b.concluidaEm||b.alteradoEm||'')
+        .localeCompare(String(a.concluidaEm||a.alteradoEm||''));
+    }
+
+    const weight={VENCIDA:0,ATE_24H:1,ATE_96H:2,NORMAL:3,SEM_PRAZO:4};
+    const aw=weight[a.vencimentoEstado]??5;
+    const bw=weight[b.vencimentoEstado]??5;
+    if(aw!==bw)return aw-bw;
+    return String(a.prazo||'9999-12-31').localeCompare(String(b.prazo||'9999-12-31'));
+  });
+
+  const offset=Math.max(0,Number(q.offset)||0);
+  const limit=Math.min(500,Math.max(1,Number(q.limit)||200));
+  const total=rows.length;
+
+  return {
+    tarefas:rows.slice(offset,offset+limit),
+    total,
+    offset,
+    limit,
+    hasMore:offset+limit<total
+  };
+}
+
+function tasksManagementOpenV2_(q){
+  const result=tasksCollectionV2_(q,'open');
+  const tasks=result.tarefas;
+
+  return Object.assign({},result,{
+    usuariosTarefas:generalTaskAssignableUsers_(),
+    usuariosDistribuicao:distributionUsers_(),
+    tags:taskTagCatalog_(),
+    distribuicaoAutomatica:distributionAutoEnabled_(),
+    indicadores:{
+      totalAbertas:result.total,
+      geraisAbertas:tasks.filter(task=>task.tipo===GENERAL_TASK_TYPE).length,
+      distribuicoesAbertas:tasks.filter(task=>task.tipo===DISTRIBUTION_TASK_TYPE).length,
+      semResponsavel:tasks.filter(task=>task.tipo===DISTRIBUTION_TASK_TYPE&&!task.responsavel).length,
+      ate96h:tasks.filter(task=>['ATE_96H','ATE_24H','VENCIDA'].includes(task.vencimentoEstado)).length
+    }
+  });
+}
+
+function tasksHistoryV2_(q){
+  const result=tasksCollectionV2_(q,'history');
+  return Object.assign({},result,{
+    usuariosTarefas:generalTaskAssignableUsers_(),
+    tags:taskTagCatalog_()
+  });
+}
+
+function myTasksOpenV2_(q){
+  q=Object.assign({},q||{},{
+    responsavel:String(identity_()||'').toLowerCase()
+  });
+  const result=tasksCollectionV2_(q,'open');
+  return Object.assign({},result,{tags:taskTagCatalog_()});
+}
+
+function myTasksHistoryV2_(q){
+  q=Object.assign({},q||{},{
+    responsavel:String(identity_()||'').toLowerCase()
+  });
+  const result=tasksCollectionV2_(q,'history');
+  return Object.assign({},result,{tags:taskTagCatalog_()});
+}
+
+function personTasksV2_(q){
+  const pessoaId=String(required_(q.pessoaId,'pessoa')).trim();
+  get_('Pessoas',pessoaId);
+  const mode=bool_(q.historico)?'history':'open';
+  return Object.assign(
+    {},
+    tasksCollectionV2_(Object.assign({},q,{pessoaId}),mode),
+    {tags:taskTagCatalog_()}
+  );
 }
 
 function distributionRankingAllowed_(){
   const user=activeUser_();
-  const funcao=String(user.funcao||'').trim().toLowerCase();
+  const role=String(user.perfil||'').toUpperCase();
+  const functionName=String(user.funcao||'').trim().toLowerCase();
 
-  return (
-    user.perfil==='ADMIN'||
-    funcao==='professor'||
-    funcao==='residente'
-  );
+  if(
+    role==='ADMIN'||
+    role==='PROFESSOR_RESIDENTE'||
+    functionName==='professor'||
+    functionName==='residente'
+  ){
+    return user;
+  }
+
+  fail_('Ranking disponível somente para Residente, Professor ou Administrador.');
 }
 
 function distributionRanking_(q){
-  if(!distributionRankingAllowed_()){
-    fail_('Ranking disponível somente para Residente, Professor ou Administrador.');
-  }
+  distributionRankingAllowed_();
+  q=q||{};
 
-  const inicio=String(q&&q.inicio||'');
-  const fim=String(q&&q.fim||'');
-  const within=value=>{
-    const date=String(value||'').slice(0,10);
-    if(!date)return false;
-    return (!inicio||date>=inicio)&&(!fim||date<=fim);
+  const from=String(q.de||q.inicio||'');
+  const to=String(q.ate||q.fim||'');
+
+  const inRange=value=>{
+    const day=String(value||'').slice(0,10);
+    if(!day)return false;
+    if(from&&day<from)return false;
+    if(to&&day>to)return false;
+    return true;
   };
 
-  const users=all_('Usuarios').filter(user=>bool_(user.ativo));
-  const byEmail=new Map(users.map(u=>[String(u.email||'').toLowerCase(),u]));
-  const byId=new Map(users.map(u=>[u.id,u]));
+  const users=all_('Usuarios')
+    .filter(user=>bool_(user.ativo));
 
-  const rows=new Map();
-  const ensure=user=>{
-    if(!user)return null;
-    if(!rows.has(user.id)){
-      rows.set(user.id,{
-        usuarioId:user.id,
-        nome:user.nome||user.email,
-        funcao:user.funcao||'',
-        email:user.email,
-        cadastros:0,
-        tarefasConcluidas:0,
-        processosDistribuidos:0,
-        logins:0,
-        mediaProcessosPorLogin:0,
-        total:0
-      });
-    }
-    return rows.get(user.id);
-  };
+  const sessions=all_('Sessoes');
+  const people=all_('Pessoas');
+  const tasks=all_('Tarefas');
+  const processes=all_('Processos');
 
-  users.forEach(ensure);
+  const rows=users.map(user=>{
+    const email=String(user.email||'').toLowerCase();
+    const userSessions=sessions.filter(session=>
+      session.usuarioId===user.id&&
+      (!from&&!to||inRange(session.criadoEm))
+    ).length;
 
-  all_('Pessoas').filter(p=>within(p.criadoEm)).forEach(p=>{
-    const user=byEmail.get(String(p.criadoPor||p.usuario||'').toLowerCase());
-    const row=ensure(user);
-    if(row)row.cadastros++;
+    const cadastros=people.filter(person=>
+      String(person.criadoPor||person.usuario||'').toLowerCase()===email&&
+      (!from&&!to||inRange(person.criadoEm))
+    ).length;
+
+    const tarefasConcluidas=tasks.filter(task=>
+      String(task.responsavel||'').toLowerCase()===email&&
+      (
+        task.situacao===GENERAL_TASK_DONE||
+        task.situacao===DISTRIBUTION_TASK_DONE
+      )&&
+      (!from&&!to||inRange(task.concluidaEm))
+    ).length;
+
+    const processosDistribuidos=processes.filter(process=>
+      String(process.responsavel||'').toLowerCase()===email&&
+      (!from&&!to||inRange(process.distribuidoEm||process.criadoEm))
+    ).length;
+
+    return {
+      email,
+      nome:user.nome||user.email,
+      funcao:user.funcao||user.perfil||'',
+      cadastros,
+      tarefasConcluidas,
+      processosDistribuidos,
+      logins:userSessions,
+      mediaProcessosPorLogin:userSessions
+        ?processosDistribuidos/userSessions
+        :0
+    };
   });
 
-  all_('Tarefas')
-    .filter(task=>
-      task.situacao===DISTRIBUTION_TASK_DONE||task.situacao===GENERAL_TASK_DONE
-    )
-    .filter(task=>within(task.concluidaEm))
-    .forEach(task=>{
-      const user=byEmail.get(String(task.responsavel||'').toLowerCase());
-      const row=ensure(user);
-      if(row)row.tarefasConcluidas++;
+  const rankBy=(key,desc=true)=>{
+    const ordered=rows.slice().sort((a,b)=>{
+      const av=Number(a[key]||0),bv=Number(b[key]||0);
+      if(av!==bv)return desc?bv-av:av-bv;
+      return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'});
     });
+    let last=null,position=0;
+    return new Map(ordered.map((row,index)=>{
+      const value=Number(row[key]||0);
+      if(last===null||value!==last)position=index+1;
+      last=value;
+      return [row.email,position];
+    }));
+  };
 
-  all_('Processos').filter(proc=>within(proc.distribuidoEm)).forEach(proc=>{
-    const user=byEmail.get(String(proc.responsavel||'').toLowerCase());
-    const row=ensure(user);
-    if(row)row.processosDistribuidos++;
+  const rankCad=rankBy('cadastros');
+  const rankTasks=rankBy('tarefasConcluidas');
+  const rankProc=rankBy('processosDistribuidos');
+  const rankAvg=rankBy('mediaProcessosPorLogin');
+
+  rows.forEach(row=>{
+    row.rankCadastros=rankCad.get(row.email);
+    row.rankTarefas=rankTasks.get(row.email);
+    row.rankProcessos=rankProc.get(row.email);
+    row.rankMedia=rankAvg.get(row.email);
+    row.posicao=row.rankProcessos;
   });
 
-  all_('Sessoes').filter(session=>within(session.criadoEm)).forEach(session=>{
-    const user=byId.get(session.usuarioId);
-    const row=ensure(user);
-    if(row)row.logins++;
-  });
-
-  const result=[...rows.values()].map(row=>{
-    row.mediaProcessosPorLogin=row.logins
-      ?Math.round((row.processosDistribuidos/row.logins)*100)/100
-      :0;
-    row.total=row.cadastros+row.tarefasConcluidas+row.processosDistribuidos;
-    return row;
-  }).filter(row=>row.total||row.logins);
-
-  result.sort((a,b)=>
-    b.total-a.total||
-    b.processosDistribuidos-a.processosDistribuidos||
-    b.tarefasConcluidas-a.tarefasConcluidas||
-    String(a.nome).localeCompare(String(b.nome),'pt-BR')
+  rows.sort((a,b)=>
+    a.rankProcessos-b.rankProcessos||
+    a.rankTarefas-b.rankTarefas||
+    a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'})
   );
 
-  result.forEach((row,index)=>row.posicao=index+1);
-
   return {
-    inicio,
-    fim,
-    linhas:result
+    de:from,
+    ate:to,
+    inicio:from,
+    fim:to,
+    linhas:rows
   };
 }
 
 function personDeletePreview_(q){
-  const person=get_('Pessoas',required_(q.id,'cadastro'));
-  const tasks=all_('Tarefas').filter(t=>t.pessoaId===person.id);
-  const processes=all_('Processos').filter(p=>p.pessoaId===person.id);
-  const attendances=all_('Atendimentos').filter(a=>a.pessoaId===person.id);
-  const attendanceIds=new Set(attendances.map(a=>a.id));
-  const owner=personOwnerKey_(person.id);
-  const docs=all_('Documentos').filter(d=>d.atendimentoId===owner||attendanceIds.has(d.atendimentoId));
+  const person=get_('Pessoas',required_(q.id,'pessoa'));
+  const attendance=all_('Atendimentos').filter(row=>row.pessoaId===person.id);
+  const attendanceIds=new Set(attendance.map(row=>row.id));
+
+  const documents=all_('Documentos').filter(row=>
+    row.atendimentoId===personOwnerKey_(person.id)||
+    attendanceIds.has(row.atendimentoId)
+  );
+
+  const tasks=all_('Tarefas').filter(row=>row.pessoaId===person.id);
+  const processes=all_('Processos').filter(row=>row.pessoaId===person.id);
 
   return {
-    pessoa:{
-      id:person.id,
-      versao:person.versao,
-      nome:person.nome,
-      cpf:person.cpf
-    },
+    id:person.id,
+    nome:person.nome,
+    cpf:person.cpf,
+    atendimentos:attendance.length,
+    documentos:documents.length,
     tarefas:tasks.length,
     processos:processes.length,
-    atendimentos:attendances.length,
-    documentos:docs.length,
     exigeConfirmacaoReforcada:!!(tasks.length||processes.length)
   };
 }
 
-function personDeleteCascade_(ctx,q){
-  ctx.redactDeletionAudit=true;
-
-  const preview=personDeletePreview_(q);
-  const person=get_('Pessoas',preview.pessoa.id);
-
-  if(Number(q.versao)!==person.versao){
-    fail_('CONFLITO: o cadastro mudou. Reabra a ficha antes de excluir.');
-  }
-
-  if(!bool_(q.confirmar)){
-    fail_('Confirme a exclusão definitiva.');
-  }
-
-  if(preview.exigeConfirmacaoReforcada&&!bool_(q.confirmarVinculos)){
-    fail_('Existem processos ou tarefas vinculadas. Confirme também a exclusão desses vínculos.');
-  }
-
-  const taskIds=new Set(
-    all_('Tarefas')
-      .filter(task=>task.pessoaId===person.id)
-      .map(task=>task.id)
-  );
-
-  const processes=all_('Processos').filter(proc=>proc.pessoaId===person.id);
-  const processIds=new Set(processes.map(proc=>proc.id));
-  const attendances=all_('Atendimentos').filter(a=>a.pessoaId===person.id);
-  const attendanceIds=new Set(attendances.map(a=>a.id));
-  const owner=personOwnerKey_(person.id);
-
-  const removeRows=(entity,predicate)=>{
-    all_(entity).filter(predicate).forEach(row=>{
-      remove_(ctx,entity,row.id,row.versao);
-    });
-  };
-
-  removeRows('TarefaMensagens',row=>taskIds.has(row.tarefaId));
-  removeRows('TarefaAnexos',row=>taskIds.has(row.tarefaId));
-  removeRows('Tarefas',row=>taskIds.has(row.id));
-  removeRows('Minutas',row=>attendanceIds.has(row.atendimentoId));
-  removeRows('Pendencias',row=>attendanceIds.has(row.atendimentoId));
-  removeRows('Documentos',row=>row.atendimentoId===owner||attendanceIds.has(row.atendimentoId));
-  removeRows('Distribuicao',row=>attendanceIds.has(row.atendimentoId)||processIds.has(row.processoId));
-  processes.forEach(row=>remove_(ctx,'Processos',row.id,row.versao));
-  attendances.forEach(row=>remove_(ctx,'Atendimentos',row.id,row.versao));
-
+function personFolderCandidates_(person){
   const root=DriveApp.getFolderById(PDA.parent);
-  const folders=root.getFolders();
+  const desired=safeName_(person.nome)+' - '+cpfDisplay_(person.cpf);
   const rawCpf=String(person.cpf||'');
   const formatted=cpfDisplay_(person.cpf);
-  const desired=safeName_(person.nome)+' - '+formatted;
+  const out=[];
+  const iterator=root.getFolders();
 
-  while(folders.hasNext()){
-    const folder=folders.next();
+  while(iterator.hasNext()){
+    const folder=iterator.next();
     const name=folder.getName();
     if(
       name===desired||
@@ -600,30 +557,99 @@ function personDeleteCascade_(ctx,q){
       (rawCpf&&name.includes(rawCpf))||
       (formatted&&name.includes(formatted))
     ){
-      try{folder.setTrashed(true);}catch(e){}
+      out.push(folder);
     }
   }
+  return out;
+}
 
-  try{
-    const taskRoot=generalTasksRoot_();
-    const taskFolders=taskRoot.getFolders();
-    while(taskFolders.hasNext()){
-      const folder=taskFolders.next();
-      const name=folder.getName();
-      if([...taskIds].some(id=>name.indexOf(id)===0)){
-        try{folder.setTrashed(true);}catch(e){}
-      }
+function personDeleteCascade_(ctx,q){
+  const person=get_('Pessoas',required_(q.id,'pessoa'));
+
+  if(!bool_(q.confirmar)){
+    fail_('Confirme explicitamente a exclusão definitiva do cadastro.');
+  }
+
+  version_(person,q.versao);
+
+  const preview=personDeletePreview_({id:person.id});
+
+  if(preview.exigeConfirmacaoReforcada&&!bool_(q.confirmarVinculos)){
+    fail_('Este cadastro possui processos ou tarefas. Confirme também a exclusão dos vínculos.');
+  }
+
+  const attendance=all_('Atendimentos').filter(row=>row.pessoaId===person.id);
+  const attendanceIds=new Set(attendance.map(row=>row.id));
+  const tasks=all_('Tarefas').filter(row=>row.pessoaId===person.id);
+  const taskIds=new Set(tasks.map(row=>row.id));
+  const processes=all_('Processos').filter(row=>row.pessoaId===person.id);
+  const processIds=new Set(processes.map(row=>row.id));
+
+  const documents=all_('Documentos').filter(row=>
+    row.atendimentoId===personOwnerKey_(person.id)||
+    attendanceIds.has(row.atendimentoId)
+  );
+  const documentIds=new Set(documents.map(row=>row.id));
+
+  const minutas=all_('Minutas').filter(row=>attendanceIds.has(row.atendimentoId));
+  const pendencias=all_('Pendencias').filter(row=>attendanceIds.has(row.atendimentoId));
+  const messages=all_('TarefaMensagens').filter(row=>taskIds.has(row.tarefaId));
+  const attachments=all_('TarefaAnexos').filter(row=>taskIds.has(row.tarefaId));
+  const distributions=all_('Distribuicao').filter(row=>
+    attendanceIds.has(row.atendimentoId)||
+    processIds.has(row.processoId)
+  );
+
+  const relatedIds=new Set([
+    person.id,
+    ...attendance.map(row=>row.id),
+    ...tasks.map(row=>row.id),
+    ...processes.map(row=>row.id),
+    ...documents.map(row=>row.id),
+    ...minutas.map(row=>row.id),
+    ...pendencias.map(row=>row.id),
+    ...messages.map(row=>row.id),
+    ...attachments.map(row=>row.id),
+    ...distributions.map(row=>row.id)
+  ]);
+
+  const priorHistory=all_('Historico').filter(row=>relatedIds.has(row.registroId));
+
+  ctx.redactDeletionAudit=true;
+
+  [
+    ['TarefaMensagens',messages],
+    ['TarefaAnexos',attachments],
+    ['Tarefas',tasks],
+    ['Distribuicao',distributions],
+    ['Processos',processes],
+    ['Minutas',minutas],
+    ['Pendencias',pendencias],
+    ['Documentos',documents],
+    ['Atendimentos',attendance],
+    ['Historico',priorHistory],
+    ['Pessoas',[person]]
+  ].forEach(([entity,rows])=>{
+    rows.forEach(row=>remove_(ctx,entity,row.id,row.versao));
+  });
+
+  personFolderCandidates_(person).forEach(folder=>{
+    try{
+      folder.setTrashed(true);
+      ctx.effects.push('Pasta da pessoa movida para a lixeira: '+folder.getName());
+    }catch(e){
+      ctx.effects.push('Não foi possível mover uma pasta para a lixeira: '+(e.message||e));
     }
-  }catch(e){}
-
-  remove_(ctx,'Pessoas',person.id,person.versao);
+  });
 
   return {
-    removidos:{
-      tarefas:preview.tarefas,
-      processos:preview.processos,
-      atendimentos:preview.atendimentos,
-      documentos:preview.documentos
+    ok:true,
+    excluidos:{
+      pessoas:1,
+      atendimentos:attendance.length,
+      documentos:documents.length,
+      tarefas:tasks.length,
+      processos:processes.length
     },
     mensagem:'Cadastro e vínculos relacionados excluídos definitivamente.'
   };
