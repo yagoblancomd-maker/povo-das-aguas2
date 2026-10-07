@@ -4805,4 +4805,157 @@ body.pda-drawer-open{overflow:hidden}
   width:100%!important;
   justify-content:flex-start!important
 }
+
+
+/* =========================================================
+   VISUALIZADOR DOCUMENTAL INTERNO — SEM INTERAÇÃO EXTERNA
+   ========================================================= */
+.pda-file-viewer-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2600;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(3,24,34,.56);
+  backdrop-filter:blur(5px)
+}
+.pda-file-viewer{
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  width:min(1100px,96vw);
+  height:min(88vh,860px);
+  overflow:hidden;
+  border:1px solid #c8d8d5;
+  border-radius:16px;
+  background:#f7f5ef;
+  box-shadow:0 30px 80px rgba(2,24,34,.32)
+}
+.pda-file-viewer-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  color:#fff;
+  background:linear-gradient(135deg,#07364b,#0f6673)
+}
+.pda-file-viewer-head>div{
+  min-width:0
+}
+.pda-file-viewer-head strong{
+  display:block;
+  overflow:hidden;
+  font-family:var(--pda-display);
+  font-size:16px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-file-viewer-head small{
+  display:block;
+  margin-top:2px;
+  color:#d5e9e9;
+  font-size:7.5px
+}
+.pda-file-viewer-close{
+  width:32px!important;
+  min-width:32px!important;
+  height:32px!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.24)!important;
+  border-radius:50%!important;
+  color:#fff!important;
+  background:rgba(255,255,255,.08)!important;
+  font-size:20px!important;
+  line-height:1!important
+}
+.pda-file-viewer-body{
+  display:grid;
+  min-height:0;
+  place-items:center;
+  overflow:auto;
+  padding:10px;
+  background:#ece9e2
+}
+.pda-file-viewer-loading{
+  color:#60726f;
+  font-size:9px
+}
+.pda-file-viewer-frame{
+  width:100%;
+  height:100%;
+  min-height:520px;
+  border:0;
+  border-radius:9px;
+  background:#fff
+}
+.pda-file-viewer-image{
+  display:block;
+  width:auto;
+  max-width:100%;
+  height:auto;
+  max-height:100%;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(3,28,38,.12)
+}
+.pda-file-viewer-unsupported{
+  max-width:560px;
+  padding:20px;
+  border:1px solid #d6ded9;
+  border-radius:12px;
+  color:#31525c;
+  text-align:center;
+  background:#fffdfa
+}
+.pda-file-viewer-unsupported strong{
+  display:block;
+  font-family:var(--pda-display);
+  font-size:17px
+}
+.pda-file-viewer-unsupported p{
+  margin:7px 0 0;
+  color:#70807b;
+  font-size:8.5px
+}
+.pda-file-viewer-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 12px;
+  border-top:1px solid #d9d5cc;
+  background:#fffdfa
+}
+.pda-file-viewer-meta{
+  overflow:hidden;
+  color:#6f7d79;
+  font-size:7.5px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-file-viewer-foot button{
+  min-height:31px!important;
+  font-size:7.8px!important
+}
+.pda-drawer-table td:last-child{
+  width:110px;
+  white-space:nowrap
+}
+.pda-drawer-table td:last-child button{
+  min-height:28px!important;
+  padding:5px 8px!important;
+  font-size:7.4px!important
+}
+@media(max-width:700px){
+  .pda-file-viewer-overlay{padding:0}
+  .pda-file-viewer{
+    width:100vw;
+    height:100vh;
+    border-radius:0
+  }
+  .pda-file-viewer-frame{
+    min-height:70vh
+  }
+}
 </style>
