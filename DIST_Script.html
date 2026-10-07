@@ -954,6 +954,7 @@ window.PDA_MODULES.DIST = (()=>{
     let historyData=null;
     let rankingData=null;
 
+    const FILTER_KEY='PDA_DIST_FILTERS_V2';
     const filters={
       busca:'',
       responsavel:'',
@@ -962,6 +963,25 @@ window.PDA_MODULES.DIST = (()=>{
       atribuidaAte:'',
       prazoDe:'',
       prazoAte:''
+    };
+
+    try{
+      Object.assign(
+        filters,
+        JSON.parse(
+          sessionStorage.getItem(FILTER_KEY)||
+          '{}'
+        )
+      );
+    }catch(e){}
+
+    const saveFilters_=()=>{
+      try{
+        sessionStorage.setItem(
+          FILTER_KEY,
+          JSON.stringify(filters)
+        );
+      }catch(e){}
     };
 
     const canSeeRanking_=()=>{
@@ -1085,6 +1105,7 @@ window.PDA_MODULES.DIST = (()=>{
         filters.atribuidaAte=assignedTo.value;
         filters.prazoDe=dueFrom.value;
         filters.prazoAte=dueTo.value;
+        saveFilters_();
         paintOpen_(data);
       };
 
@@ -1286,37 +1307,131 @@ window.PDA_MODULES.DIST = (()=>{
       content.replaceChildren();
       content.append(baseHead_('Ranking operacional'));
 
+      const periodKey='PDA_DIST_RANK_PERIOD_V2';
+      let savedPeriod={};
+      try{
+        savedPeriod=JSON.parse(sessionStorage.getItem(periodKey)||'{}');
+      }catch(e){}
+
       const filters=el('div',undefined,'dist-ranking-filters');
-      const start=el('input'); start.type='date'; start.value=data.inicio||'';
-      const end=el('input'); end.type='date'; end.value=data.fim||'';
+      const start=el('input');
+      start.type='date';
+      start.value=data.inicio||savedPeriod.inicio||'';
+
+      const end=el('input');
+      end.type='date';
+      end.value=data.fim||savedPeriod.fim||'';
+
       const apply=button('Aplicar período',async()=>{
+        try{
+          sessionStorage.setItem(
+            periodKey,
+            JSON.stringify({
+              inicio:start.value,
+              fim:end.value
+            })
+          );
+        }catch(e){}
+
         content.setAttribute('aria-busy','true');
-        rankingData=await call('distribuicaoRanking',{inicio:start.value,fim:end.value});
+        rankingData=await call('distribuicaoRanking',{
+          inicio:start.value,
+          fim:end.value
+        });
         paintRanking_(rankingData);
       });
-      filters.append(field_('Início',start),field_('Fim',end),apply);
+
+      filters.append(
+        field_('Início',start),
+        field_('Fim',end),
+        apply
+      );
       content.append(filters);
+
+      const rows=data.linhas||[];
+
+      const leaderboards=el('div',undefined,'dist-ranking-panels');
+
+      const board_=(title,key,rankKey,format=value=>String(value||0))=>{
+        const board=el('section',undefined,'dist-rank-board');
+        board.append(el('h3',title));
+
+        rows
+          .slice()
+          .sort((a,b)=>
+            Number(a[rankKey]||999)-
+            Number(b[rankKey]||999)
+          )
+          .slice(0,5)
+          .forEach(row=>{
+            const line=el('div',undefined,'dist-rank-line');
+            const pos=el('strong',String(row[rankKey]||'—'),'dist-rank-position');
+            const person=el('div');
+            person.append(
+              el('b',row.nome),
+              el('small',row.funcao||'')
+            );
+            line.append(
+              pos,
+              person,
+              el('span',format(row[key]))
+            );
+            board.append(line);
+          });
+
+        return board;
+      };
+
+      leaderboards.append(
+        board_('Cadastros realizados','cadastros','rankCadastros'),
+        board_('Tarefas concluídas','tarefasConcluidas','rankTarefas'),
+        board_('Processos distribuídos','processosDistribuidos','rankProcessos'),
+        board_(
+          'Média processos / login',
+          'mediaProcessosPorLogin',
+          'rankMedia',
+          value=>Number(value||0).toLocaleString('pt-BR',{
+            minimumFractionDigits:2,
+            maximumFractionDigits:2
+          })
+        )
+      );
+
+      content.append(leaderboards);
 
       const tableWrap=el('div',undefined,'scroll dist-ranking-table');
       const table=el('table');
       const thead=el('thead');
       const tr=el('tr');
-      ['#','Pessoa','Função','Cadastros','Tarefas concluídas','Processos distribuídos','Logins','Processos / login']
-        .forEach(label=>tr.append(el('th',label)));
+
+      [
+        'Pessoa','Função',
+        'Cadastros','Pos. cad.',
+        'Tarefas','Pos. tar.',
+        'Processos','Pos. proc.',
+        'Logins','Proc./login','Pos. média'
+      ].forEach(label=>tr.append(el('th',label)));
+
       thead.append(tr);
       const tbody=el('tbody');
 
-      (data.linhas||[]).forEach(row=>{
+      rows.forEach(row=>{
         const line=el('tr');
         [
-          String(row.posicao),
           row.nome,
           row.funcao||'—',
           String(row.cadastros),
+          String(row.rankCadastros),
           String(row.tarefasConcluidas),
+          String(row.rankTarefas),
           String(row.processosDistribuidos),
+          String(row.rankProcessos),
           String(row.logins),
-          Number(row.mediaProcessosPorLogin||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+          Number(row.mediaProcessosPorLogin||0).toLocaleString('pt-BR',{
+            minimumFractionDigits:2,
+            maximumFractionDigits:2
+          }),
+          String(row.rankMedia)
         ].forEach(value=>line.append(el('td',value)));
         tbody.append(line);
       });
