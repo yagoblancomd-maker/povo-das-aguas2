@@ -12,8 +12,9 @@ window.PDA_MODULES.PROC = (()=>{
   }
 
   function date_(value){
+    if(!value)return '—';
     const d=new Date(value);
-    if(Number.isNaN(d.getTime()))return '—';
+    if(Number.isNaN(d.getTime()))return String(value||'—');
     return d.toLocaleString('pt-BR',{
       day:'2-digit',
       month:'2-digit',
@@ -23,8 +24,24 @@ window.PDA_MODULES.PROC = (()=>{
     });
   }
 
+  function dateOnly_(value){
+    if(!value)return '—';
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return String(value||'—');
+    return d.toLocaleDateString('pt-BR');
+  }
+
   function text_(value){
     return String(value||'').trim()||'—';
+  }
+
+  function statusLabel_(status){
+    return {
+      ATUALIZADO:'Atualizado',
+      FALHA:'Falha',
+      NAO_LOCALIZADO:'Não localizado',
+      NAO_SINCRONIZADO:'Nunca sincronizado'
+    }[String(status||'NAO_SINCRONIZADO')]||String(status||'');
   }
 
   function processItem_(row,active,onOpen){
@@ -42,8 +59,14 @@ window.PDA_MODULES.PROC = (()=>{
     );
 
     const meta=el('span',undefined,'proc-case-meta');
+    const badge=el(
+      'span',
+      statusLabel_(row.datajudStatus),
+      'proc-datajud-mini status-'+String(row.datajudStatus||'NAO_SINCRONIZADO').toLowerCase()
+    );
     meta.append(
-      el('span',date_(row.distribuidoEm)),
+      badge,
+      el('span',row.datajudUltimaConsulta?date_(row.datajudUltimaConsulta):date_(row.distribuidoEm)),
       el('span','›','proc-case-arrow')
     );
 
@@ -52,7 +75,82 @@ window.PDA_MODULES.PROC = (()=>{
     return item;
   }
 
-  function detail_(root,row){
+  function fact_(label,value){
+    const box=el('div',undefined,'proc-fact');
+    box.append(
+      el('span',label),
+      el('strong',text_(value))
+    );
+    return box;
+  }
+
+  function timeline_(datajud){
+    const section=el('section',undefined,'proc-datajud-section');
+    const head=el('div',undefined,'proc-section-head');
+    head.append(
+      el('div',undefined,'proc-section-title')
+    );
+    head.firstChild.append(
+      el('span','DATAJUD · CNJ','proc-detail-kicker'),
+      el('h4','Movimentações processuais')
+    );
+
+    const movements=
+      datajud&&
+      Array.isArray(datajud.movimentos)
+        ?datajud.movimentos
+        :[];
+
+    head.append(
+      el(
+        'span',
+        movements.length+
+        (movements.length===1?' movimento':' movimentos'),
+        'proc-count'
+      )
+    );
+    section.append(head);
+
+    const list=el('div',undefined,'proc-timeline');
+
+    if(!movements.length){
+      list.append(
+        el(
+          'p',
+          datajud&&datajud.status==='ATUALIZADO'
+            ?'O DataJud não retornou movimentações para este processo.'
+            :'Atualize o processo pelo DataJud para carregar as movimentações.',
+          'proc-empty'
+        )
+      );
+    }else{
+      movements.forEach((movement,index)=>{
+        const item=el('article',undefined,'proc-movement');
+        const marker=el('span',undefined,'proc-movement-marker');
+        const copy=el('div',undefined,'proc-movement-copy');
+        copy.append(
+          el('strong',text_(movement.nome||('Movimento '+movement.codigo))),
+          el(
+            'span',
+            [
+              movement.codigo?'TPU '+movement.codigo:'',
+              movement.orgao||''
+            ].filter(Boolean).join(' · '),
+            'hint'
+          )
+        );
+        const when=el('time',date_(movement.dataHora));
+        item.append(marker,copy,when);
+        if(index===0)item.classList.add('latest');
+        list.append(item);
+      });
+    }
+
+    section.append(list);
+    return section;
+  }
+
+  function renderDetail_(root,row,data,handlers){
     root.replaceChildren();
 
     const head=el('div',undefined,'proc-detail-head');
@@ -64,6 +162,14 @@ window.PDA_MODULES.PROC = (()=>{
     );
 
     const actions=el('div',undefined,'proc-detail-actions');
+
+    const sync=button(
+      data&&data.datajud&&data.datajud.status==='ATUALIZADO'
+        ?'Atualizar pelo DataJud'
+        :'Consultar DataJud',
+      handlers.sync
+    );
+    sync.classList.add('proc-datajud-sync');
 
     const preview=button(
       'Visualizar cadastro',
@@ -79,30 +185,86 @@ window.PDA_MODULES.PROC = (()=>{
       true
     );
 
-    actions.append(preview,open);
+    actions.append(sync,preview,open);
     head.append(title,actions);
     root.append(head);
 
-    const facts=el('div',undefined,'proc-facts');
-    [
-      ['Pessoa',row.pessoa],
-      ['CPF',cpf_(row.cpf)],
-      ['Jurisdição',row.jurisdicao],
-      ['Distribuído em',date_(row.distribuidoEm)],
-      ['Responsável',row.responsavel]
-    ].forEach(([label,value])=>{
-      const box=el('div',undefined,'proc-fact');
-      box.append(el('span',label),el('strong',text_(value)));
-      facts.append(box);
-    });
-    root.append(facts);
+    const localFacts=el('div',undefined,'proc-facts');
+    localFacts.append(
+      fact_('Pessoa',row.pessoa),
+      fact_('CPF',cpf_(row.cpf)),
+      fact_('Jurisdição',row.jurisdicao),
+      fact_('Distribuído em',date_(row.distribuidoEm)),
+      fact_('Responsável',row.responsavel)
+    );
+    root.append(localFacts);
+
+    const dj=(data&&data.datajud)||{};
+    const status=el(
+      'section',
+      undefined,
+      'proc-datajud-status status-'+String(dj.status||'NAO_SINCRONIZADO').toLowerCase()
+    );
+
+    const statusCopy=el('div');
+    statusCopy.append(
+      el('span','FONTE: CONSELHO NACIONAL DE JUSTIÇA · DATAJUD','proc-detail-kicker'),
+      el('h4',statusLabel_(dj.status)),
+      el(
+        'p',
+        dj.ultimaConsulta
+          ?'Última consulta: '+date_(dj.ultimaConsulta)
+          :'Este processo ainda não foi consultado no DataJud.',
+        'hint'
+      )
+    );
+
+    if(dj.erro){
+      statusCopy.append(
+        el('p',dj.erro,'proc-datajud-error')
+      );
+    }
+
+    status.append(statusCopy);
+    root.append(status);
+
+    if(
+      dj.status==='ATUALIZADO'||
+      dj.tribunal||
+      dj.classe||
+      dj.orgao
+    ){
+      const djFacts=el('div',undefined,'proc-facts proc-datajud-facts');
+      djFacts.append(
+        fact_('Tribunal',dj.tribunal),
+        fact_('Grau',dj.grau),
+        fact_('Classe processual',dj.classe),
+        fact_('Órgão julgador',dj.orgao),
+        fact_('Sistema',dj.sistema),
+        fact_('Data de ajuizamento',dateOnly_(dj.dataAjuizamento)),
+        fact_('Nível de sigilo',dj.nivelSigilo),
+        fact_(
+          'Assuntos',
+          Array.isArray(dj.assuntos)&&dj.assuntos.length
+            ?dj.assuntos.join(' · ')
+            :'—'
+        ),
+        fact_(
+          'Atualização na origem',
+          date_(dj.ultimaAtualizacaoOrigem)
+        )
+      );
+      root.append(djFacts);
+    }
+
+    root.append(timeline_(dj));
 
     const note=el('section',undefined,'proc-detail-note');
     note.append(
-      el('h4','Registro processual'),
+      el('h4','Sobre a integração'),
       el(
         'p',
-        'Os dados exibidos nesta tela são os registros existentes no sistema. Abra a ficha da pessoa para consultar documentos, atendimentos e demais informações vinculadas.',
+        'A consulta ao DataJud ocorre somente quando solicitada nesta tela. Os dados locais continuam disponíveis mesmo se a API do CNJ estiver indisponível. O DataJud fornece metadados processuais públicos e não substitui o acesso ao inteiro teor no sistema do tribunal.',
         'hint'
       )
     );
@@ -118,12 +280,7 @@ window.PDA_MODULES.PROC = (()=>{
     search.placeholder='Buscar por número, pessoa, CPF ou jurisdição';
     search.autocomplete='off';
 
-    const count=el(
-      'span',
-      '',
-      'proc-count'
-    );
-
+    const count=el('span','','proc-count');
     toolbar.append(search,count);
     root.append(toolbar);
 
@@ -131,13 +288,11 @@ window.PDA_MODULES.PROC = (()=>{
     const list=el('section',undefined,'proc-list');
     const detail=el('section',undefined,'proc-detail');
 
-    const more=
-      button(
-        'Carregar mais processos',
-        ()=>load_(rows.length,true),
-        true
-      );
-
+    const more=button(
+      'Carregar mais processos',
+      ()=>load_(rows.length,true),
+      true
+    );
     more.classList.add('proc-more');
 
     layout.append(list,detail);
@@ -148,9 +303,11 @@ window.PDA_MODULES.PROC = (()=>{
     let hasMore=false;
     let selected=null;
     let requestSeq=0;
+    let detailSeq=0;
     let searchTimer=null;
+    const detailCache=new Map();
 
-    const render=()=>{
+    const renderList_=()=>{
       count.textContent=
         rows.length+
         ' de '+
@@ -162,53 +319,148 @@ window.PDA_MODULES.PROC = (()=>{
 
       if(!rows.length){
         list.append(
-          el(
-            'p',
-            'Nenhum processo encontrado.',
-            'proc-empty'
-          )
+          el('p','Nenhum processo encontrado.','proc-empty')
         );
-
-        detail.replaceChildren(
-          el(
-            'p',
-            'Ajuste a busca para localizar um processo.',
-            'hint'
-          )
-        );
-
         more.hidden=true;
         return;
-      }
-
-      if(
-        !selected||
-        !rows.some(row=>
-          row.id===selected.id
-        )
-      ){
-        selected=rows[0];
       }
 
       rows.forEach(row=>{
         list.append(
           processItem_(
             row,
-            selected&&
-            row.id===selected.id,
-            chosen=>{
-              selected=chosen;
-              render();
-            }
+            selected&&row.id===selected.id,
+            openProcess_
           )
         );
       });
 
-      detail_(detail,selected);
       more.hidden=!hasMore;
       more.disabled=false;
       more.textContent='Carregar mais processos';
     };
+
+    const loadDetail_=async row=>{
+      const seq=++detailSeq;
+      detail.replaceChildren(
+        el('p','Carregando dados do processo…','proc-empty')
+      );
+
+      let data=detailCache.get(row.id);
+
+      if(!data){
+        data=await call(
+          'processoDetalhe',
+          {id:row.id},
+          false,
+          {noLoader:true}
+        );
+
+        detailCache.set(row.id,data);
+      }
+
+      if(
+        seq!==detailSeq||
+        !alive(ctx)||
+        !selected||
+        selected.id!==row.id
+      ){
+        return;
+      }
+
+      const sync_=async()=>{
+        const syncButton=
+          detail.querySelector(
+            '.proc-datajud-sync'
+          );
+
+        if(syncButton){
+          syncButton.disabled=true;
+          syncButton.textContent='Consultando DataJud…';
+        }
+
+        try{
+          const result=await call(
+            'processoDatajudSincronizar',
+            {id:row.id},
+            true,
+            {silent:true}
+          );
+
+          const fresh=await call(
+            'processoDetalhe',
+            {id:row.id},
+            false,
+            {noLoader:true}
+          );
+
+          detailCache.set(row.id,fresh);
+
+          Object.assign(row,{
+            datajudStatus:
+              fresh.datajud&&fresh.datajud.status||
+              'NAO_SINCRONIZADO',
+            datajudUltimaConsulta:
+              fresh.datajud&&fresh.datajud.ultimaConsulta||
+              '',
+            datajudTribunal:
+              fresh.datajud&&fresh.datajud.tribunal||
+              ''
+          });
+
+          renderList_();
+          renderDetail_(
+            detail,
+            row,
+            fresh,
+            {sync:sync_}
+          );
+
+          App.status(
+            result.mensagem||
+            (
+              result.ok
+                ?'Processo atualizado pelo DataJud.'
+                :'A consulta ao DataJud não foi concluída.'
+            ),
+            !result.ok
+          );
+
+        }catch(error){
+          App.status(
+            error.message||
+            String(error),
+            true
+          );
+
+          if(syncButton&&syncButton.isConnected){
+            syncButton.disabled=false;
+            syncButton.textContent='Tentar novamente';
+          }
+        }
+      };
+
+      renderDetail_(
+        detail,
+        row,
+        data,
+        {sync:sync_}
+      );
+    };
+
+    function openProcess_(row){
+      selected=row;
+      renderList_();
+      loadDetail_(row).catch(error=>{
+        detail.replaceChildren(
+          el(
+            'p',
+            error.message||String(error),
+            'warn'
+          )
+        );
+      });
+    }
 
     const load_=async(offset,append=false)=>{
       const request=++requestSeq;
@@ -241,29 +493,28 @@ window.PDA_MODULES.PROC = (()=>{
       if(!append){
         rows=[];
         selected=null;
+        detailSeq++;
         list.replaceChildren(
-          el(
-            'p',
-            'Carregando processos…',
-            'hint'
-          )
+          el('p','Carregando processos…','hint')
+        );
+        detail.replaceChildren(
+          el('p','Selecione um processo nos resultados.','hint')
         );
       }else{
         more.disabled=true;
         more.textContent='Carregando…';
       }
 
-      const data=
-        await call(
-          'processos',
-          {
-            busca:term,
-            offset,
-            limit:50
-          },
-          false,
-          {noLoader:true}
-        );
+      const data=await call(
+        'processos',
+        {
+          busca:term,
+          offset,
+          limit:50
+        },
+        false,
+        {noLoader:true}
+      );
 
       if(
         request!==requestSeq||
@@ -273,35 +524,34 @@ window.PDA_MODULES.PROC = (()=>{
       }
 
       if(append){
-        rows.push(
-          ...(data.processos||[])
-        );
+        rows.push(...(data.processos||[]));
       }else{
-        rows=[
-          ...(data.processos||[])
-        ];
+        rows=[...(data.processos||[])];
       }
 
       total=Number(data.total||0);
       hasMore=!!data.hasMore;
-      render();
+      renderList_();
+
+      if(rows.length&&!selected){
+        openProcess_(rows[0]);
+      }else if(!rows.length){
+        detail.replaceChildren(
+          el('p','Nenhum processo corresponde ao filtro informado.','hint')
+        );
+      }
     };
 
-    search.addEventListener(
-      'input',
-      ()=>{
-        if(searchTimer){
-          clearTimeout(searchTimer);
-        }
-
-        searchTimer=
-          setTimeout(
-            ()=>load_(0,false)
-              .catch(()=>{}),
-            260
-          );
+    search.addEventListener('input',()=>{
+      if(searchTimer){
+        clearTimeout(searchTimer);
       }
-    );
+
+      searchTimer=setTimeout(
+        ()=>load_(0,false).catch(()=>{}),
+        260
+      );
+    });
 
     await load_(0,false);
   };
