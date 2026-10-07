@@ -81,7 +81,7 @@ window.PDA_MODULES.PAINEL = (()=>{
       el(
         'button',
         undefined,
-        'home-action-card '+(item.primary?'primary':'')
+        'home-action-card '+(item.primary?'primary ':'')+'home-action-'+String(item.code||'').toLowerCase()
       );
 
     b.type='button';
@@ -262,13 +262,13 @@ window.PDA_MODULES.PAINEL = (()=>{
     const title=
       el(
         'h2',
-        'Bem-vindo, '+firstName_(user.nome)+'.'
+        'Bem-vindo ao Povo das Águas'
       );
 
     const subtitle=
       el(
         'p',
-        'Um só lugar para cadastrar, consultar, organizar documentos e acompanhar as ações do Seguro-Defeso 2025.'
+        'Sistema de atendimento jurídico, documentação e gestão para comunidades pesqueiras.'
       );
 
     const meta=
