@@ -738,10 +738,10 @@ function tasksHistoryV2_(q){
 
 function myTasksOpenV2_(q){
   q=Object.assign({},q||{},{
-    participante:String(identity_()||'').toLowerCase()
+    responsavel:String(identity_()||'').toLowerCase()
   });
 
-  delete q.responsavel;
+  delete q.participante;
 
   const result=
     tasksCollectionV2_(
@@ -782,10 +782,10 @@ function myTasksOpenV2_(q){
 
 function myTasksHistoryV2_(q){
   q=Object.assign({},q||{},{
-    participante:String(identity_()||'').toLowerCase()
+    responsavel:String(identity_()||'').toLowerCase()
   });
 
-  delete q.responsavel;
+  delete q.participante;
   const result=tasksCollectionV2_(q,'history');
   return Object.assign({},result,{tags:taskTagCatalog_()});
 }
