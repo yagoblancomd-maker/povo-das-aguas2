@@ -9,6 +9,7 @@ const App=(()=>{
  let taskNotificationLoading=false;
  let bulkModulePromise=null;
  let bulkModuleCodes=new Set();
+ let dataWarmupPromise=null;
  let warmupScheduled=false;
  const MODULE_CACHE=new Map();
  const MODULE_REQUESTS=new Map();
@@ -215,6 +216,7 @@ n.className='status '+(error?'error':'ok');
   READ_REQUESTS.clear();
   bulkModulePromise=null;
   bulkModuleCodes=new Set();
+  dataWarmupPromise=null;
   warmupScheduled=false;
  }
 
@@ -554,6 +556,34 @@ n.className='status '+(error?'error':'ok');
   });
  }
 
+ function warmInitialData_(codes){
+  if(
+    dataWarmupPromise||
+    !codes||
+    !codes.length
+  ){
+    return dataWarmupPromise||
+      Promise.resolve();
+  }
+
+  dataWarmupPromise=
+    raw(
+      'aquecerDadosModulos',
+      codes,
+      authSessionToken
+    )
+      .then(payload=>{
+        consumeWarmup_(payload);
+        return payload;
+      })
+      .catch(()=>null)
+      .finally(()=>{
+        dataWarmupPromise=null;
+      });
+
+  return dataWarmupPromise;
+ }
+
  function runModuleWarmup_(){
   if(
     !boot||
@@ -563,16 +593,24 @@ n.className='status '+(error?'error':'ok');
     return Promise.resolve();
   }
 
-  const codes=
+  const allCodes=
     Object.keys(
       boot.modulos
     )
       .filter(code=>
-        code!==current&&
+        code!==current
+      );
+
+  const codes=
+    allCodes
+      .filter(code=>
         !MODULE_CACHE.has(code)
       );
 
   if(!codes.length){
+    warmInitialData_(
+      allCodes
+    );
     return Promise.resolve();
   }
 
@@ -581,13 +619,27 @@ n.className='status '+(error?'error':'ok');
 
   bulkModulePromise=
     raw(
-      'aquecerAplicacao',
+      'carregarModulos',
       codes,
       authSessionToken
     )
-      .then(payload=>{
-        consumeWarmup_(payload);
-        return payload;
+      .then(modules=>{
+        consumeWarmup_({
+          modules
+        });
+
+        /*
+         * Primeiro liberamos os bundles. Os dados são aquecidos somente
+         * depois, para uma consulta pesada ao Sheets nunca segurar HTML/CSS/JS.
+         */
+        setTimeout(
+          ()=>warmInitialData_(
+            allCodes
+          ),
+          40
+        );
+
+        return modules;
       })
       .catch(()=>null)
       .finally(()=>{
