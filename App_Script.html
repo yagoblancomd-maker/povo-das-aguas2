@@ -2732,10 +2732,10 @@ f.insertBefore(file,f.firstChild);
  function drawerCounters_(person){
   const row=el('div',undefined,'pda-person-counters');
   [
-    ['Documentos',person.documentos||0],
-    ['Processos',person.processos||0],
-    ['Tarefas abertas',person.tarefasAbertas||0],
-    ['Tarefas concluídas',person.tarefasConcluidas||0]
+    ['Documentos',person.documentos===null||person.documentos===undefined?'…':person.documentos],
+    ['Processos',person.processos===null||person.processos===undefined?'…':person.processos],
+    ['Tarefas abertas',person.tarefasAbertas===null||person.tarefasAbertas===undefined?'…':person.tarefasAbertas],
+    ['Tarefas concluídas',person.tarefasConcluidas===null||person.tarefasConcluidas===undefined?'…':person.tarefasConcluidas]
   ].forEach(([label,value])=>{
     const item=el('div',undefined,'pda-person-counter');
     item.append(el('strong',String(value)),el('span',label));
