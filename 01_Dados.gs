@@ -244,10 +244,33 @@ function batchAll_(entities){
     return DATA_CACHE;
 
   }catch(error){
+    const optional=
+      new Set([
+        'TarefaMensagens',
+        'TarefaAnexos',
+        'TarefaLeituras',
+        'TarefaTags'
+      ]);
+
     unique.forEach(entity=>{
-      if(!DATA_CACHE[entity]){
-        all_(entity);
+      if(DATA_CACHE[entity]){
+        return;
       }
+
+      const sheet=
+        ss_().getSheetByName(
+          entity
+        );
+
+      if(
+        !sheet&&
+        optional.has(entity)
+      ){
+        DATA_CACHE[entity]=[];
+        return;
+      }
+
+      all_(entity);
     });
 
     return DATA_CACHE;
