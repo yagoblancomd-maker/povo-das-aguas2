@@ -1,4 +1,9 @@
 function processList_(){
+  batchAll_([
+    'Pessoas',
+    'Processos'
+  ]);
+
   const people=
     new Map(
       all_('Pessoas').map(p=>[
