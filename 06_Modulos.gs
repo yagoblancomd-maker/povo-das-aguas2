@@ -172,11 +172,142 @@ function carregarModulos(codes,sessionToken){
 }
 
 
+/**
+ * Aquece a aplicação em uma única execução do Apps Script.
+ * Reaproveita a mesma sessão, a mesma abertura da planilha e o mesmo
+ * DATA_CACHE para preparar os bundles e as leituras iniciais dos módulos.
+ */
+function aquecerAplicacao(codes,sessionToken){
+  return withAuthSession_(
+    sessionToken,
+    ()=>{
+      resetData_();
+
+      const user=activeUser_();
+      const allowed=availableModules_(user);
+      const unique=[
+        ...new Set(
+          (Array.isArray(codes)?codes:[])
+            .map(code=>String(code||'').trim())
+            .filter(code=>
+              MODULES[code]&&
+              Object.prototype.hasOwnProperty.call(
+                allowed,
+                code
+              )
+            )
+        )
+      ].slice(0,Object.keys(MODULES).length);
+
+      const modules={};
+
+      unique.forEach(code=>{
+        modules[code]={
+          view:include_(code+'_View'),
+          style:include_(code+'_Style'),
+          script:include_(code+'_Script')
+        };
+      });
+
+      const data={};
+
+      const producers={
+        PAINEL:[
+          'painel',
+          {},
+          ()=>dashboard_()
+        ],
+        TAREFAS:[
+          'tarefasMinhas',
+          {},
+          ()=>myTasks_()
+        ],
+        DIST:[
+          'distribuicaoFila',
+          {},
+          ()=>distributionQueue_()
+        ],
+        PROC:[
+          'processos',
+          {},
+          ()=>processList_()
+        ],
+        ADM:[
+          'admin',
+          {},
+          ()=>({
+            configuracoes:all_('Configuracoes'),
+            usuarios:all_('Usuarios').map(u=>
+              Object.assign(
+                {},
+                authPublicUser_(u),
+                {
+                  permissoesEfetivas:
+                    effectivePermissions_(u)
+                }
+              )
+            ),
+            perfis:Object.keys(ROLES),
+            perfisDetalhes:Object.fromEntries(
+              Object.keys(ROLES).map(perfil=>[
+                perfil,
+                {
+                  descricao:ROLE_DESCRIPTIONS[perfil]||'',
+                  permissoes:rolePermissions_(perfil)
+                }
+              ])
+            ),
+            permissoes:Object.entries(PERMISSIONS).map(
+              ([key,value])=>({
+                key,
+                label:value.label,
+                descricao:value.descricao
+              })
+            ),
+            modelo:templateStatus_(),
+            portalTransparencia:portalTransparenciaStatus_(),
+            deepseek:deepseekStatus_()
+          })
+        ]
+      };
+
+      unique.forEach(code=>{
+        const spec=producers[code];
+
+        if(!spec)return;
+
+        const action=spec[0];
+        const query=spec[1];
+        const result=
+          serverCachedRead_(
+            action,
+            query,
+            spec[2]
+          );
+
+        data[code]={
+          action,
+          query,
+          result
+        };
+      });
+
+      return {
+        modules,
+        data,
+        preparadoEm:now_()
+      };
+    }
+  );
+}
+
+
 const SERVER_CACHEABLE_READS=new Set([
   'painel',
   'tarefasMinhas',
   'distribuicaoFila',
-  'processos'
+  'processos',
+  'admin'
 ]);
 
 function serverCachedRead_(action,q,producer){
@@ -222,7 +353,7 @@ function serverCachedRead_(action,q,producer){
       cache.put(
         key,
         json,
-        12
+        60
       );
     }
   }catch(e){}
