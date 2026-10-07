@@ -175,14 +175,58 @@ function ensureGeneralTaskSchema_(){
   return changed;
 }
 function generalTaskAssignableUsers_(){
+  const actor=
+    activeUser_();
+
+  const colony=
+    isColonyUser_(
+      actor
+    );
+
   return all_('Usuarios')
-    .filter(user=>
-      bool_(user.ativo)&&
-      hasPermission_(
-        user,
-        'consulta'
-      )
-    )
+    .filter(user=>{
+      if(
+        !bool_(user.ativo)||
+        !hasPermission_(
+          user,
+          'consulta'
+        )
+      ){
+        return false;
+      }
+
+      if(!colony){
+        return true;
+      }
+
+      const role=
+        String(
+          user.perfil||
+          ''
+        ).toUpperCase();
+
+      const fn=
+        String(
+          user.funcao||
+          ''
+        ).trim().toLowerCase();
+
+      const professorResident=
+        role==='PROFESSOR_RESIDENTE'||
+        fn==='professor'||
+        fn==='residente';
+
+      const sameColony=
+        role==='COLONIA_PESCADOR'&&
+        normalizeEntityScope_(
+          user.entidade
+        )===
+        normalizeEntityScope_(
+          actor.entidade
+        );
+
+      return professorResident||sameColony;
+    })
     .sort((a,b)=>
       String(
         a.nome||
@@ -201,7 +245,8 @@ function generalTaskAssignableUsers_(){
       nome:user.nome||user.email,
       funcao:user.funcao||'',
       email:user.email,
-      perfil:user.perfil||''
+      perfil:user.perfil||'',
+      entidade:user.entidade||''
     }));
 }
 
@@ -799,6 +844,28 @@ function requireGeneralTaskAccess_(task){
     activeUser_();
 
   if(
+    isColonyUser_(user)&&
+    task.pessoaId
+  ){
+    const person=
+      get_(
+        'Pessoas',
+        task.pessoaId
+      );
+
+    if(
+      !personInUserScope_(
+        user,
+        person
+      )
+    ){
+      fail_(
+        'Esta tarefa está vinculada a membro de outra entidade.'
+      );
+    }
+  }
+
+  if(
     !generalTaskParticipant_(
       task,
       user
@@ -903,6 +970,50 @@ function generalTaskAssignee_(email){
     );
   }
 
+  const actor=
+    activeUser_();
+
+  if(
+    isColonyUser_(
+      actor
+    )
+  ){
+    const role=
+      String(
+        user.perfil||
+        ''
+      ).toUpperCase();
+
+    const fn=
+      String(
+        user.funcao||
+        ''
+      ).trim().toLowerCase();
+
+    const professorResident=
+      role==='PROFESSOR_RESIDENTE'||
+      fn==='professor'||
+      fn==='residente';
+
+    const sameColony=
+      role==='COLONIA_PESCADOR'&&
+      normalizeEntityScope_(
+        user.entidade
+      )===
+      normalizeEntityScope_(
+        actor.entidade
+      );
+
+    if(
+      !professorResident&&
+      !sameColony
+    ){
+      fail_(
+        'A Colônia somente pode atribuir tarefas a Professor/Residente ou a usuário da própria entidade.'
+      );
+    }
+  }
+
   return {
     email:normalized,
     user
@@ -964,6 +1075,24 @@ function generalTaskData_(task,patch){
 function generalTaskCreate_(ctx,q){
   ensureGeneralTaskSchema_();
 
+  const actor=
+    activeUser_();
+
+  if(
+    !hasPermission_(
+      actor,
+      'gestao_distribuicao'
+    )&&
+    !hasPermission_(
+      actor,
+      'criar_tarefa_entidade'
+    )
+  ){
+    fail_(
+      'Você não possui permissão para criar tarefas.'
+    );
+  }
+
   const title=
     String(
       required_(
@@ -998,8 +1127,30 @@ function generalTaskCreate_(ctx,q){
   let pessoaId=
     String(q.pessoaId||'').trim();
 
+  if(
+    isColonyUser_(actor)&&
+    !pessoaId
+  ){
+    fail_(
+      'A Colônia somente pode criar tarefa vinculada a um membro cadastrado da própria entidade.'
+    );
+  }
+
   if(pessoaId){
-    get_('Pessoas',pessoaId);
+    if(
+      isColonyUser_(
+        actor
+      )
+    ){
+      getScopedPerson_(
+        pessoaId
+      );
+    }else{
+      get_(
+        'Pessoas',
+        pessoaId
+      );
+    }
   }
 
   const processoId=
@@ -1007,6 +1158,17 @@ function generalTaskCreate_(ctx,q){
 
   if(processoId){
     const proc=get_('Processos',processoId);
+
+    if(
+      isColonyUser_(
+        actor
+      )
+    ){
+      authorizeProcessScope_(
+        proc
+      );
+    }
+
     if(pessoaId&&proc.pessoaId!==pessoaId){
       fail_('O processo informado pertence a outro cadastro.');
     }
@@ -1054,7 +1216,11 @@ function generalTaskCreate_(ctx,q){
           pessoaId,
           processoId,
           tags:JSON.stringify(tags),
-          modoDistribuicao:'MANUAL'
+          modoDistribuicao:'MANUAL',
+          origem:
+            isColonyUser_(actor)
+              ?'COLONIA'
+              :'INTERNA'
         }
       )
     );
