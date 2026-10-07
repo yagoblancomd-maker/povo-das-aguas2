@@ -1495,6 +1495,61 @@ window.PDA_MODULES.TAREFAS = (()=>{
       const actions=el('div',undefined,'tasks-head-actions');
 
       if(mode==='open'){
+        if(
+          data.podeAssumirDistribuicao&&
+          Number(
+            data.distribuicoesDisponiveis||
+            0
+          )>0
+        ){
+          const claim=
+            button(
+              'Assumir distribuição ('+
+              Number(
+                data.distribuicoesDisponiveis||
+                0
+              )+
+              ')',
+              async()=>{
+                claim.disabled=true;
+
+                try{
+                  const result=
+                    await call(
+                      'tarefaDistribuicaoAssumirProxima',
+                      {},
+                      true
+                    );
+
+                  status(
+                    result.mensagem||
+                    'Distribuição atualizada.'
+                  );
+
+                  if(result.atribuida){
+                    openData=null;
+                    await render();
+                    App.refreshTaskNotifications()
+                      .catch(()=>{});
+                  }else{
+                    data.distribuicoesDisponiveis=0;
+                    paint_(data);
+                  }
+                }finally{
+                  if(claim.isConnected){
+                    claim.disabled=false;
+                  }
+                }
+              }
+            );
+
+          claim.classList.add(
+            'tasks-claim-button'
+          );
+
+          actions.append(claim);
+        }
+
         const history=button(
           'Histórico',
           async()=>{
