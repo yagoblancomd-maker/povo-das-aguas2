@@ -396,11 +396,13 @@ function findFileByOperation_(folder,op){
   return null;
 }
 
-function generatePersonDraft_(ctx,p){
+function generatePersonDraft_(ctx,p,folderHint){
   const template=activeTemplate_();
   validatePersonTemplate_(template.getId());
 
-  const folder=personFolder_(p);
+  const folder=
+    folderHint||
+    personFolder_(p);
   const finalName=initialDocumentTitle_(p);
 
   let file=findFileByOperation_(folder,ctx.op);
