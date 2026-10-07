@@ -17,6 +17,41 @@ function identity_(){
 
 function activeUser_(){
   const email=identity_();
+  const revision=
+    props_().getProperty(
+      'PDA_DATA_REVISION'
+    )||
+    '0';
+
+  const cacheKey=
+    'PDA_ACTIVE_USER_'+
+    hash_({
+      email,
+      revision
+    }).slice(0,42);
+
+  if(
+    typeof CacheService!=='undefined'
+  ){
+    try{
+      const cached=
+        CacheService
+          .getScriptCache()
+          .get(cacheKey);
+
+      if(cached){
+        const user=
+          JSON.parse(cached);
+
+        if(
+          user&&
+          bool_(user.ativo)
+        ){
+          return user;
+        }
+      }
+    }catch(e){}
+  }
 
   const user=all_('Usuarios')
     .find(r=>
@@ -28,6 +63,20 @@ function activeUser_(){
     fail_(
       'Seu usuário não está autorizado ou está com o acesso desativado.'
     );
+  }
+
+  if(
+    typeof CacheService!=='undefined'
+  ){
+    try{
+      CacheService
+        .getScriptCache()
+        .put(
+          cacheKey,
+          JSON.stringify(user),
+          120
+        );
+    }catch(e){}
   }
 
   return user;
