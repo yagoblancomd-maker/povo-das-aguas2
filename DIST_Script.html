@@ -472,10 +472,12 @@ window.PDA_MODULES.DIST = (()=>{
       ['Prazo',date_(task.prazo)],
       [
         'Movimentações',
-        String(task.mensagens||0)+
-        ' msg · '+
-        String(task.anexos||0)+
-        ' anexo(s)'
+        task.movimentacoesCarregadas===false
+          ?'Abrir para consultar'
+          :String(task.mensagens||0)+
+            ' msg · '+
+            String(task.anexos||0)+
+            ' anexo(s)'
       ]
     ].forEach(([label,value])=>{
       const item=el('div');
