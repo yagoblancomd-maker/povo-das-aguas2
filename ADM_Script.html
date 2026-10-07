@@ -451,6 +451,15 @@ window.PDA_MODULES.ADM = (()=>{
       accessNotice
     );
 
+    const usersLayout=
+      el(
+        'div',
+        undefined,
+        'adm-users-layout'
+      );
+
+    users.append(usersLayout);
+
     const profileGuide=
       el(
         'div',
@@ -507,7 +516,7 @@ window.PDA_MODULES.ADM = (()=>{
       );
     });
 
-    users.append(
+    usersLayout.append(
       profileGuide
     );
 
@@ -1009,7 +1018,7 @@ window.PDA_MODULES.ADM = (()=>{
         'adm-user-list'
       );
 
-    users.append(
+    usersLayout.append(
       userList
     );
 
@@ -1064,7 +1073,7 @@ window.PDA_MODULES.ADM = (()=>{
 
     const add=
       details(
-        users,
+        usersLayout,
         'Cadastrar e autorizar novo usuário'
       );
 
@@ -1096,6 +1105,92 @@ window.PDA_MODULES.ADM = (()=>{
       },
       true
     );
+
+    const tagsCard=card('Tags de tarefas');
+    tagsCard.classList.add('adm-tags-card');
+    tagsCard.append(
+      el(
+        'p',
+        'As tags organizam tarefas e definem o acento de cor dos cartões e botões.',
+        'hint'
+      )
+    );
+
+    const tagsGrid=el('div',undefined,'adm-tags-grid');
+
+    const tagRow_=(tag,isNew=false)=>{
+      const row=el('div',undefined,'adm-tag-row');
+      const name=el('input');
+      name.type='text';
+      name.maxLength=40;
+      name.placeholder='NOME DA TAG';
+      name.value=isNew?'':String(tag.nome||'');
+
+      const color=el('input');
+      color.type='color';
+      color.value=String(tag.cor||'#176e7d');
+
+      const active=el('input');
+      active.type='checkbox';
+      active.checked=tag.ativo===undefined?true:(tag.ativo===true||tag.ativo==='true');
+
+      const preview=el('span',isNew?'NOVA TAG':String(tag.nome||''),'adm-tag-preview');
+      const syncPreview=()=>{
+        preview.textContent=String(name.value||'NOVA TAG').toUpperCase();
+        preview.style.setProperty('--tag-preview-color',color.value);
+      };
+      name.addEventListener('input',syncPreview);
+      color.addEventListener('input',syncPreview);
+      syncPreview();
+
+      const actions=el('div',undefined,'adm-tag-actions');
+      actions.append(
+        button(
+          isNew?'Adicionar':'Salvar',
+          async()=>{
+            const payload={
+              nome:String(name.value||'').trim(),
+              cor:color.value,
+              ativo:active.checked
+            };
+
+            if(!isNew&&!String(tag.id||'').startsWith('DEFAULT_')){
+              payload.id=tag.id;
+            }
+
+            await call('tarefaTagSalvar',payload,true);
+            await App.refreshCurrent({code:'ADM'});
+            status(isNew?'Tag criada.':'Tag atualizada.');
+          }
+        )
+      );
+
+      if(!isNew&&!String(tag.id||'').startsWith('DEFAULT_')){
+        actions.append(
+          button(
+            'Excluir',
+            async()=>{
+              if(!window.confirm('Excluir a tag "'+tag.nome+'"? As tarefas existentes preservarão o nome já gravado.'))return;
+              await call('tarefaTagExcluir',{id:tag.id},true);
+              await App.refreshCurrent({code:'ADM'});
+              status('Tag excluída.');
+            },
+            true
+          )
+        );
+      }
+
+      const activeWrap=el('label',undefined,'adm-tag-active');
+      activeWrap.append(active,document.createTextNode(' ativa'));
+
+      row.append(preview,name,color,activeWrap,actions);
+      return row;
+    };
+
+    (d.tagsTarefas||[]).forEach(tag=>tagsGrid.append(tagRow_(tag,false)));
+    tagsGrid.append(tagRow_({cor:'#176e7d',ativo:true},true));
+    tagsCard.append(tagsGrid);
+    root.append(tagsCard);
   };
 })();
 </script>
