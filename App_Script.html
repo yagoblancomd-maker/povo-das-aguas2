@@ -978,6 +978,107 @@ d.append(el('summary',title));
 parent.append(d);
 return d;
 }
+ const MODULE_VISUALS=Object.freeze({
+  PESS:{
+    kicker:'NOVO CADASTRO',
+    title:'Cadastrar pessoa',
+    subtitle:'Cadastre pessoas, importe dados dos documentos e organize a documentação inicial.',
+    photo:'boat'
+  },
+  ACOMP:{
+    kicker:'PESSOAS E DOCUMENTOS',
+    title:'Ficha e Conferência',
+    subtitle:'Consulte cadastros, confira documentos e acompanhe o histórico de atendimento.',
+    photo:'community'
+  },
+  DEFESO:{
+    kicker:'SEGURO-DEFESO 2025',
+    title:'Consultar Seguro-Defeso',
+    subtitle:'Consulte os registros oficiais disponíveis para o pescador ou pescadora artesanal.',
+    photo:'boat'
+  },
+  TAREFAS:{
+    kicker:'MINHAS TAREFAS',
+    title:'Trabalho em andamento',
+    subtitle:'Acompanhe suas atribuições, documentos e conversas com a equipe.',
+    photo:'net'
+  },
+  DIST:{
+    kicker:'DISTRIBUIÇÃO',
+    title:'Distribuição de tarefas',
+    subtitle:'Organize e acompanhe as demandas da equipe com clareza de responsáveis e prazos.',
+    photo:'port'
+  },
+  PROC:{
+    kicker:'PROCESSOS',
+    title:'Processos judiciais',
+    subtitle:'Consulte processos registrados e abra rapidamente a ficha da pessoa vinculada.',
+    photo:'boat'
+  },
+  MIN:{
+    kicker:'MINUTAS',
+    title:'Documentos e petições',
+    subtitle:'Gere e acompanhe as minutas vinculadas aos cadastros do projeto.',
+    photo:'channel'
+  },
+  PERF:{
+    kicker:'PERFIL',
+    title:'Meu perfil',
+    subtitle:'Mantenha seus dados de acesso e identificação atualizados.',
+    photo:'community'
+  },
+  ADM:{
+    kicker:'ADMINISTRAÇÃO',
+    title:'Administração do sistema',
+    subtitle:'Gerencie usuários, permissões, modelos e integrações do Povo das Águas.',
+    photo:'port'
+  }
+ });
+
+ function decorateModule_(code,section){
+  if(!section||code==='PAINEL')return;
+
+  const meta=MODULE_VISUALS[code];
+  if(!meta)return;
+
+  section.classList.add(
+    'pda-module',
+    'pda-module-'+String(code).toLowerCase()
+  );
+
+  if(
+    section.firstElementChild&&
+    section.firstElementChild.classList&&
+    section.firstElementChild.classList.contains('pda-module-hero')
+  ){
+    return;
+  }
+
+  const hero=el('section',undefined,'pda-module-hero pda-photo-'+meta.photo);
+  hero.setAttribute('aria-label',meta.title);
+
+  const shade=el('div',undefined,'pda-module-hero-shade');
+  const copy=el('div',undefined,'pda-module-hero-copy');
+
+  copy.append(
+    el('span',meta.kicker,'pda-module-hero-kicker'),
+    el('h2',meta.title),
+    el('p',meta.subtitle)
+  );
+
+  shade.append(copy);
+
+  const note=el(
+    'span',
+    'Gestão com presença no território.',
+    'pda-module-hero-note'
+  );
+
+  shade.append(note);
+  hero.append(shade);
+  section.prepend(hero);
+ }
+
  async function go(code,pessoaId){
   if(busy)return;
 
@@ -1083,6 +1184,8 @@ return d;
       root:section,
       token
     });
+
+    decorateModule_(code,section);
 
     if(token!==epoch){
       stage.remove();
@@ -1628,6 +1731,15 @@ f.insertBefore(file,f.firstChild);
 
  function renderNavigation_(){
   if(!boot)return;
+
+  const contextTitle=document.getElementById('appContextTitle');
+  if(contextTitle){
+    const visual=MODULE_VISUALS[current];
+    contextTitle.textContent=
+      current==='PAINEL'
+        ?'Sistema de gestão e atendimento'
+        :(visual&&visual.title||boot.modulos&&boot.modulos[current]||'Povo das Águas');
+  }
 
   const user=boot.usuario||{};
   const identity=
