@@ -149,7 +149,9 @@ window.PDA_MODULES.TAREFAS = (()=>{
         {
           id:taskId,
           anexoId:attachment.id
-        }
+        },
+        false,
+        {noLoader:true}
       ),
       {
         nome:attachment.nome||'Anexo da tarefa'
@@ -778,7 +780,9 @@ window.PDA_MODULES.TAREFAS = (()=>{
               {
                 id:doc.id,
                 pessoaId:detail.pessoa.id
-              }
+              },
+              false,
+              {noLoader:true}
             ),
             {
               nome:doc.nome
