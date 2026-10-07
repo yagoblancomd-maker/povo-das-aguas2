@@ -3867,6 +3867,10 @@ f.insertBefore(file,f.firstChild);
         'pessoaFichaCargaInicial',
         {
           pessoaId:id
+        },
+        false,
+        {
+          noLoader:true
         }
       )
         .then(bundle=>{
@@ -4318,7 +4322,9 @@ f.insertBefore(file,f.firstChild);
                   pessoaId:id,
                   limit:20,
                   offset
-                }
+                },
+                false,
+                {noLoader:true}
               ),
             render:rows=>
               drawerDocumentsTable_(
@@ -4356,7 +4362,9 @@ f.insertBefore(file,f.firstChild);
                   pessoaId:id,
                   limit:20,
                   offset
-                }
+                },
+                false,
+                {noLoader:true}
               ),
             render:rows=>
               drawerTable_(
@@ -4416,7 +4424,9 @@ f.insertBefore(file,f.firstChild);
                   pessoaId:id,
                   limit:20,
                   offset
-                }
+                },
+                false,
+                {noLoader:true}
               ),
             render:rows=>
               drawerTable_(
@@ -4584,7 +4594,9 @@ f.insertBefore(file,f.firstChild);
                   pessoaId:id,
                   limit:30,
                   offset
-                }
+                },
+                false,
+                {noLoader:true}
               ),
             render:rows=>{
               const list=
