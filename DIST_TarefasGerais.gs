@@ -691,7 +691,10 @@ function generalTaskData_(task,patch){
         '[]',
       modoDistribuicao:
         task.modoDistribuicao||
-        'MANUAL'
+        'MANUAL',
+      origem:
+        task.origem||
+        'INTERNA'
     },
     patch||{}
   );
