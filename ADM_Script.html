@@ -196,7 +196,7 @@ window.PDA_MODULES.ADM=(()=>{
 
       const toolbar=el('div',undefined,'adm-v3-toolbar');
       const search=input_('search');
-      search.placeholder='Buscar usuário por nome, função ou e-mail';
+      search.placeholder='Buscar usuário por nome, usuário, função ou e-mail';
       const sync=button('Sincronizar acessos do Drive',async()=>{
         const result=await call('usuariosAcessosGoogleSincronizar',{},true);
         status(result.mensagem||'Acessos sincronizados.');
@@ -218,7 +218,7 @@ window.PDA_MODULES.ADM=(()=>{
 
         const rows=(data.usuarios||[]).filter(user=>
           !term||
-          [user.nome,user.funcao,user.email,user.perfil]
+          [user.nome,user.nomeUsuario,user.funcao,user.email,user.perfil,user.entidade]
             .join(' ')
             .toLowerCase()
             .includes(term)
@@ -254,6 +254,7 @@ window.PDA_MODULES.ADM=(()=>{
           nome:'',
           funcao:'',
           email:'',
+          nomeUsuario:'',
           perfil:'CONSULTA',
           ativo:'true',
           permissoesEfetivas:['consulta']
@@ -271,6 +272,17 @@ window.PDA_MODULES.ADM=(()=>{
         const email=input_('email',source.email||'');
         email.required=true;
         if(!isNew)email.readOnly=true;
+
+        const username=input_(
+          'text',
+          source.nomeUsuario||
+          ''
+        );
+        username.required=true;
+        username.minLength=3;
+        username.maxLength=40;
+        username.placeholder='ex.: coloniaz3';
+        username.autocomplete='off';
 
         const profile=select_(
           (data.perfis||[]).map(value=>[
@@ -303,6 +315,7 @@ window.PDA_MODULES.ADM=(()=>{
         basics.append(
           field_('Nome',name),
           field_('Função',func),
+          field_('Nome de usuário',username),
           field_('E-mail',email),
           field_('Perfil-base',profile),
           entityField,
@@ -416,6 +429,66 @@ window.PDA_MODULES.ADM=(()=>{
         }
 
         if(!isNew){
+          actions.append(
+            button(
+              'Redefinir senha',
+              async()=>{
+                const novaSenha=
+                  window.prompt(
+                    'Defina a nova senha para '+
+                    (
+                      source.nome||
+                      source.nomeUsuario||
+                      source.email
+                    )+
+                    ':'
+                  );
+
+                if(novaSenha===null){
+                  return;
+                }
+
+                if(novaSenha.length===0){
+                  throw new Error(
+                    'Informe a nova senha.'
+                  );
+                }
+
+                const result=
+                  await call(
+                    'usuarioRedefinirSenha',
+                    {
+                      id:source.id,
+                      versao:source.versao,
+                      senha:novaSenha
+                    },
+                    true
+                  );
+
+                status(
+                  result.mensagem||
+                  'Senha redefinida.'
+                );
+
+                invalidate_(
+                  'adminUsuarios'
+                );
+
+                const fresh=
+                  await getData_(
+                    'adminUsuarios',
+                    true
+                  );
+
+                data=fresh;
+                renderUsers_(fresh);
+              },
+              true
+            )
+          );
+        }
+
+        if(!isNew){
           const remove=button(
             'Excluir usuário',
             async()=>{
@@ -459,6 +532,7 @@ window.PDA_MODULES.ADM=(()=>{
               versao:source.versao||'',
               nome:name.value,
               funcao:func.value,
+              nomeUsuario:username.value,
               email:email.value,
               perfil:profile.value,
               entidade:entity.value,
