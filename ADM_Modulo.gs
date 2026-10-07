@@ -239,19 +239,19 @@ function userDelete_(ctx,q){
       ctx,
       'Tarefas',
       task.id,
-      {
-        tipo:task.tipo,
-        pessoaId:task.pessoaId,
+      Object.assign({},task,{
         responsavel:'',
         situacao:DISTRIBUTION_TASK_PENDING,
-        jurisdicao:task.jurisdicao,
-        valorCausa:task.valorCausa,
         atribuidaEm:'',
         concluidaEm:'',
         processoId:'',
         observacoes:
-          'Tarefa devolvida à fila porque o usuário responsável foi excluído.'
-      },
+          'Tarefa devolvida à fila porque o usuário responsável foi excluído.',
+        prazo:task.prazo||taskDatePlusDays_(task.criadoEm||now_(),4),
+        prioridade:task.prioridade||'ALTA',
+        tags:task.tags||JSON.stringify(['PROCESSO']),
+        modoDistribuicao:'MANUAL'
+      }),
       task.versao
     );
   });
