@@ -1274,20 +1274,30 @@ function generalTaskAssign_(ctx,q){
       q.responsavel
     );
 
-  return change_(
+  const updated=
+    change_(
+      ctx,
+      'Tarefas',
+      task.id,
+      generalTaskData_(
+        task,
+        {
+          responsavel:
+            assignee.email,
+          atribuidaEm:now_()
+        }
+      ),
+      task.versao
+    );
+
+  taskReadSave_(
     ctx,
-    'Tarefas',
     task.id,
-    generalTaskData_(
-      task,
-      {
-        responsavel:
-          assignee.email,
-        atribuidaEm:now_()
-      }
-    ),
-    task.versao
+    ctx.email,
+    now_()
   );
+
+  return updated;
 }
 
 function generalTaskComplete_(ctx,q){
@@ -1334,20 +1344,30 @@ function generalTaskComplete_(ctx,q){
     return task;
   }
 
-  return change_(
+  const updated=
+    change_(
+      ctx,
+      'Tarefas',
+      task.id,
+      generalTaskData_(
+        task,
+        {
+          situacao:
+            GENERAL_TASK_DONE,
+          concluidaEm:now_()
+        }
+      ),
+      task.versao
+    );
+
+  taskReadSave_(
     ctx,
-    'Tarefas',
     task.id,
-    generalTaskData_(
-      task,
-      {
-        situacao:
-          GENERAL_TASK_DONE,
-        concluidaEm:now_()
-      }
-    ),
-    task.versao
+    ctx.email,
+    now_()
   );
+
+  return updated;
 }
 
 function generalTaskReopen_(ctx,q){
@@ -1394,20 +1414,30 @@ function generalTaskReopen_(ctx,q){
     return task;
   }
 
-  return change_(
+  const updated=
+    change_(
+      ctx,
+      'Tarefas',
+      task.id,
+      generalTaskData_(
+        task,
+        {
+          situacao:
+            GENERAL_TASK_ASSIGNED,
+          concluidaEm:''
+        }
+      ),
+      task.versao
+    );
+
+  taskReadSave_(
     ctx,
-    'Tarefas',
     task.id,
-    generalTaskData_(
-      task,
-      {
-        situacao:
-          GENERAL_TASK_ASSIGNED,
-        concluidaEm:''
-      }
-    ),
-    task.versao
+    ctx.email,
+    now_()
   );
+
+  return updated;
 }
 
 function generalTaskMessageSend_(ctx,q){
