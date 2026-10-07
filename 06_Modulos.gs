@@ -3,6 +3,7 @@ const MODULES={
   PESS:'Novo Cadastro',
   ACOMP:'Consultar Cadastros',
   DEFESO:'Consultar Defeso 2025',
+  HIST:'Histórico',
   TAREFAS:'Tarefas',
   MIN:'Minutas',
   DIST:'Atribuir tarefas',
@@ -16,6 +17,7 @@ const MODULE_PERMISSION=Object.freeze({
   PESS:'cadastro',
   ACOMP:'consulta',
   DEFESO:'consulta',
+  HIST:'consulta',
   TAREFAS:'consulta',
   MIN:'minuta',
   DIST:'gestao_distribuicao',
@@ -352,6 +354,7 @@ const SERVER_CACHEABLE_READS=new Set([
   'pessoaProcessos',
   'pessoaAtendimentos',
   'pessoaHistorico',
+  'historicoGeral',
   'tarefaCriarOpcoes'
 ]);
 
@@ -460,6 +463,7 @@ function apiAuthenticated_(action,q,sessionToken){
     pessoaProcessos:()=>personProcessesPage_(q),
     pessoaAtendimentos:()=>personAttendancesPage_(q),
     pessoaHistorico:()=>personHistoryPage_(q),
+    historicoGeral:()=>globalHistory_(q),
     tarefaCriarOpcoes:()=>taskCreateOptions_(),
     ficha:()=>dossier_(q),
     painel:()=>dashboard_(),
