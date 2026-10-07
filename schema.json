@@ -155,7 +155,19 @@
       "juizo",
       "distribuidoEm",
       "responsavel",
-      "movimentacoes"
+      "movimentacoes",
+      "datajudTribunal",
+      "datajudGrau",
+      "datajudClasse",
+      "datajudOrgao",
+      "datajudSistema",
+      "datajudDataAjuizamento",
+      "datajudNivelSigilo",
+      "datajudAssuntos",
+      "datajudUltimaAtualizacaoOrigem",
+      "datajudUltimaConsulta",
+      "datajudStatus",
+      "datajudErro"
     ],
     "Operacoes": [
       "hash",
