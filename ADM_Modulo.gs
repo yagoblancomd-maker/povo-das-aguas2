@@ -489,7 +489,41 @@ function userSave_(ctx,q){
   };
 
   authCheckAvailableEmail_(email,old&&old.id);
-  return authPublicUser_(change_(ctx,'Usuarios',old?old.id:id_('USR',email),
-    Object.assign({},old||{},userData),q.versao));
+
+  const saved=
+    change_(
+      ctx,
+      'Usuarios',
+      old?old.id:id_('USR',email),
+      Object.assign(
+        {},
+        old||{},
+        userData
+      ),
+      q.versao
+    );
+
+  const scopeChanged=
+    !old||
+    String(old.perfil||'')!==String(saved.perfil||'')||
+    normalizeEntityScope_(old.entidade)!==
+      normalizeEntityScope_(saved.entidade);
+
+  if(
+    scopeChanged&&
+    (
+      isColonyUser_(old)||
+      isColonyUser_(saved)
+    )
+  ){
+    syncGoogleResourcesForUser_(
+      saved,
+      ctx
+    );
+  }
+
+  return authPublicUser_(
+    saved
+  );
 }
 
