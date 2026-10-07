@@ -26,6 +26,48 @@
         </div>
       </div>
 
+      <section class="pda-sidebar-user" aria-label="Usuário atual">
+        <button id="profileShortcut" class="app-user-avatar pda-sidebar-avatar" type="button" aria-label="Abrir meu perfil">
+          <img id="headerUserPhoto" alt="" hidden>
+          <span id="headerUserInitials" class="app-user-avatar-fallback">US</span>
+        </button>
+
+        <div class="pda-sidebar-user-copy">
+          <strong id="identity" class="app-header-user-name">Usuário</strong>
+          <span id="headerUserFunction" class="pda-sidebar-user-function"></span>
+          <span id="headerUserProfile" class="pda-sidebar-user-profile"></span>
+        </div>
+
+        <div class="pda-sidebar-user-actions">
+          <div class="app-task-notifications">
+            <button id="taskNotificationButton" class="app-notification-button" type="button" title="Notificações de tarefas" aria-label="Notificações de tarefas" aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+              <span id="taskNotificationBadge" class="app-notification-badge" hidden>0</span>
+            </button>
+            <div id="taskNotificationPanel" class="app-notification-panel" hidden>
+              <div class="app-notification-head">
+                <div>
+                  <strong>Tarefas</strong>
+                  <small>Novas atribuições para você</small>
+                </div>
+                <button id="taskNotificationClose" type="button" aria-label="Fechar notificações">×</button>
+              </div>
+              <div id="taskNotificationList" class="app-notification-list">
+                <div class="app-notification-empty">Carregando…</div>
+              </div>
+            </div>
+          </div>
+
+          <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil" aria-label="Meu perfil">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>
+          </button>
+
+          <button id="logoutButton" class="app-logout-button" type="button" title="Sair" aria-label="Sair">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path></svg>
+          </button>
+        </div>
+      </section>
+
       <nav id="nav" aria-label="Módulos"></nav>
 
       <div id="navContextHelp" class="pda-nav-context-help" role="status" aria-live="polite" hidden></div>
@@ -37,59 +79,6 @@
     </aside>
 
     <section class="pda-workspace">
-      <header class="app-header">
-        <div class="app-header-inner">
-          <div class="app-header-context">
-            <span class="app-header-context-kicker">POVO DAS ÁGUAS</span>
-            <strong id="appContextTitle">Sistema de gestão e atendimento</strong>
-          </div>
-
-          <div class="app-header-user">
-            <div class="app-header-user-copy">
-              <strong id="identity" class="app-header-user-name">Usuário</strong>
-              <div class="app-header-user-meta">
-                <span id="headerUserFunction" class="app-user-chip"></span>
-                <span id="headerUserProfile" class="app-user-chip app-user-chip-accent"></span>
-              </div>
-            </div>
-
-            <button id="profileShortcut" class="app-user-avatar" type="button" aria-label="Abrir meu perfil">
-              <img id="headerUserPhoto" alt="" hidden>
-              <span id="headerUserInitials" class="app-user-avatar-fallback">US</span>
-            </button>
-
-            <div class="app-header-user-actions">
-              <div class="app-task-notifications">
-                <button id="taskNotificationButton" class="app-notification-button" type="button" title="Notificações de tarefas" aria-label="Notificações de tarefas" aria-expanded="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
-                  <span id="taskNotificationBadge" class="app-notification-badge" hidden>0</span>
-                </button>
-                <div id="taskNotificationPanel" class="app-notification-panel" hidden>
-                  <div class="app-notification-head">
-                    <div>
-                      <strong>Tarefas</strong>
-                      <small>Novas atribuições para você</small>
-                    </div>
-                    <button id="taskNotificationClose" type="button" aria-label="Fechar notificações">×</button>
-                  </div>
-                  <div id="taskNotificationList" class="app-notification-list">
-                    <div class="app-notification-empty">Carregando…</div>
-                  </div>
-                </div>
-              </div>
-
-              <button id="profileButton" class="app-profile-button" type="button" title="Meu perfil" aria-label="Meu perfil">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5.5 19c.8-3.8 3-5.7 6.5-5.7s5.7 1.9 6.5 5.7"></path></svg>
-              </button>
-
-              <button id="logoutButton" class="app-logout-button" type="button" title="Sair" aria-label="Sair">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div id="status" class="status" role="status" aria-live="polite"></div>
 
       <main id="app" aria-busy="true"></main>
