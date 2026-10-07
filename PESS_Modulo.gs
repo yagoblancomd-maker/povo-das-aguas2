@@ -97,7 +97,10 @@ function personSave_(ctx,q){
           ctx.email,
         modoDistribuicao:
           distributionTask.modoDistribuicao||
-          'MANUAL'
+          'MANUAL',
+        origem:
+          distributionTask.origem||
+          'CADASTRO'
       }),
       distributionTask.versao
     );
