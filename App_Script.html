@@ -4265,6 +4265,67 @@ f.insertBefore(file,f.firstChild);
 
   renderSummary();
 
+  /*
+   * O estado de cadastro incompleto é consultado somente ao abrir a ficha,
+   * nunca durante a listagem de pessoas.
+   */
+  call(
+    'pessoaCadastroEstado',
+    {id},
+    false,
+    {noLoader:true}
+  )
+    .then(state=>{
+      if(
+        activePersonDrawer!==overlay||
+        !state||
+        state.etapa==='CONCLUIDO'
+      ){
+        return;
+      }
+
+      const warning=
+        el(
+          'div',
+          undefined,
+          'pda-person-registration-warning'
+        );
+
+      warning.append(
+        el(
+          'strong',
+          'Cadastro incompleto'
+        ),
+        el(
+          'span',
+          (
+            state.etapa==='DOCUMENTOS_PENDENTES'
+              ?'Há documentos pendentes de gravação.'
+              :state.etapa==='FALHA_FINALIZACAO'
+                ?'A geração dos documentos finais não foi concluída.'
+                :state.etapa==='GERANDO_MINUTA'
+                  ?'A petição inicial ainda não foi concluída.'
+                  :'O fluxo de criação não foi finalizado.'
+          )
+        )
+      );
+
+      if(state.ultimoErro){
+        warning.append(
+          el(
+            'small',
+            String(state.ultimoErro)
+          )
+        );
+      }
+
+      body.insertBefore(
+        warning,
+        summaryBox
+      );
+    })
+    .catch(()=>{});
+
   const openFull=
     button(
       'Abrir ficha em tela cheia',
