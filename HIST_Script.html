@@ -1,0 +1,189 @@
+<script>
+window.PDA_MODULES.HIST=(()=>{
+  const {el,button,call,alive}=App;
+
+  function date_(value){
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())
+      ?String(value||'')
+      :d.toLocaleString('pt-BR',{
+          day:'2-digit',
+          month:'2-digit',
+          year:'numeric',
+          hour:'2-digit',
+          minute:'2-digit'
+        });
+  }
+
+  return async function(ctx){
+    const root=ctx.root;
+    const shell=el('div',undefined,'hist-shell');
+    const head=el('div',undefined,'hist-head');
+    const copy=el('div');
+    copy.append(
+      el('h2','Histórico'),
+      el('p','Consultas carregadas somente quando solicitadas.','hint')
+    );
+    const tabs=el('div',undefined,'hist-tabs');
+    head.append(copy,tabs);
+    shell.append(head);
+    root.append(shell);
+
+    const filters=el('div',undefined,'hist-filters');
+    const search=el('input');
+    search.type='search';
+    search.placeholder='Buscar no histórico';
+
+    const person=el('input');
+    person.type='search';
+    person.placeholder='Pessoa ou CPF';
+
+    const user=el('input');
+    user.type='search';
+    user.placeholder='Usuário';
+
+    const from=el('input');
+    from.type='date';
+
+    const to=el('input');
+    to.type='date';
+
+    const field_=(label,node)=>{
+      const wrap=el('label',undefined,'field');
+      wrap.append(el('span',label),node);
+      return wrap;
+    };
+
+    const apply=button('Aplicar',()=>load_(0));
+    filters.append(
+      field_('Busca',search),
+      field_('Pessoa',person),
+      field_('Usuário',user),
+      field_('De',from),
+      field_('Até',to),
+      apply
+    );
+
+    const meta=el('div',undefined,'hist-meta');
+    const list=el('div',undefined,'hist-list');
+    const more=button('Carregar mais',()=>load_(rows.length),true);
+    more.classList.add('hist-more');
+
+    shell.append(filters,meta,list,more);
+
+    const labels={
+      cadastros:'Cadastros',
+      atividades:'Atividades',
+      documentos:'Documentos',
+      processos:'Processos'
+    };
+
+    let type='cadastros';
+    let rows=[];
+    let total=0;
+    let hasMore=false;
+    let seq=0;
+
+    const render_=()=>{
+      meta.replaceChildren(
+        el('span',labels[type]),
+        el('span',rows.length+' de '+total+' registro(s)')
+      );
+      list.replaceChildren();
+
+      if(!rows.length){
+        list.append(el('p','Nenhum registro encontrado.','hint'));
+      }else{
+        rows.forEach(item=>{
+          const row=el('article',undefined,'hist-row');
+          const when=el('div');
+          when.append(
+            el('strong',date_(item.data)),
+            el('small',item.tipo||'Registro')
+          );
+
+          const who=el('div');
+          who.append(
+            el('strong',item.pessoa||'Sem cadastro vinculado'),
+            el('small',item.cpf||'')
+          );
+
+          const actor=el('div');
+          actor.append(
+            el('strong',item.usuario||'—'),
+            el('small','Usuário / responsável')
+          );
+
+          const detail=el('div');
+          detail.append(
+            el('strong',item.detalhe||'—'),
+            el('small',item.id||'')
+          );
+
+          row.append(when,who,actor,detail);
+          list.append(row);
+        });
+      }
+
+      more.hidden=!hasMore;
+      more.disabled=false;
+      more.textContent='Carregar mais';
+    };
+
+    const load_=async offset=>{
+      const request=++seq;
+      if(offset===0){
+        rows=[];
+        list.replaceChildren(el('p','Carregando…','hint'));
+      }else{
+        more.disabled=true;
+        more.textContent='Carregando…';
+      }
+
+      const data=await call('historicoGeral',{
+        tipo:type,
+        busca:search.value,
+        pessoa:person.value,
+        usuario:user.value,
+        de:from.value,
+        ate:to.value,
+        offset,
+        limit:50
+      });
+
+      if(request!==seq||!alive(ctx))return;
+
+      if(offset===0)rows=data.itens||[];
+      else rows.push(...(data.itens||[]));
+
+      total=Number(data.total||0);
+      hasMore=!!data.hasMore;
+      render_();
+    };
+
+    Object.entries(labels).forEach(([key,label])=>{
+      const tab=button(label,async()=>{
+        type=key;
+        tabs.querySelectorAll('button').forEach(node=>
+          node.classList.toggle('active',node.dataset.type===key)
+        );
+        await load_(0);
+      },true);
+      tab.dataset.type=key;
+      if(key===type)tab.classList.add('active');
+      tabs.append(tab);
+    });
+
+    [search,person,user].forEach(input=>{
+      input.addEventListener('keydown',event=>{
+        if(event.key==='Enter'){
+          event.preventDefault();
+          load_(0);
+        }
+      });
+    });
+
+    await load_(0);
+  };
+})();
+</script>
