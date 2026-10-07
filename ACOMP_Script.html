@@ -1102,10 +1102,7 @@ window.PDA_MODULES.ACOMP = (()=>{
             'Cadastro atualizado e gravado.'
           );
 
-          await go(
-            'ACOMP',
-            p.id
-          );
+          await App.refreshCurrent({code:'ACOMP',pessoaId:p.id});
         },
         'Salvar alterações'
       );
