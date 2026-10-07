@@ -111,7 +111,8 @@
       "ultimoLogin",
       "nomeUsuario",
       "fotoId",
-      "emailsAnteriores"
+      "emailsAnteriores",
+      "entidade"
     ],
     "Sessoes": [
       "usuarioId",
