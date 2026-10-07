@@ -255,16 +255,28 @@ function taskTagDelete_(ctx,q){
   return {ok:true,mensagem:'Tag excluída.'};
 }
 
-function taskMapsV2_(tasksOverride){
-  batchAll_([
-    'Usuarios',
-    'Pessoas',
-    'Tarefas',
-    'TarefaMensagens',
-    'TarefaAnexos',
-    'TarefaLeituras',
-    'TarefaTags'
-  ]);
+function taskMapsV2_(tasksOverride,options){
+  options=options||{};
+  const light=!!options.light;
+
+  batchAll_(
+    light
+      ?[
+          'Usuarios',
+          'Pessoas',
+          'Tarefas',
+          'TarefaTags'
+        ]
+      :[
+          'Usuarios',
+          'Pessoas',
+          'Tarefas',
+          'TarefaMensagens',
+          'TarefaAnexos',
+          'TarefaLeituras',
+          'TarefaTags'
+        ]
+  );
 
   const users=all_('Usuarios');
   const people=all_('Pessoas');
@@ -274,14 +286,18 @@ function taskMapsV2_(tasksOverride){
       :all_('Tarefas');
 
   const messages=
-    generalTaskRows_(
-      'TarefaMensagens'
-    );
+    light
+      ?[]
+      :generalTaskRows_(
+          'TarefaMensagens'
+        );
 
   const attachments=
-    generalTaskRows_(
-      'TarefaAnexos'
-    );
+    light
+      ?[]
+      :generalTaskRows_(
+          'TarefaAnexos'
+        );
 
   const currentEmail=
     String(
@@ -290,40 +306,49 @@ function taskMapsV2_(tasksOverride){
     ).toLowerCase();
 
   const movements=
-    taskMovementMaps_(
-      tasks,
-      messages,
-      attachments,
-      currentEmail
-    );
+    light
+      ?{
+          lastByTask:new Map(),
+          readByTask:new Map()
+        }
+      :taskMovementMaps_(
+          tasks,
+          messages,
+          attachments,
+          currentEmail
+        );
 
   const globalRead=
-    generalTaskRows_(
-      'TarefaLeituras'
-    )
-      .filter(row=>
-        !String(
-          row.tarefaId||
-          ''
-        ).trim()&&
-        String(
-          row.usuario||
-          ''
-        ).toLowerCase()===
-        currentEmail
-      )
-      .sort((a,b)=>
-        String(
-          b.ultimoVistoEm||
-          ''
-        ).localeCompare(
-          String(
-            a.ultimoVistoEm||
-            ''
+    light
+      ?null
+      :(
+          generalTaskRows_(
+            'TarefaLeituras'
           )
-        )
-      )[0]||
-    null;
+            .filter(row=>
+              !String(
+                row.tarefaId||
+                ''
+              ).trim()&&
+              String(
+                row.usuario||
+                ''
+              ).toLowerCase()===
+              currentEmail
+            )
+            .sort((a,b)=>
+              String(
+                b.ultimoVistoEm||
+                ''
+              ).localeCompare(
+                String(
+                  a.ultimoVistoEm||
+                  ''
+                )
+              )
+            )[0]||
+          null
+        );
 
   const tagColorMap=new Map(
     taskTagCatalog_().map(tag=>[
@@ -364,7 +389,8 @@ function taskMapsV2_(tasksOverride){
         globalRead.ultimoVistoEm||
         ''
       ),
-    currentEmail
+    currentEmail,
+    movementsLoaded:!light
   };
 }
 
@@ -479,15 +505,17 @@ function taskV2Summary_(task,peopleById,usersByEmail,messageCounts,attachmentCou
   return base;
 }
 
-function tasksCollectionV2_(q,mode){
+function tasksCollectionV2_(q,mode,options){
   q=q||{};
+  options=options||{};
 
   const allTasks=
     all_('Tarefas');
 
   const maps=
     taskMapsV2_(
-      allTasks
+      allTasks,
+      options
     );
 
   const peopleById=
@@ -559,18 +587,32 @@ function tasksCollectionV2_(q,mode){
       if(q.prazoAte&&due>q.prazoAte)return false;
       return true;
     })
-    .map(task=>taskV2Summary_(
-      task,
-      peopleById,
-      usersByEmail,
-      messageCounts,
-      attachmentCounts,
-      tagColorMap,
-      maps.lastMovements,
-      maps.readByTask,
-      maps.globalSeen,
-      maps.currentEmail
-    ));
+    .map(task=>{
+      const summary=
+        taskV2Summary_(
+          task,
+          peopleById,
+          usersByEmail,
+          messageCounts,
+          attachmentCounts,
+          tagColorMap,
+          maps.lastMovements,
+          maps.readByTask,
+          maps.globalSeen,
+          maps.currentEmail
+        );
+
+      summary.movimentacoesCarregadas=
+        maps.movementsLoaded!==false;
+
+      if(
+        maps.movementsLoaded===false
+      ){
+        summary.novaManifestacao=false;
+      }
+
+      return summary;
+    });
 
   const term=String(q.busca||'').trim().toLowerCase();
   if(term){
@@ -660,13 +702,15 @@ function tasksManagementOpenV2_(q){
     'Usuarios',
     'Pessoas',
     'Tarefas',
-    'TarefaMensagens',
-    'TarefaAnexos',
-    'TarefaLeituras',
     'TarefaTags'
   ]);
 
-  const result=tasksCollectionV2_(q,'open');
+  const result=
+    tasksCollectionV2_(
+      q,
+      'open',
+      {light:true}
+    );
   const tasks=result.tarefas;
 
   return Object.assign({},result,{
