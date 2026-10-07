@@ -62,13 +62,8 @@ function personSave_(ctx,q){
       ctx,
       'Tarefas',
       distributionTask.id,
-      {
-        tipo:distributionTask.tipo,
+      Object.assign({},distributionTask,{
         pessoaId:saved.id,
-        responsavel:
-          distributionTask.responsavel||
-          '',
-        situacao:distributionTask.situacao,
         jurisdicao:
           saved.jurisdicao||
           jurisdicaoPessoa_(saved)||
@@ -78,15 +73,32 @@ function personSave_(ctx,q){
             saved.parcelasNaoRecebidas
           )
         ),
-        atribuidaEm:
-          distributionTask.atribuidaEm||
-          '',
-        concluidaEm:'',
-        processoId:'',
-        observacoes:
-          distributionTask.observacoes||
-          ''
-      },
+        prazo:
+          distributionTask.prazo||
+          taskDatePlusDays_(
+            distributionTask.criadoEm||
+            now_(),
+            4
+          ),
+        prioridade:
+          distributionTask.prioridade||
+          'ALTA',
+        tags:
+          distributionTask.tags||
+          JSON.stringify(['PROCESSO']),
+        titulo:
+          distributionTask.titulo||
+          'Distribuir processo',
+        descricao:
+          distributionTask.descricao||
+          'Distribuição processual decorrente da conclusão do cadastro.',
+        criadoPor:
+          distributionTask.criadoPor||
+          ctx.email,
+        modoDistribuicao:
+          distributionTask.modoDistribuicao||
+          'MANUAL'
+      }),
       distributionTask.versao
     );
   }
