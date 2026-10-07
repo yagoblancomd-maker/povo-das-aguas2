@@ -111,9 +111,10 @@ window.PDA_MODULES.PROC = (()=>{
 
   return async function(ctx){
     const root=ctx.root;
-    const rows=await call('processos');
-    if(!alive(ctx))return;
 
+    /*
+     * Estrutura do módulo aparece antes da leitura dos processos.
+     */
     const toolbar=el('div',undefined,'proc-toolbar');
     const search=el('input');
     search.type='search';
@@ -122,7 +123,7 @@ window.PDA_MODULES.PROC = (()=>{
 
     const count=el(
       'span',
-      (rows||[]).length+' processo'+((rows||[]).length===1?'':'s'),
+      '',
       'proc-count'
     );
 
@@ -135,6 +136,9 @@ window.PDA_MODULES.PROC = (()=>{
 
     layout.append(list,detail);
     root.append(layout);
+
+    const rows=await call('processos');
+    if(!alive(ctx))return;
 
     let selected=(rows||[])[0]||null;
 
