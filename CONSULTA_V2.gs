@@ -461,18 +461,17 @@ function personDocumentContent_(q){
 }
 
 function personDrawerInitial_(q){
+  /*
+   * A carga inicial da ficha contém apenas dados diretamente vinculados.
+   * Tarefas e histórico são pré-buscados em paralelo pelo navegador para
+   * não atrasarem Documentos, Atendimentos e Processos.
+   */
   batchAll_([
     'Pessoas',
     'Usuarios',
     'Atendimentos',
     'Documentos',
-    'Processos',
-    'Tarefas',
-    'TarefaMensagens',
-    'TarefaAnexos',
-    'TarefaLeituras',
-    'TarefaTags',
-    'Historico'
+    'Processos'
   ]);
 
   const pessoaId=String(
@@ -505,23 +504,6 @@ function personDrawerInitial_(q){
     processos:personProcessesPage_({
       pessoaId,
       limit:20,
-      offset:0
-    }),
-    tarefasAbertas:personTasksV2_({
-      pessoaId,
-      historico:false,
-      limit:100,
-      offset:0
-    }),
-    tarefasConcluidas:personTasksV2_({
-      pessoaId,
-      historico:true,
-      limit:100,
-      offset:0
-    }),
-    historico:personHistoryPage_({
-      pessoaId,
-      limit:30,
       offset:0
     })
   };
