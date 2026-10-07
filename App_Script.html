@@ -40,6 +40,173 @@ n.className='status '+(error?'error':'ok');
 };
  const raw=(name,...args)=>new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args));
 
+ const PROCESSING_PROFILES=Object.freeze({
+  tarefaGeralCriar:{
+    seconds:5,
+    title:'Criando tarefa',
+    phases:[
+      [0,'Validando os dados da tarefa'],
+      [.32,'Salvando a atribuição'],
+      [.70,'Atualizando notificações'],
+      [.90,'Concluindo']
+    ]
+  },
+  tarefaGeralAnexoAdicionar:{
+    seconds:7,
+    title:'Adicionando PDF',
+    phases:[
+      [0,'Validando o arquivo'],
+      [.30,'Salvando o PDF'],
+      [.72,'Atualizando a tarefa'],
+      [.92,'Concluindo']
+    ]
+  },
+  tarefaGeralMensagemEnviar:{
+    seconds:4,
+    title:'Enviando mensagem',
+    phases:[
+      [0,'Preparando a mensagem'],
+      [.50,'Registrando a conversa'],
+      [.90,'Concluindo']
+    ]
+  },
+  tarefaGeralReatribuir:{
+    seconds:4,
+    title:'Reatribuindo tarefa',
+    phases:[
+      [0,'Validando o novo responsável'],
+      [.52,'Atualizando a atribuição'],
+      [.90,'Concluindo']
+    ]
+  },
+  tarefaGeralConcluir:{
+    seconds:4,
+    title:'Concluindo tarefa',
+    phases:[
+      [0,'Validando a tarefa'],
+      [.55,'Registrando a conclusão'],
+      [.92,'Concluindo']
+    ]
+  },
+  tarefaGeralReabrir:{
+    seconds:4,
+    title:'Reabrindo tarefa',
+    phases:[
+      [0,'Validando a tarefa'],
+      [.55,'Atualizando o status'],
+      [.92,'Concluindo']
+    ]
+  },
+  notificacoesTarefasMarcarLidas:{
+    seconds:2,
+    title:'Atualizando notificações',
+    phases:[
+      [0,'Registrando a leitura'],
+      [.85,'Concluindo']
+    ]
+  },
+  documentosImportar:{
+    seconds:22,
+    title:'Lendo documentos',
+    phases:[
+      [0,'Preparando os arquivos'],
+      [.18,'Lendo o conteúdo'],
+      [.48,'Extraindo os dados'],
+      [.78,'Validando as informações'],
+      [.94,'Concluindo']
+    ]
+  },
+  seguroDefesoConsultar:{
+    seconds:9,
+    title:'Consultando Seguro-Defeso',
+    phases:[
+      [0,'Preparando a consulta'],
+      [.30,'Consultando a base oficial'],
+      [.72,'Organizando o resultado'],
+      [.94,'Concluindo']
+    ]
+  },
+  seguroDefesoRelatorioGerar:{
+    seconds:16,
+    title:'Gerando relatório',
+    phases:[
+      [0,'Consultando os registros'],
+      [.35,'Montando o relatório'],
+      [.70,'Gerando o PDF'],
+      [.92,'Salvando']
+    ]
+  },
+  pessoaFinalizarCadastro:{
+    seconds:15,
+    title:'Finalizando cadastro',
+    phases:[
+      [0,'Validando o cadastro'],
+      [.32,'Preparando os documentos'],
+      [.66,'Gerando a inicial'],
+      [.90,'Concluindo']
+    ]
+  },
+  pessoaUpload:{
+    seconds:7,
+    title:'Salvando documento',
+    phases:[
+      [0,'Validando o arquivo'],
+      [.35,'Enviando para a pasta'],
+      [.78,'Atualizando a ficha'],
+      [.94,'Concluindo']
+    ]
+  },
+  pessoaSalvar:{
+    seconds:5,
+    title:'Salvando cadastro',
+    phases:[
+      [0,'Validando os dados'],
+      [.50,'Atualizando o cadastro'],
+      [.92,'Concluindo']
+    ]
+  },
+  minutaInicialGerar:{
+    seconds:14,
+    title:'Gerando petição inicial',
+    phases:[
+      [0,'Validando o cadastro'],
+      [.32,'Preenchendo o modelo'],
+      [.68,'Gerando o PDF'],
+      [.92,'Salvando']
+    ]
+  },
+  modeloUpload:{
+    seconds:16,
+    title:'Processando modelo',
+    phases:[
+      [0,'Recebendo o arquivo'],
+      [.30,'Convertendo o documento'],
+      [.62,'Validando os placeholders'],
+      [.90,'Ativando o modelo']
+    ]
+  },
+  tarefaDistribuicaoAtribuir:{
+    seconds:5,
+    title:'Atribuindo tarefa',
+    phases:[
+      [0,'Validando o responsável'],
+      [.52,'Atualizando a fila'],
+      [.92,'Concluindo']
+    ]
+  },
+  tarefaDistribuicaoConcluir:{
+    seconds:8,
+    title:'Concluindo distribuição',
+    phases:[
+      [0,'Validando o processo'],
+      [.38,'Registrando o processo'],
+      [.76,'Atualizando a tarefa'],
+      [.94,'Concluindo']
+    ]
+  }
+ });
+
+
  function resetClientCaches_(){
   MODULE_CACHE.clear();
   MODULE_REQUESTS.clear();
@@ -1424,6 +1591,39 @@ f.insertBefore(file,f.firstChild);
   return span;
  }
 
+ const NAV_HELP=Object.freeze({
+  PAINEL:'Visão geral do trabalho, indicadores, cadastros recentes e atividade do sistema.',
+  PESS:'Cadastre uma nova pessoa e organize a documentação inicial.',
+  TAREFAS:'Acompanhe as tarefas atribuídas a você, anexos e conversas.',
+  ACOMP:'Localize pessoas, abra fichas e confira documentos.',
+  DEFESO:'Consulte pagamentos do Seguro-Defeso 2025 pela base oficial.',
+  DIST:'Crie, atribua e acompanhe tarefas da equipe.',
+  PROC:'Consulte os processos judiciais registrados no sistema.',
+  MIN:'Gere e consulte minutas e petições vinculadas aos cadastros.',
+  PERF:'Atualize seus dados de perfil, senha, e-mail e foto.',
+  ADM:'Gerencie usuários, permissões, modelos e integrações.',
+  CONSULTAS:'Acesse consultas de cadastros e do Seguro-Defeso.',
+  DISTRIBUICAO:'Atribua tarefas, consulte processos e trabalhe com minutas.'
+ });
+
+ function showNavHelp_(text){
+  const help=document.getElementById('navContextHelp');
+  if(!help)return;
+  help.textContent=text||'';
+  help.hidden=!text;
+ }
+
+ function bindNavHelp_(node,key){
+  if(!node)return;
+  const text=NAV_HELP[key]||'';
+  if(!text)return;
+  node.title=text;
+  node.addEventListener('mouseenter',()=>showNavHelp_(text));
+  node.addEventListener('focus',()=>showNavHelp_(text));
+  node.addEventListener('mouseleave',()=>showNavHelp_(''));
+  node.addEventListener('blur',()=>showNavHelp_(''));
+ }
+
  function navLabel_(label){
   return el(
     'span',
@@ -1597,6 +1797,37 @@ f.insertBefore(file,f.firstChild);
     renderTaskNotifications_(data);
     return data;
   }catch(e){
+    const list=
+      document.getElementById(
+        'taskNotificationList'
+      );
+
+    if(list){
+      list.replaceChildren();
+
+      const message=
+        el(
+          'div',
+          'Não foi possível carregar as notificações.',
+          'app-notification-empty app-notification-error'
+        );
+
+      const retry=
+        el(
+          'button',
+          'Tentar novamente',
+          'app-notification-retry'
+        );
+
+      retry.type='button';
+      retry.onclick=()=>refreshTaskNotifications_();
+
+      list.append(
+        message,
+        retry
+      );
+    }
+
     return null;
   }finally{
     taskNotificationLoading=false;
@@ -1854,6 +2085,7 @@ f.insertBefore(file,f.firstChild);
 
     b.dataset.code=code;
     bindModulePrefetch_(b,code);
+    bindNavHelp_(b,code);
 
     b.append(
       navIcon_(code),
@@ -1913,6 +2145,11 @@ f.insertBefore(file,f.firstChild);
       navLabel_(label)
     );
 
+    bindNavHelp_(
+      summary,
+      iconCode||visible[0].code
+    );
+
     const menu=
       el(
         'div',
@@ -1938,6 +2175,11 @@ f.insertBefore(file,f.firstChild);
         item.code;
 
       bindModulePrefetch_(
+        b,
+        item.code
+      );
+
+      bindNavHelp_(
         b,
         item.code
       );
