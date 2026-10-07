@@ -2263,13 +2263,18 @@ f.insertBefore(file,f.firstChild);
       ),
       el(
         'span',
-        item.nova?'NOVA':'',
+        item.novaManifestacao
+          ?'NOVA MANIFESTAÇÃO'
+          :(item.nova?'NOVA':''),
         'app-notification-new'
       )
     );
 
     const meta=
       [
+        item.pessoa
+          ?'Cadastro: '+item.pessoa
+          :'',
         item.criadoPorNome
           ?'Por '+item.criadoPorNome
           :'',
@@ -2430,14 +2435,21 @@ f.insertBefore(file,f.firstChild);
           {},
           data,
           {
-            naoLidas:0,
+            naoLidas:
+              (data.itens||[])
+                .filter(item=>
+                  !!item.novaManifestacao
+                ).length,
             itens:
               (data.itens||[])
                 .map(item=>
                   Object.assign(
                     {},
                     item,
-                    {nova:false}
+                    {
+                      nova:
+                        !!item.novaManifestacao
+                    }
                   )
                 )
           }
