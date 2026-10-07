@@ -11,7 +11,9 @@ assert.match(app,/refreshCurrent:refreshCurrentModule_/);
 
 const adm=read('ADM_Script.html');
 assert.doesNotMatch(adm,/await\s+go\(\s*['"]ADM['"]/);
-assert.match(adm,/App\.refreshCurrent\(\{code:'ADM'\}\)/);
+assert.doesNotMatch(adm,/App\.refreshCurrent\(\{code:'ADM'\}\)/);
+assert.match(adm,/invalidate_\('adminUsuarios'\)/);
+assert.match(adm,/renderUsers_\(fresh\)/);
 
 const acomp=read('ACOMP_Script.html');
 assert.match(acomp,/App\.refreshCurrent\(\{code:'ACOMP',pessoaId:p\.id\}\)/);
@@ -23,7 +25,8 @@ assert.match(min,/App\.refreshCurrent\(\{code:'MIN',pessoaId:p\.id\}\)/);
 
 const perf=read('PERF_Script.html');
 assert.doesNotMatch(perf,/App\.start\(['"]PERF['"]\)/);
-assert.match(perf,/App\.refreshCurrent\(\{code:'PERF'\}\)/);
+assert.doesNotMatch(perf,/App\.refreshCurrent\(\{code:'PERF'\}\)/);
+assert.match(perf,/App\.state\.boot=/);
 
 const dist=read('DIST_Script.html');
 assert.match(dist,/dist-live-content/);
