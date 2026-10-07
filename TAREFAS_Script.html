@@ -194,7 +194,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const card=el(
       'article',
       undefined,
-      'task-card'+(task.situacao==='CONCLUIDA'?' done':'')
+      'task-card'+
+      (task.situacao==='CONCLUIDA'?' done':'')+
+      (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
+      (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
     );
 
     const top=el('div',undefined,'task-card-top');
@@ -221,6 +225,16 @@ window.PDA_MODULES.TAREFAS = (()=>{
       meta.append(item);
     });
 
+    const tags=el('div',undefined,'task-tags');
+
+    (task.tags||[]).forEach(tag=>{
+      const chip=el('span',tag.nome||tag,'task-tag');
+      if(tag.cor){
+        chip.style.setProperty('--task-tag-color',tag.cor);
+      }
+      tags.append(chip);
+    });
+
     const actions=el('div',undefined,'actions');
 
     actions.append(
@@ -230,7 +244,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
       )
     );
 
-    card.append(top,meta,actions);
+    card.append(top,meta,tags,actions);
     return card;
   }
 
@@ -240,7 +254,11 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const card=el(
       'article',
       undefined,
-      'task-card task-general-card'+(done?' done':'')
+      'task-card task-general-card'+
+      (done?' done':'')+
+      (task.vencimentoEstado==='VENCIDA'?' overdue':'')+
+      (task.vencimentoEstado==='ATE_24H'?' due-24':'')+
+      (task.vencimentoEstado==='ATE_96H'?' due-96':'')
     );
 
     const top=el('div',undefined,'task-card-top');
@@ -273,6 +291,16 @@ window.PDA_MODULES.TAREFAS = (()=>{
       meta.append(item);
     });
 
+    const tags=el('div',undefined,'task-tags');
+
+    (task.tags||[]).forEach(tag=>{
+      const chip=el('span',tag.nome||tag,'task-tag');
+      if(tag.cor){
+        chip.style.setProperty('--task-tag-color',tag.cor);
+      }
+      tags.append(chip);
+    });
+
     const actions=el('div',undefined,'actions');
 
     actions.append(
@@ -282,7 +310,7 @@ window.PDA_MODULES.TAREFAS = (()=>{
       )
     );
 
-    card.append(top,description,meta,actions);
+    card.append(top,description,meta,tags,actions);
     return card;
   }
 
@@ -844,163 +872,218 @@ window.PDA_MODULES.TAREFAS = (()=>{
     const content=el('div',undefined,'tasks-live-content');
     root.append(content);
 
-    const render=async()=>{
-      content.setAttribute('aria-busy','true');
+    let mode='open';
+    let openData=null;
+    let historyData=null;
+    const filters={
+      busca:'',
+      tipo:'',
+      tag:'',
+      prazo:''
+    };
 
-      const data=await call('tarefasMinhas');
-      if(!alive(ctx))return;
+    const taskMatches_=task=>{
+      if(filters.tipo&&task.tipo!==filters.tipo)return false;
+      if(filters.tag&&!(task.tags||[]).some(tag=>String(tag.nome||tag).toUpperCase()===filters.tag))return false;
 
-      const distributionPending=(data.pendentes||[]);
-      const distributionDone=(data.concluidas||[]);
-      const generalPending=(data.geraisPendentes||[]);
-      const generalDone=(data.geraisConcluidas||[]);
+      if(filters.prazo){
+        if(filters.prazo==='ATE_96H'&&!['ATE_96H','ATE_24H','VENCIDA'].includes(task.vencimentoEstado))return false;
+        if(filters.prazo==='ATE_24H'&&!['ATE_24H','VENCIDA'].includes(task.vencimentoEstado))return false;
+        if(filters.prazo==='VENCIDA'&&task.vencimentoEstado!=='VENCIDA')return false;
+      }
+
+      const q=filters.busca.trim().toLowerCase();
+      if(q){
+        const hay=[
+          task.titulo,task.descricao,task.pessoa,task.cpf,
+          task.responsavelNome,task.criadoPorNome,task.jurisdicao,
+          ...(task.tags||[]).map(tag=>tag.nome||tag)
+        ].join(' ').toLowerCase();
+        if(!hay.includes(q))return false;
+      }
+
+      return true;
+    };
+
+    const openTask_=async task=>{
+      if(task.tipo==='DISTRIBUICAO_PROCESSO'){
+        const detail=await call(
+          'tarefaDistribuicaoDetalhe',
+          {id:task.id}
+        );
+        if(!alive(ctx))return;
+        openDistributionDialog_(root,detail,render);
+        return;
+      }
+
+      openGeneralDialog_(root,task,render);
+    };
+
+    const filterBar_=data=>{
+      const bar=el('div',undefined,'tasks-filterbar');
+
+      const search=el('input');
+      search.type='search';
+      search.placeholder='Buscar por tarefa, cadastro, CPF ou tag';
+      search.value=filters.busca;
+
+      const type=el('select');
+      [
+        ['','Todos os tipos'],
+        ['TAREFA_GERAL','Tarefas internas'],
+        ['DISTRIBUICAO_PROCESSO','Distribuições processuais']
+      ].forEach(([value,label])=>{
+        const option=el('option',label);
+        option.value=value;
+        type.append(option);
+      });
+      type.value=filters.tipo;
+
+      const tag=el('select');
+      const allTag=el('option','Todas as tags');
+      allTag.value='';
+      tag.append(allTag);
+      (data.tags||[]).forEach(item=>{
+        const option=el('option',item.nome);
+        option.value=String(item.nome||'').toUpperCase();
+        tag.append(option);
+      });
+      tag.value=filters.tag;
+
+      const due=el('select');
+      [
+        ['','Todos os prazos'],
+        ['ATE_96H','Prazo inferior a 96h'],
+        ['ATE_24H','Prazo inferior a 24h'],
+        ['VENCIDA','Vencidas']
+      ].forEach(([value,label])=>{
+        const option=el('option',label);
+        option.value=value;
+        due.append(option);
+      });
+      due.value=filters.prazo;
+
+      const apply=()=>{
+        filters.busca=search.value;
+        filters.tipo=type.value;
+        filters.tag=tag.value;
+        filters.prazo=due.value;
+        paint_(data);
+      };
+
+      search.addEventListener('input',apply);
+      type.addEventListener('change',apply);
+      tag.addEventListener('change',apply);
+      due.addEventListener('change',apply);
+
+      [search,type,tag,due].forEach(node=>bar.append(node));
+      return bar;
+    };
+
+    const paint_=data=>{
+      content.replaceChildren();
+
+      const tasks=(data.tarefas||[]).filter(taskMatches_);
+      const urgent=(data.tarefas||[]).filter(task=>
+        ['ATE_96H','ATE_24H','VENCIDA'].includes(task.vencimentoEstado)
+      ).length;
 
       const head=el('div',undefined,'tasks-head');
       const copy=el('div');
 
       copy.append(
-        el('h2','Minhas tarefas'),
+        el('h2',mode==='history'?'Histórico de tarefas':'Minhas tarefas'),
         el(
           'p',
-          'Tarefas atribuídas especificamente a você, incluindo atividades internas e distribuições processuais.',
+          mode==='history'
+            ?'As tarefas concluídas são consultadas somente quando você abre este histórico.'
+            :'Prioridade para tarefas vencidas ou com prazo inferior a 96 horas.',
           'hint'
         )
       );
+
+      const actions=el('div',undefined,'tasks-head-actions');
+
+      if(mode==='open'){
+        const history=button(
+          'Histórico',
+          async()=>{
+            mode='history';
+            if(!historyData){
+              content.setAttribute('aria-busy','true');
+              historyData=await call('tarefasMinhasHistorico',{limit:500});
+            }
+            paint_(historyData);
+          },
+          true
+        );
+        history.classList.add('tasks-history-button');
+        actions.append(history);
+      }else{
+        actions.append(
+          button(
+            'Voltar às abertas',
+            ()=>{
+              mode='open';
+              paint_(openData);
+            },
+            true
+          )
+        );
+      }
 
       const summary=el('div',undefined,'tasks-summary');
+      summary.append(
+        el('span',undefined,'tasks-summary-item'),
+        el('span',undefined,'tasks-summary-item urgent')
+      );
+      summary.children[0].append(el('strong',String((data.tarefas||[]).length)),document.createTextNode(mode==='history'?' concluídas':' abertas'));
+      summary.children[1].append(el('strong',String(mode==='history'?0:urgent)),document.createTextNode(' com atenção <96h'));
 
-      [
-        [
-          generalPending.length+distributionPending.length,
-          ' pendentes'
-        ],
-        [
-          generalDone.length+distributionDone.length,
-          ' concluídas'
-        ]
-      ].forEach(([value,label])=>{
-        const item=el('span');
-        item.append(
-          el('strong',String(value)),
-          document.createTextNode(label)
-        );
-        summary.append(item);
-      });
+      head.append(copy,summary,actions);
+      content.append(head,filterBar_(data));
 
-      head.append(copy,summary);
-      content.append(head);
-
-      const openDistribution=async task=>{
-        const detail=await call(
-          'tarefaDistribuicaoDetalhe',
-          {id:task.id}
-        );
-
-        if(!alive(ctx))return;
-        openDistributionDialog_(root,detail,render);
-      };
-
-      const internal=el('section',undefined,'tasks-section');
-      const internalHead=el('div',undefined,'tasks-section-head');
-
-      internalHead.append(
-        el('h3','Tarefas internas'),
-        el(
-          'span',
-          generalPending.length+' pendente(s)',
-          'hint'
-        )
+      const section=el('section',undefined,'tasks-section');
+      const sectionHead=el('div',undefined,'tasks-section-head');
+      sectionHead.append(
+        el('h3',mode==='history'?'Concluídas':'Abertas'),
+        el('span',tasks.length+' resultado(s)','hint')
       );
 
-      const internalGrid=el('div',undefined,'tasks-grid');
+      const grid=el('div',undefined,'tasks-grid');
 
-      if(!generalPending.length){
-        internalGrid.append(
-          el(
-            'div',
-            'Você não possui tarefas internas pendentes.',
-            'task-empty'
-          )
+      if(!tasks.length){
+        grid.append(
+          el('div',mode==='history'
+            ?'Nenhuma tarefa concluída encontrada com esses filtros.'
+            :'Nenhuma tarefa aberta encontrada com esses filtros.','task-empty')
         );
       }else{
-        generalPending.forEach(task=>
-          internalGrid.append(
-            generalCard_(
-              task,
-              item=>openGeneralDialog_(root,item,render)
-            )
-          )
-        );
+        tasks.forEach(task=>{
+          const card=task.tipo==='DISTRIBUICAO_PROCESSO'
+            ?distributionCard_(task,openTask_)
+            :generalCard_(task,openTask_);
+          grid.append(card);
+        });
       }
 
-      internal.append(internalHead,internalGrid);
-      content.append(internal);
-
-      const distribution=el('section',undefined,'tasks-section');
-      const distributionHead=el('div',undefined,'tasks-section-head');
-
-      distributionHead.append(
-        el('h3','Distribuições processuais'),
-        el(
-          'span',
-          distributionPending.length+' pendente(s)',
-          'hint'
-        )
-      );
-
-      const distributionGrid=el('div',undefined,'tasks-grid');
-
-      if(!distributionPending.length){
-        distributionGrid.append(
-          el(
-            'div',
-            'Você não possui nenhuma distribuição pendente.',
-            'task-empty'
-          )
-        );
-      }else{
-        distributionPending.forEach(task=>
-          distributionGrid.append(
-            distributionCard_(task,openDistribution)
-          )
-        );
-      }
-
-      distribution.append(
-        distributionHead,
-        distributionGrid
-      );
-
-      content.append(distribution);
-
-      if(generalDone.length||distributionDone.length){
-        const doneSection=el('section',undefined,'tasks-section');
-        const doneHead=el('div',undefined,'tasks-section-head');
-
-        doneHead.append(el('h3','Concluídas'));
-
-        const doneGrid=el('div',undefined,'tasks-grid');
-
-        generalDone.slice(0,12).forEach(task=>
-          doneGrid.append(
-            generalCard_(
-              task,
-              item=>openGeneralDialog_(root,item,render)
-            )
-          )
-        );
-
-        distributionDone.slice(0,12).forEach(task=>
-          doneGrid.append(
-            distributionCard_(task,openDistribution)
-          )
-        );
-
-        doneSection.append(doneHead,doneGrid);
-        content.append(doneSection);
-      }
-
+      section.append(sectionHead,grid);
+      content.append(section);
       content.removeAttribute('aria-busy');
+    };
+
+    const render=async()=>{
+      content.setAttribute('aria-busy','true');
+
+      if(mode==='history'){
+        historyData=await call('tarefasMinhasHistorico',{limit:500});
+        if(!alive(ctx))return;
+        paint_(historyData);
+      }else{
+        openData=await call('tarefasMinhasAbertas',{});
+        if(!alive(ctx))return;
+        paint_(openData);
+      }
     };
 
     await render();
