@@ -14,7 +14,8 @@ const App=(()=>{
  const MODULE_REQUESTS=new Map();
  const READ_CACHE=new Map();
  const READ_REQUESTS=new Map();
- const READ_CACHE_TTL_MS=3000;
+ const READ_CACHE_TTL_MS=30000;
+ const READ_CACHE_REFRESH_MS=8000;
  const CACHEABLE_READS=new Set([
   'painel',
   'tarefasMinhas',
@@ -233,15 +234,66 @@ n.className='status '+(error?'error':'ok');
   READ_REQUESTS.clear();
  }
 
+ function refreshReadInBackground_(action,data,key){
+  if(
+    !CACHEABLE_READS.has(action)||
+    READ_REQUESTS.has(key)
+  ){
+    return;
+  }
+
+  const request=
+    raw(
+      'api',
+      action,
+      data,
+      authSessionToken
+    )
+      .then(result=>{
+        READ_CACHE.set(
+          key,
+          {
+            value:result,
+            at:performance.now()
+          }
+        );
+        return result;
+      })
+      .catch(()=>null)
+      .finally(()=>{
+        if(READ_REQUESTS.get(key)===request){
+          READ_REQUESTS.delete(key);
+        }
+      });
+
+  READ_REQUESTS.set(key,request);
+ }
+
  function cachedRead_(action,data){
   if(!CACHEABLE_READS.has(action))return null;
+
   const key=readKey_(action,data);
   const item=READ_CACHE.get(key);
+
   if(!item)return null;
-  if((performance.now()-item.at)>READ_CACHE_TTL_MS){
+
+  const age=
+    performance.now()-
+    item.at;
+
+  if(age>READ_CACHE_TTL_MS){
     READ_CACHE.delete(key);
     return null;
   }
+
+  if(age>READ_CACHE_REFRESH_MS){
+    refreshReadInBackground_(
+      action,
+      data,
+      key
+    );
+  }
+
   return item.value;
  }
 
@@ -318,7 +370,7 @@ n.className='status '+(error?'error':'ok');
       await Promise.race([
         bulkModulePromise,
         new Promise(resolve=>
-          setTimeout(resolve,180)
+          setTimeout(resolve,360)
         )
       ]);
     }catch(e){}
@@ -372,14 +424,10 @@ n.className='status '+(error?'error':'ok');
     return Promise.resolve();
   }
 
-  /*
-   * O hover aquece primeiro o bundle. Os dados iniciais só são antecipados
-   * quando o bundle já está em memória, evitando duas execuções Apps Script
-   * concorrentes para um simples movimento do mouse.
-   */
-  if(MODULE_CACHE.has(code)){
-    const initial=MODULE_INITIAL_READ[code];
+  const initial=
+    MODULE_INITIAL_READ[code];
 
+  if(MODULE_CACHE.has(code)){
     if(
       withData&&
       initial
@@ -395,22 +443,190 @@ n.className='status '+(error?'error':'ok');
     );
   }
 
-  return getModule_(code).catch(()=>null);
+  return getModule_(code)
+    .then(module=>{
+      if(
+        withData&&
+        initial
+      ){
+        prefetchRead_(
+          initial[0],
+          initial[1]
+        );
+      }
+
+      return module;
+    })
+    .catch(()=>null);
  }
 
  function bindModulePrefetch_(node,code){
-  /*
-   * Intencionalmente sem preload automático. O módulo será carregado no
-   * primeiro clique e permanecerá no MODULE_CACHE durante toda a página.
-   * Isso elimina chamadas de fundo e concorrência desnecessária.
-   */
-  return;
+  if(!node)return;
+
+  let timer=null;
+
+  const warm=delay=>{
+    if(timer){
+      clearTimeout(timer);
+    }
+
+    timer=
+      setTimeout(
+        ()=>{
+          timer=null;
+          prefetchModule_(
+            code,
+            true
+          );
+        },
+        delay
+      );
+  };
+
+  const cancel=()=>{
+    if(timer){
+      clearTimeout(timer);
+      timer=null;
+    }
+  };
+
+  node.addEventListener(
+    'mouseenter',
+    ()=>warm(90),
+    {passive:true}
+  );
+
+  node.addEventListener(
+    'focus',
+    ()=>warm(0)
+  );
+
+  node.addEventListener(
+    'pointerdown',
+    ()=>warm(0),
+    {passive:true}
+  );
+
+  node.addEventListener(
+    'mouseleave',
+    cancel,
+    {passive:true}
+  );
+ }
+
+ function consumeWarmup_(payload){
+  if(!payload)return;
+
+  Object.entries(
+    payload.modules||{}
+  ).forEach(([code,module])=>{
+    if(module){
+      MODULE_CACHE.set(
+        code,
+        module
+      );
+    }
+  });
+
+  Object.values(
+    payload.data||{}
+  ).forEach(item=>{
+    if(
+      !item||
+      !item.action||
+      !CACHEABLE_READS.has(
+        item.action
+      )
+    ){
+      return;
+    }
+
+    READ_CACHE.set(
+      readKey_(
+        item.action,
+        item.query||{}
+      ),
+      {
+        value:item.result,
+        at:performance.now()
+      }
+    );
+  });
+ }
+
+ function runModuleWarmup_(){
+  if(
+    !boot||
+    !boot.modulos||
+    !authSessionToken
+  ){
+    return Promise.resolve();
+  }
+
+  const codes=
+    Object.keys(
+      boot.modulos
+    )
+      .filter(code=>
+        code!==current&&
+        !MODULE_CACHE.has(code)
+      );
+
+  if(!codes.length){
+    return Promise.resolve();
+  }
+
+  bulkModuleCodes=
+    new Set(codes);
+
+  bulkModulePromise=
+    raw(
+      'aquecerAplicacao',
+      codes,
+      authSessionToken
+    )
+      .then(payload=>{
+        consumeWarmup_(payload);
+        return payload;
+      })
+      .catch(()=>null)
+      .finally(()=>{
+        bulkModulePromise=null;
+        bulkModuleCodes=
+          new Set();
+      });
+
+  return bulkModulePromise;
  }
 
  function scheduleModuleWarmup_(){
-  // Sem preload em segundo plano: evita execuções Apps Script que o usuário
-  // não pediu. Módulos já visitados continuam instantâneos pelo MODULE_CACHE.
-  return;
+  if(
+    warmupScheduled||
+    !boot||
+    !authSessionToken
+  ){
+    return;
+  }
+
+  warmupScheduled=true;
+
+  const launch=()=>{
+    runModuleWarmup_();
+  };
+
+  if(
+    typeof requestIdleCallback==='function'
+  ){
+    requestIdleCallback(
+      launch,
+      {timeout:900}
+    );
+  }else{
+    setTimeout(
+      launch,
+      260
+    );
+  }
  }
 
  function ensureProcessingOverlay_(){
@@ -1428,6 +1644,11 @@ return d;
  async function go(code,pessoaId){
   if(busy)return;
 
+  const perfStart=
+    performance.now();
+  let perfBundle=0;
+  let perfContent=0;
+
   if(
     boot&&
     boot.modulos&&
@@ -1484,12 +1705,19 @@ return d;
             );
         }
       },
-      460
+      720
     );
 
   try{
+    const bundleStarted=
+      performance.now();
+
     const module=
       await getModule_(code);
+
+    perfBundle=
+      performance.now()-
+      bundleStarted;
 
     if(token!==epoch){
       return;
@@ -1526,10 +1754,17 @@ return d;
       );
     }
 
+    const contentStarted=
+      performance.now();
+
     await window.PDA_MODULES[code]({
       root:section,
       token
     });
+
+    perfContent=
+      performance.now()-
+      contentStarted;
 
     decorateModule_(code,section);
 
@@ -1606,6 +1841,37 @@ return d;
 
     renderNavigation_();
     status('');
+
+    const perfTotal=
+      performance.now()-
+      perfStart;
+
+    window.PDA_PERF=
+      window.PDA_PERF||[];
+
+    window.PDA_PERF.push({
+      modulo:code,
+      bundleMs:Math.round(perfBundle),
+      conteudoDadosMs:Math.round(perfContent),
+      totalMs:Math.round(perfTotal),
+      em:new Date().toISOString()
+    });
+
+    if(window.PDA_PERF.length>40){
+      window.PDA_PERF.shift();
+    }
+
+    console.info(
+      '[PDA desempenho]',
+      code,
+      {
+        bundleMs:Math.round(perfBundle),
+        conteudoDadosMs:Math.round(perfContent),
+        totalMs:Math.round(perfTotal),
+        bundleEmCache:
+          MODULE_CACHE.has(code)
+      }
+    );
 
     endProcessing_(
       moduleProcessingId,
