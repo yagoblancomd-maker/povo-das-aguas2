@@ -743,8 +743,41 @@ function myTasksOpenV2_(q){
 
   delete q.responsavel;
 
-  const result=tasksCollectionV2_(q,'open');
-  return Object.assign({},result,{tags:taskTagCatalog_()});
+  const result=
+    tasksCollectionV2_(
+      q,
+      'open',
+      {light:true}
+    );
+
+  const user=
+    activeUser_();
+
+  const podeAssumir=
+    hasPermission_(
+      user,
+      'distribuicao'
+    );
+
+  const disponiveis=
+    podeAssumir
+      ?all_('Tarefas')
+        .filter(task=>
+          task.tipo===DISTRIBUTION_TASK_TYPE&&
+          task.situacao!==DISTRIBUTION_TASK_DONE&&
+          !String(task.responsavel||'').trim()
+        ).length
+      :0;
+
+  return Object.assign(
+    {},
+    result,
+    {
+      tags:taskTagCatalog_(),
+      podeAssumirDistribuicao:podeAssumir,
+      distribuicoesDisponiveis:disponiveis
+    }
+  );
 }
 
 function myTasksHistoryV2_(q){
