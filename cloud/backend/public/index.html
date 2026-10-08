@@ -10131,6 +10131,32 @@ f.insertBefore(file,f.firstChild);
 
     title.textContent=name;
 
+    if(result.redirect){
+      body.replaceChildren();
+      foot.replaceChildren();
+
+      const legacy=el('div',undefined,'pda-file-viewer-unsupported');
+      legacy.append(
+        el('strong','Documento legado do Google Drive'),
+        el('p','Este arquivo ainda está vinculado ao armazenamento anterior. Abra o original em uma nova guia; novos documentos permanecem no Google Cloud.')
+      );
+
+      const openOriginal=button(
+        'Abrir arquivo original',
+        ()=>{
+          window.open(String(result.redirect),'_blank','noopener,noreferrer');
+        },
+        false
+      );
+
+      legacy.append(openOriginal);
+      body.append(legacy);
+      foot.append(
+        el('span',[result.categoria,mime].filter(Boolean).join(' · '),'pda-file-viewer-meta')
+      );
+      return dialog;
+    }
+
     const bytes=
       base64Bytes_(
         result.base64
@@ -10156,274 +10182,12 @@ f.insertBefore(file,f.firstChild);
       mime==='application/pdf'||
       mime.includes('pdf')
     ){
-      const pdfjs=
-        await ensurePdfJs_();
-
-      pdfDocument=
-        await pdfjs
-          .getDocument({
-            data:bytes
-          })
-          .promise;
-
-      const shell=
-        el(
-          'div',
-          undefined,
-          'pda-pdf-reader'
-        );
-
-      const toolbar=
-        el(
-          'div',
-          undefined,
-          'pda-pdf-toolbar'
-        );
-
-      const previousPage=
-        button(
-          '←',
-          ()=>{},
-          true
-        );
-
-      previousPage.title=
-        'Página anterior';
-
-      const pageLabel=
-        el(
-          'span',
-          '',
-          'pda-pdf-page-label'
-        );
-
-      const nextPage=
-        button(
-          '→',
-          ()=>{},
-          true
-        );
-
-      nextPage.title=
-        'Próxima página';
-
-      const zoomOut=
-        button(
-          '−',
-          ()=>{},
-          true
-        );
-
-      zoomOut.title=
-        'Reduzir';
-
-      const zoomIn=
-        button(
-          '+',
-          ()=>{},
-          true
-        );
-
-      zoomIn.title=
-        'Ampliar';
-
-      toolbar.append(
-        previousPage,
-        pageLabel,
-        nextPage,
-        zoomOut,
-        zoomIn
-      );
-
-      const canvasWrap=
-        el(
-          'div',
-          undefined,
-          'pda-pdf-canvas-wrap'
-        );
-
-      const canvas=
-        el('canvas');
-
-      canvas.className=
-        'pda-pdf-canvas';
-
-      canvasWrap.append(canvas);
-      shell.append(
-        toolbar,
-        canvasWrap
-      );
-
-      body.append(shell);
-
-      let pageNumber=1;
-      let scale=1.18;
-
-      const renderPage_=async()=>{
-        const token=
-          ++renderToken;
-
-        previousPage.disabled=
-          pageNumber<=1;
-
-        nextPage.disabled=
-          pageNumber>=
-          pdfDocument.numPages;
-
-        pageLabel.textContent=
-          'Página '+
-          pageNumber+
-          ' de '+
-          pdfDocument.numPages;
-
-        const page=
-          await pdfDocument
-            .getPage(
-              pageNumber
-            );
-
-        if(
-          token!==renderToken
-        ){
-          return;
-        }
-
-        const viewport=
-          page.getViewport({
-            scale
-          });
-
-        const ratio=
-          Math.max(
-            1,
-            Math.min(
-              2,
-              window.devicePixelRatio||
-              1
-            )
-          );
-
-        canvas.width=
-          Math.floor(
-            viewport.width*
-            ratio
-          );
-
-        canvas.height=
-          Math.floor(
-            viewport.height*
-            ratio
-          );
-
-        canvas.style.width=
-          Math.floor(
-            viewport.width
-          )+
-          'px';
-
-        canvas.style.height=
-          Math.floor(
-            viewport.height
-          )+
-          'px';
-
-        const context=
-          canvas.getContext(
-            '2d',
-            {
-              alpha:false
-            }
-          );
-
-        context.setTransform(
-          ratio,
-          0,
-          0,
-          ratio,
-          0,
-          0
-        );
-
-        await page.render({
-          canvasContext:context,
-          viewport
-        }).promise;
-      };
-
-      previousPage.onclick=
-        ()=>{
-          if(pageNumber<=1){
-            return;
-          }
-
-          pageNumber--;
-          renderPage_()
-            .catch(error=>
-              status(
-                error.message||
-                String(error),
-                true
-              )
-            );
-        };
-
-      nextPage.onclick=
-        ()=>{
-          if(
-            pageNumber>=
-            pdfDocument.numPages
-          ){
-            return;
-          }
-
-          pageNumber++;
-          renderPage_()
-            .catch(error=>
-              status(
-                error.message||
-                String(error),
-                true
-              )
-            );
-        };
-
-      zoomOut.onclick=
-        ()=>{
-          scale=
-            Math.max(
-              .62,
-              scale-.14
-            );
-
-          renderPage_()
-            .catch(error=>
-              status(
-                error.message||
-                String(error),
-                true
-              )
-            );
-        };
-
-      zoomIn.onclick=
-        ()=>{
-          scale=
-            Math.min(
-              2.8,
-              scale+.14
-            );
-
-          renderPage_()
-            .catch(error=>
-              status(
-                error.message||
-                String(error),
-                true
-              )
-            );
-        };
-
-      await renderPage_();
+      const frame=el('iframe');
+      frame.src=objectUrl;
+      frame.className='pda-file-viewer-frame';
+      frame.title='Visualização de '+name;
+      frame.setAttribute('loading','eager');
+      body.append(frame);
 
     }else if(
       mime.startsWith(
@@ -10846,6 +10610,7 @@ f.insertBefore(file,f.firstChild);
           id:person.id,
           versao:person.versao,
           confirmar:true,
+          cpfConfirmacao:String(typed||'').replace(/\D/g,''),
           confirmarVinculos
         },
         true,

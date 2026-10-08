@@ -204,13 +204,23 @@ function normalizeList(value){
   return [...new Set(String(value||'').split(/[;,\n]/).map(x=>x.trim()).filter(Boolean))];
 }
 
-function modelApplicable(model,p){
-  const jurisdictions=normalizeList(model.jurisdicoes).map(x=>x.toUpperCase());
-  const entities=normalizeList(model.entidades).map(x=>x.toUpperCase());
-  const personEntity=String(p.entidade==='Outro'?(p.outraEntidade||'Outro'):(p.entidade||'')).trim().toUpperCase();
-  const jurisdiction=String(p.jurisdicao||'').trim().toUpperCase();
+function modelApplicable(model,p,context={}){
+  const normalize=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  const jurisdictions=normalizeList(model.jurisdicoes).map(normalize);
+  const entities=normalizeList(model.entidades).map(normalize);
+  const origins=normalizeList(model.origensCadastro).map(normalize);
+  const parcels=normalizeList(model.parcelas).map(value=>String(value||'').trim()).filter(Boolean);
+  const demands=normalizeList(model.demandas).map(normalize);
+  const personEntity=normalize(p.entidade==='Outro'?(p.outraEntidade||'Outro'):(p.entidade||''));
+  const jurisdiction=normalize(p.jurisdicao);
+  const origin=normalize(p.origemCadastro||'INTERNA');
+  const parcel=String(p.parcelasNaoRecebidas||'').trim();
+  const demand=normalize(context.demanda||'Seguro-Defeso 2025');
   return (!jurisdictions.length||jurisdictions.includes(jurisdiction))&&
-    (!entities.length||entities.includes(personEntity));
+    (!entities.length||entities.includes(personEntity))&&
+    (!origins.length||origins.includes(origin))&&
+    (!parcels.length||parcels.includes(parcel))&&
+    (!demands.length||demands.includes(demand));
 }
 
 export async function listDocumentModels(client){
@@ -224,6 +234,11 @@ export async function listDocumentModels(client){
     finalidade:'Petição inicial',
     jurisdicoes:[],
     entidades:[],
+    origensCadastro:[],
+    parcelas:[],
+    demandas:['Seguro-Defeso 2025'],
+    automatico:true,
+    gatilho:'CONCLUSAO_CADASTRO',
     ativo:true,
     sistema:true,
     versao:1,
@@ -238,8 +253,13 @@ export async function listDocumentModels(client){
     ...model,
     sistema:false,
     ativo:model.ativo!==false,
+    automatico:model.automatico===true,
+    gatilho:model.automatico===true?'CONCLUSAO_CADASTRO':'MANUAL',
     jurisdicoes:normalizeList(model.jurisdicoes),
     entidades:normalizeList(model.entidades),
+    origensCadastro:normalizeList(model.origensCadastro),
+    parcelas:normalizeList(model.parcelas),
+    demandas:normalizeList(model.demandas),
     placeholders:normalizeList(model.placeholders)
   }));
   return [system,...customs];
@@ -286,6 +306,14 @@ export async function saveDocumentModel(q,user,client,ctx){
     finalidade,
     jurisdicoes:normalizeList(q.jurisdicoes??prior?.jurisdicoes),
     entidades:normalizeList(q.entidades??prior?.entidades),
+    origensCadastro:normalizeList(q.origensCadastro??prior?.origensCadastro),
+    parcelas:normalizeList(q.parcelas??prior?.parcelas)
+      .filter(value=>['1','2','3','4'].includes(String(value))),
+    demandas:normalizeList(q.demandas??prior?.demandas),
+    automatico:q.automatico===undefined?(prior?.automatico===true):bool(q.automatico),
+    gatilho:(q.automatico===undefined?(prior?.automatico===true):bool(q.automatico))
+      ?'CONCLUSAO_CADASTRO'
+      :'MANUAL',
     ativo:q.ativo===undefined?(prior?.ativo!==false):bool(q.ativo),
     fileId,
     arquivoNome:fileName,

@@ -85,11 +85,8 @@ export async function personListLite(q,user){
   q=q||{};
   const term=String(q.busca||'').trim().toLowerCase();
   const offset=Math.max(0,Number(q.offset)||0);
-  const limit=Math.min(100,Math.max(10,Number(q.limit)||30));
-
-  if(!term){
-    return {pessoas:[],total:0,offset,limit,hasMore:false,aguardandoFiltro:true};
-  }
+  const prewarm=q.precarregar===true||String(q.precarregar||'').toLowerCase()==='true';
+  const limit=Math.min(prewarm?5000:100,Math.max(10,Number(q.limit)||(prewarm?5000:30)));
 
   const [people,users,processes,tasks]=await Promise.all([
     all('Pessoas'),all('Usuarios'),all('Processos'),all('Tarefas')
@@ -113,7 +110,7 @@ export async function personListLite(q,user){
   let rows=visiblePeople(user,people).filter(person=>{
     const cpf=String(person.cpf||'').replace(/\D/g,'');
     const hay=[person.nome,person.cidade,person.jurisdicao,person.entidade,person.criadoPor].join(' ').toLowerCase();
-    if(!hay.includes(term)&&!(typedCpf&&cpf.includes(typedCpf)))return false;
+    if(term&&!hay.includes(term)&&!(typedCpf&&cpf.includes(typedCpf)))return false;
     if(city&&String(person.cidade||'').toLowerCase()!==city)return false;
     if(jurisdiction&&String(person.jurisdicao||'').toLowerCase()!==jurisdiction)return false;
     if(entity&&String(person.entidade||'').toLowerCase()!==entity)return false;
@@ -207,7 +204,16 @@ export async function personDocumentContent(q,user){
   if(!docs.some(d=>d.id===doc.id))throw httpError(400,'O documento não pertence ao cadastro informado.');
   if(!bool(doc.vigente))throw httpError(400,'Esta versão do documento não está mais vigente.');
   if(!String(doc.fileId||'').startsWith('gcs:')){
-    throw httpError(409,'Documento legado ainda não migrado para o Cloud Storage.');
+    const redirect=String(doc.url||'').trim();
+    if(!redirect)throw httpError(404,'O documento legado não possui arquivo ou link disponível.');
+    return {
+      id:doc.id,
+      nome:doc.nome||'documento',
+      categoria:doc.categoria||'',
+      mime:doc.mime||'application/octet-stream',
+      legado:true,
+      redirect
+    };
   }
   const file=bucket.file(String(doc.fileId).slice(4));
   const [exists]=await file.exists();

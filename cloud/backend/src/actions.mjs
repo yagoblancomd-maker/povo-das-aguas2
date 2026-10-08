@@ -343,6 +343,36 @@ async function ensureDistributionTask(client,ctx,p){
   });
 }
 
+async function generateAutomaticModels_(client,ctx,p){
+  const models=(await listDocumentModels(client))
+    .filter(model=>
+      !model.sistema&&
+      model.ativo!==false&&
+      model.automatico===true&&
+      modelAppliesToPerson_(model,p,{demanda:'Seguro-Defeso 2025'})
+    );
+
+  if(!models.length)return {gerados:[],ignorados:[]};
+
+  const owner=personOwnerKey(p.id);
+  const existing=(await all('Minutas',client)).filter(m=>String(m.atendimentoId||'')===owner);
+  const generated=[];
+  const ignored=[];
+
+  for(const model of models){
+    const already=existing.some(m=>
+      String(m.templateId||'')===String(model.fileId||'')
+    );
+    if(already){
+      ignored.push({id:model.id,nome:model.nome,motivo:'já gerado nesta versão'});
+      continue;
+    }
+    generated.push(await generateFromDocumentModel(client,ctx,p,model.id));
+  }
+
+  return {gerados:generated,ignorados:ignored};
+}
+
 async function finalizePerson(action,q,user){
   return idempotentMutation(action,q,user,async(client,ctx)=>{
     required(q.pessoaId,'pessoa');
@@ -351,14 +381,19 @@ async function finalizePerson(action,q,user){
     const errors=await requiredDocumentErrors(p,client);
     if(errors.length)throw httpError(400,'O cadastro não pode ser finalizado sem todos os documentos obrigatórios:\n'+errors.join('\n'));
     const minuta=await generateInitial(client,ctx,p);
+    const automaticos=await generateAutomaticModels_(client,ctx,p);
     const task=await ensureDistributionTask(client,ctx,p);
+    const extra=automaticos.gerados.length;
     return {
       pessoaId:p.id,
       folderId:'cloud',
       folderUrl:'',
       minutaBase:minuta,
+      modelosAutomaticos:automaticos,
       tarefaDistribuicao:task?.id||'',
-      mensagem:'Cadastro, documentos e petição inicial concluídos. Tarefa de distribuição criada automaticamente.'
+      mensagem:'Cadastro concluído. Petição inicial gerada'+
+        (extra?' e '+extra+' modelo(s) automático(s) adicional(is) gerado(s)':'')+
+        '. Tarefa de distribuição criada automaticamente.'
     };
   });
 }
@@ -384,15 +419,24 @@ async function generateInitialOnly(action,q,user){
   });
 }
 
-function modelAppliesToPerson_(model,p){
+function modelAppliesToPerson_(model,p,context={}){
   if(model.sistema)return true;
   const normalize=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
   const jurisdictions=(model.jurisdicoes||[]).map(normalize).filter(Boolean);
   const entities=(model.entidades||[]).map(normalize).filter(Boolean);
+  const origins=(model.origensCadastro||[]).map(normalize).filter(Boolean);
+  const parcels=(model.parcelas||[]).map(value=>String(value||'').trim()).filter(Boolean);
+  const demands=(model.demandas||[]).map(normalize).filter(Boolean);
   const jurisdiction=normalize(p.jurisdicao);
   const entity=normalize(p.entidade==='Outro'?(p.outraEntidade||'Outro'):(p.entidade||''));
+  const origin=normalize(p.origemCadastro||'INTERNA');
+  const parcel=String(p.parcelasNaoRecebidas||'').trim();
+  const demand=normalize(context.demanda||'Seguro-Defeso 2025');
   return (!jurisdictions.length||jurisdictions.includes(jurisdiction))&&
-    (!entities.length||entities.includes(entity));
+    (!entities.length||entities.includes(entity))&&
+    (!origins.length||origins.includes(origin))&&
+    (!parcels.length||parcels.includes(parcel))&&
+    (!demands.length||demands.includes(demand));
 }
 
 async function documentModelsList(q,user){
@@ -406,7 +450,7 @@ async function documentModelsList(q,user){
   return {
     modelos:models.map(model=>({
       ...model,
-      aplicavel:person?modelAppliesToPerson_(model,person):true
+      aplicavel:person?modelAppliesToPerson_(model,person,{demanda:q?.demanda||'Seguro-Defeso 2025'}):true
     })),
     pessoa:person?{
       id:person.id,
@@ -449,7 +493,7 @@ async function documentModelGenerate(q,user){
     const models=await listDocumentModels(client);
     const model=models.find(item=>item.id===String(q.modeloId||''));
     if(!model)throw httpError(404,'Modelo não localizado.');
-    if(!modelAppliesToPerson_(model,person))throw httpError(403,'Este modelo não se aplica a este cadastro.');
+    if(!modelAppliesToPerson_(model,person,{demanda:q?.demanda||'Seguro-Defeso 2025'}))throw httpError(403,'Este modelo não se aplica a este cadastro.');
     const generated=await generateFromDocumentModel(client,ctx,person,model.id);
     let distributionTask='';
     if(model.sistema){
