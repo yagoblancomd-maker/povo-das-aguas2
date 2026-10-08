@@ -228,6 +228,7 @@ export async function agendaList(q,user){
       id:'TASK_'+t.id,titulo:t.titulo||'Prazo de tarefa',descricao:t.descricao||'',
       inicio:date+'T12:00:00.000Z',fim:date+'T12:00:00.000Z',diaInteiro:true,
       tipo:'PRAZO_TAREFA',fonte:'TAREFAS',pessoaId:t.pessoaId||'',tarefaId:t.id,
+      processoId:t.processoId||'',tarefaTipo:t.tipo||'TAREFA_GERAL',tarefa:t,
       pessoa:p?.nome||'',responsavel:t.responsavel||'',visibilidade:'PESSOAL',sintetico:true
     });
   }

@@ -7004,6 +7004,7 @@ const App=(()=>{
  let taskNotificationSelectedIds=new Set();
  let bulkModulePromise=null;
  let bulkModuleCodes=new Set();
+ let floatingChatPromise=null;
  let dataWarmupPromise=null;
  let warmupScheduled=false;
  let processingState=null;
@@ -9381,6 +9382,50 @@ return d;
   }
  }
 
+ function installGlobalModuleStyle_(code,module){
+  const id='pda-global-module-style-'+String(code||'').toLowerCase();
+  if(document.getElementById(id))return;
+  const host=document.createElement('div');
+  host.innerHTML=String(module&&module.style||'');
+  const style=host.querySelector('style');
+  if(!style)return;
+  style.id=id;
+  document.head.append(style);
+ }
+
+ async function ensureFloatingChat_(options={}){
+  if(
+    !boot||
+    !boot.modulos||
+    !Object.prototype.hasOwnProperty.call(boot.modulos,'CHAT')
+  ){
+    return null;
+  }
+
+  if(window.PDA_CHAT_WIDGET){
+    await window.PDA_CHAT_WIDGET.ensure(options);
+    return window.PDA_CHAT_WIDGET;
+  }
+
+  if(!floatingChatPromise){
+    floatingChatPromise=(async()=>{
+      const module=await getModule_('CHAT');
+      installGlobalModuleStyle_('CHAT',module);
+      installModuleScript_('CHAT',module);
+      if(!window.PDA_CHAT_WIDGET){
+        throw new Error('Não foi possível inicializar o Chat CIDIJUS.');
+      }
+      return window.PDA_CHAT_WIDGET;
+    })().finally(()=>{
+      floatingChatPromise=null;
+    });
+  }
+
+  const widget=await floatingChatPromise;
+  await widget.ensure(options);
+  return widget;
+ }
+
  async function go(code,pessoaId){
   if(busy)return;
 
@@ -9402,6 +9447,15 @@ return d;
       'Este módulo não está disponível para suas permissões atuais.',
       true
     );
+    return;
+  }
+
+  if(code==='CHAT'){
+    await ensureFloatingChat_({open:true});
+    const appRoot=document.getElementById('app');
+    if(appRoot&&!appRoot.querySelector('section')){
+      return go('PAINEL');
+    }
     return;
   }
 
@@ -13670,6 +13724,11 @@ f.insertBefore(file,f.firstChild);
     await go(
       preferredModule||boot.home||
       'PAINEL'
+    );
+
+    setTimeout(
+      ()=>ensureFloatingChat_({open:false}).catch(()=>{}),
+      350
     );
 
   }catch(e){
