@@ -4788,7 +4788,18 @@ body.pda-drawer-open{overflow:hidden}
   border:1px solid #d9ddd8;
   border-radius:11px;
   background:#fcfbf7;
-  box-shadow:0 2px 7px rgba(19,54,65,.03)
+  box-shadow:0 2px 7px rgba(19,54,65,.03);
+  cursor:pointer;
+  transition:border-color .12s ease,background .12s ease,box-shadow .12s ease
+}
+.pda-person-task-row:hover{
+  border-color:#b9ccca;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(19,54,65,.07)
+}
+.pda-person-task-row:focus-visible{
+  outline:2px solid #0b7b86;
+  outline-offset:2px
 }
 .pda-person-task-row.is-done{
   border-color:#d8e2dc;
@@ -11680,6 +11691,67 @@ f.insertBefore(file,f.firstChild);
             .filter(Boolean)
             .join(' ')
         );
+
+      row.tabIndex=0;
+      row.setAttribute('role','button');
+      row.setAttribute(
+        'aria-label',
+        'Abrir tarefa '+
+        String(
+          task.titulo||
+          task.tipoLabel||
+          'Tarefa'
+        )
+      );
+
+      const openLinkedTask_=()=>{
+        if(
+          task.tipo==='DISTRIBUICAO_PROCESSO'&&
+          !can('distribuicao')
+        ){
+          return go('TAREFAS');
+        }
+
+        return go(
+          'TAREFAS',
+          {
+            task:{
+              ...task
+            },
+            historico:done
+          }
+        );
+      };
+
+      row.addEventListener(
+        'click',
+        event=>{
+          if(
+            event.target.closest(
+              'button,a,input,select,textarea'
+            )
+          ){
+            return;
+          }
+
+          openLinkedTask_();
+        }
+      );
+
+      row.addEventListener(
+        'keydown',
+        event=>{
+          if(
+            event.key!=='Enter'&&
+            event.key!==' '
+          ){
+            return;
+          }
+
+          event.preventDefault();
+          openLinkedTask_();
+        }
+      );
 
       const head=
         el(
