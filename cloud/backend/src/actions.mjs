@@ -314,6 +314,84 @@ async function deletePersonDocument(q,user){
   });
 }
 
+async function replacePersonDocument(q,user){
+  requirePermission(user,'cadastro');
+  return idempotentMutation('pessoaDocumentoSubstituir',q,user,async(client,ctx)=>{
+    required(q.id,'documento');required(q.pessoaId,'pessoa');
+    const p=await get('Pessoas',q.pessoaId,client);
+    if(!canWritePersonContent(user,p))throw httpError(403,'Você não possui permissão para substituir documentos desta pessoa.');
+
+    const prior=await get('Documentos',q.id,client);
+    if(Number(prior.versao)!==Number(q.versao))throw httpError(409,'Documento alterado. Recarregue antes de substituir.');
+    if(!bool(prior.vigente))throw httpError(400,'Somente o documento vigente pode ser substituído.');
+
+    const attendances=await whereAll('Atendimentos','pessoa_id=$1',[p.id],client);
+    const owners=new Set([personOwnerKey(p.id),...attendances.map(a=>a.id)]);
+    if(!owners.has(prior.atendimentoId))throw httpError(400,'Documento não pertence ao cadastro informado.');
+
+    const payload=await validateFile(q);
+    if(String(prior.hash||'')===payload.hash){
+      return {documento:{...prior,url:documentUrl(prior)},pessoa:p,mensagem:'O arquivo selecionado é idêntico ao documento vigente.'};
+    }
+
+    const did=id('DOC',q.op||cryptoRandom());
+    const safe=String(p.nome||'pessoa').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._ -]+/g,'').trim().replace(/\s+/g,'_').slice(0,80);
+    const objectName='pessoas/'+p.id+'/'+Date.now()+'_'+did+'_'+safe+'.'+payload.ext;
+    await bucket.file(objectName).save(payload.bytes,{
+      contentType:payload.mime,
+      resumable:false,
+      metadata:{metadata:{pessoaId:p.id,categoria:prior.categoria,substituiId:prior.id}}
+    });
+
+    const next=await change(client,ctx,'Documentos',did,{
+      atendimentoId:prior.atendimentoId||personOwnerKey(p.id),
+      categoria:prior.categoria,
+      fileId:'gcs:'+objectName,
+      url:'/api/v1/files/'+did,
+      nome:(docLabel(prior.categoria)+' - '+p.nome+'.'+payload.ext).slice(0,240),
+      hash:payload.hash,
+      mime:payload.mime,
+      substituiId:prior.id,
+      vigente:true,
+      vencimento:prior.vencimento||'',
+      terceiro:bool(prior.terceiro),
+      conferido:false,
+      declaracaoTerceiro:bool(prior.declaracaoTerceiro),
+      processoCompleto:false,
+      anexoPresente:false,
+      rogo:false,
+      testemunhas:false,
+      observacoes:[
+        'Substitui '+String(prior.nome||prior.id)+'.',
+        String(q.observacoes||'').trim()
+      ].filter(Boolean).join(' ')
+    });
+
+    await change(
+      client,
+      ctx,
+      'Documentos',
+      prior.id,
+      {
+        ...prior,
+        vigente:false,
+        observacoes:[
+          String(prior.observacoes||'').trim(),
+          '[SUBSTITUÍDO '+now()+' por '+user.email+' → '+next.id+']'
+        ].filter(Boolean).join('\n')
+      },
+      prior.versao
+    );
+
+    return {
+      documento:{...next,url:documentUrl(next)},
+      substituido:{id:prior.id,nome:prior.nome},
+      pessoa:p,
+      mensagem:'Documento substituído. A versão anterior foi preservada no histórico.'
+    };
+  });
+}
+
 async function requiredDocumentErrors(p,client){
   const c=await config(client),docs=(await all('Documentos',client)).filter(d=>d.atendimentoId===personOwnerKey(p.id)&&bool(d.vigente));
   const errors=[];
@@ -833,6 +911,7 @@ export async function executeAction(action,q,user){
       return {ok:true,resultados,mensagem:resultados.length+' arquivo(s) salvo(s).'};
     }
     case 'pessoaDocumentoExcluir': return deletePersonDocument(q,user);
+    case 'pessoaDocumentoSubstituir': return replacePersonDocument(q,user);
     case 'pessoaFinalizarCadastro': return finalizePerson(action,q,user);
     case 'pessoaInicialGerar':
     case 'minutaInicialGerar': return generateInitialOnly(action,q,user);

@@ -10519,6 +10519,20 @@ f.insertBefore(file,f.firstChild);
       }
     );
 
+  const canonicalPerson=
+    preview.pessoa||
+    person;
+
+  const expectedCpf=
+    String(canonicalPerson.cpf||'')
+      .replace(/\D/g,'');
+
+  if(!expectedCpf){
+    throw new Error(
+      'O cadastro não possui CPF válido para confirmação da exclusão.'
+    );
+  }
+
   const summary=[
     preview.tarefas+
       ' tarefa(s)',
@@ -10562,8 +10576,9 @@ f.insertBefore(file,f.firstChild);
     window.prompt(
       'Para concluir, digite o CPF do cadastro:\n'+
       (
-        person.cpfFormatado||
-        person.cpf||
+        canonicalPerson.cpfFormatado||
+        cpfDrawer_(canonicalPerson.cpf)||
+        canonicalPerson.cpf||
         ''
       )
     );
@@ -10571,8 +10586,7 @@ f.insertBefore(file,f.firstChild);
   if(
     String(typed||'')
       .replace(/\D/g,'')!==
-    String(person.cpf||'')
-      .replace(/\D/g,'')
+    expectedCpf
   ){
     status(
       'Exclusão cancelada: o CPF não confere.',
@@ -10607,10 +10621,10 @@ f.insertBefore(file,f.firstChild);
       await call(
         'pessoaExcluirDefinitivo',
         {
-          id:person.id,
-          versao:person.versao,
+          id:canonicalPerson.id||person.id,
+          versao:canonicalPerson.versao,
           confirmar:true,
-          cpfConfirmacao:String(typed||'').replace(/\D/g,''),
+          cpfConfirmacao:expectedCpf,
           confirmarVinculos
         },
         true,
