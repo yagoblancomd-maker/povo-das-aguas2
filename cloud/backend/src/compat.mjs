@@ -812,7 +812,7 @@ export async function generalTaskCreate(q,user){
 
     const taskId=id('TAR','GERAL:'+String(q.op||randomId('OP')));
     const task=await change(client,{email:user.email},'Tarefas',taskId,{
-      tipo:GENERAL_TASK_TYPE,pessoaId,responsavel,situacao:situation,jurisdicao:person?.jurisdicao||'',valorCausa:'',
+      tipo:GENERAL_TASK_TYPE,pessoaId,responsavel:responsible,situacao:situation,jurisdicao:person?.jurisdicao||'',valorCausa:'',
       atribuidaEm:assignedAt,concluidaEm:'',processoId:String(q.processoId||''),observacoes:'',
       titulo:title,descricao:description,criadoPor:emailOf(user),prazo:safeDate(q.prazo),
       prioridade:priority(q.prioridade),tags:selectedTags,modoDistribuicao:destination==='EQUIPE'?'FILA_EQUIPE':'MANUAL',
