@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {Storage} from '@google-cloud/storage';
 import {getPool,closeDb} from '../src/db.mjs';
 import {all,change,get,randomId,sha} from '../src/core.mjs';
-import {permissions} from '../src/access.mjs';
+import {permissions,ROLES} from '../src/access.mjs';
 import {executeAction} from '../src/actions.mjs';
 
 const prefix='adj'+Date.now().toString().slice(-9);
@@ -20,7 +20,7 @@ const out={prefix,checks:{},details:{}};
 const assert=(name,value,detail='')=>{out.checks[name]=!!value;if(!value)throw new Error('ASSERT '+name+(detail?': '+detail:''));};
 
 async function seedUser(client,id,email,perfil,nome,entidade=''){
-  return change(client,null,'Usuarios',id,{email,perfil,ativo:true,nome,funcao:perfil==='COLONIA_PESCADOR'?'Agente de entidade':(perfil==='PROFESSOR_RESIDENTE'?'Professor':'Colaborador'),permissoes:[],permissoesVersao:1,nomeUsuario:email.split('@')[0],entidade});
+  return change(client,null,'Usuarios',id,{email,perfil,ativo:true,nome,funcao:perfil==='COLONIA_PESCADOR'?'Agente de entidade':(perfil==='PROFESSOR_RESIDENTE'?'Professor':'Colaborador'),permissoes:[...(ROLES[perfil]||[])],permissoesVersao:1,nomeUsuario:email.split('@')[0],entidade});
 }
 
 async function cleanup(){
