@@ -209,11 +209,18 @@ try{
   const opened=await executeAction('documentoConteudo',{id:uploaded[0].id,pessoaId:personId},colony);
   assert('document_open_content',opened.id===uploaded[0].id&&String(opened.base64||'').length>0);
 
+  const fullFichaBefore=await executeAction('ficha',{pessoaId:personId},colony);
+  assert(
+    'full_screen_ficha_loads_documents',
+    (fullFichaBefore.documentosPessoa||[]).filter(d=>d.vigente===true||d.vigente==='true').length===uploaded.length
+  );
+
   const finalized=await executeAction('pessoaFinalizarCadastro',{
     op:'finalize-'+prefix,
     pessoaId:personId
   },colony);
   assert('automatic_model_generated',finalized.modelosAutomaticos?.gerados?.some(x=>x.modelo?.id===autoModelId));
+  assert('system_model_generated',finalized.modelosAutomaticos?.gerados?.some(x=>x.modelo?.sistema===true));
   assert('distribution_created',!!finalized.tarefaDistribuicao);
 
   const task=await get('Tarefas',finalized.tarefaDistribuicao);
@@ -227,10 +234,21 @@ try{
     modeloId:manualModelId,
     demanda:'Seguro-Defeso 2025'
   },colony);
-  assert('manual_model_generated',manual.modelo?.id===manualModelId&&(manual.documentos||[]).length===2);
+  assert(
+    'manual_model_generated_pdf_only',
+    manual.modelo?.id===manualModelId&&
+    (manual.documentos||[]).length===1&&
+    (manual.documentos||[]).every(d=>d.mime==='application/pdf')
+  );
 
   const docs=await executeAction('pessoaDocumentos',{pessoaId:personId,limit:100},colony);
-  assert('generated_documents_visible',(docs.documentos||[]).filter(d=>d.categoria==='MODELO_GERADO').length>=4);
+  assert('generated_documents_visible',(docs.documentos||[]).filter(d=>d.categoria==='MODELO_GERADO'&&(d.vigente===true||d.vigente==='true')).length>=2);
+
+  const fullFichaAfter=await executeAction('ficha',{pessoaId:personId},colony);
+  assert(
+    'full_screen_ficha_includes_generated_documents',
+    (fullFichaAfter.documentosPessoa||[]).some(d=>d.categoria==='MODELO_GERADO'&&(d.vigente===true||d.vigente==='true'))
+  );
 
   const deleteDoc=manual.documentos?.[0];
   const deletedDoc=await executeAction('pessoaDocumentoExcluir',{
