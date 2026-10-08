@@ -18,7 +18,7 @@ import {
   globalHistory,tasksManagementOpen,tasksHistory,myTasksOpen,myTasksHistory,
   personTasks,taskCreateOptions,generalTaskDetail,generalTaskMovements,
   generalTaskAttachmentContent,markTaskViewed,notifications,markNotificationsSeen,treatNotification,treatNotificationsBatch,reopenNotification,
-  generalTaskCreate,generalTaskAssign,generalTaskForwardTeam,generalTaskComplete,generalTaskReopen,
+  generalTaskCreate,generalTaskAssign,generalTaskDeadlineUpdate,generalTaskForwardTeam,generalTaskComplete,generalTaskReopen,
   generalTaskMessageSend,generalTaskAttachmentAdd,taskTagSave,taskTagDelete,
   taskTagsData,taskTagAdminList,batchAssign,claimNextDistribution,
   distributionAutoSave,distributionAutoRun,rankingData,profileRanking,
@@ -26,6 +26,13 @@ import {
 } from './compat.mjs';
 import {listProcesses,filterOptions,processDetail,syncProcess} from './datajud.mjs';
 import {listVisuals,visualContent,randomVisual,uploadVisual,saveVisualMeta,deleteVisual} from './visuals.mjs';
+import {
+  agendaList,agendaSave,agendaDelete,deadlineCalculate,
+  personNotes,personNoteSave,personNotePin,
+  chatBootstrap,chatMessages,chatCreate,chatSend,chatMarkRead,
+  messageTemplates,messageTemplateSave,messageTemplateDelete,messageTemplateRender,
+  userPreferences,saveUserPreferences
+} from './workspace.mjs';
 
 const storage=new Storage();
 const bucket=storage.bucket(STORAGE_BUCKET);
@@ -893,8 +900,10 @@ export async function executeAction(action,q,user){
   q=q||{};
   const reads={
     bootstrap:async()=>{
-      const [c,modelo,portalConfigured,deepseekConfigured,painel]=await Promise.all([config(),modelStatus(),secretConfigured(SECRET_IDS.portal),secretConfigured(SECRET_IDS.deepseek),dashboard(user)]);
-      return {email:user.email,usuario:publicUser(user),perfil:user.perfil,permissoes:permissions(user),config:c,modulos:modules(user),home:'PAINEL',initialModule:null,initialData:{action:'painel',query:{},result:painel},modelo,portalTransparencia:{configurada:portalConfigured},deepseek:{configurada:deepseekConfigured,modelo:'deepseek-flash'}};
+      const [c,modelo,portalConfigured,deepseekConfigured,painel,preferencias]=await Promise.all([
+        config(),modelStatus(),secretConfigured(SECRET_IDS.portal),secretConfigured(SECRET_IDS.deepseek),dashboard(user),userPreferences(user)
+      ]);
+      return {email:user.email,usuario:publicUser(user),perfil:user.perfil,permissoes:permissions(user),config:c,modulos:modules(user),home:'PAINEL',initialModule:null,initialData:{action:'painel',query:{},result:painel},modelo,preferencias,portalTransparencia:{configurada:portalConfigured},deepseek:{configurada:deepseekConfigured,modelo:'deepseek-flash'}};
     },
     pessoas:async()=>{requirePermission(user,'consulta');const term=String(q.busca||'').trim().toLowerCase();const rows=(await all('Pessoas')).filter(p=>personInUserScope(user,p));return rows.filter(p=>!term||String(p.nome||'').toLowerCase().includes(term)||String(p.cpf||'').includes(term.replace(/[.\- ]/g,''))||String(p.cidade||'').toLowerCase().includes(term)).sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));},
     pessoasLeve:async()=>{requirePermission(user,'consulta');return personListLite(q,user);},
@@ -908,6 +917,13 @@ export async function executeAction(action,q,user){
     pessoaProcessos:async()=>{requirePermission(user,'consulta');return personProcessesPage(q,user);},
     pessoaAtendimentos:async()=>{requirePermission(user,'consulta');return personAttendancesPage(q,user);},
     pessoaHistorico:async()=>{requirePermission(user,'consulta');return personHistoryPage(q,user);},
+    pessoaObservacoes:async()=>personNotes(q,user),
+    agenda:async()=>agendaList(q,user),
+    prazoCalcular:async()=>deadlineCalculate(q,user),
+    chat:async()=>chatBootstrap(user),
+    chatMensagens:async()=>chatMessages(q,user),
+    mensagensModelos:async()=>messageTemplates(q,user),
+    preferenciasUsuario:async()=>userPreferences(user),
     historicoGeral:async()=>{requirePermission(user,'consulta');return globalHistory(q,user);},
     ficha:async()=>{requirePermission(user,'consulta');return dossier(q,user);},
     painel:async()=>{requirePermission(user,'consulta');return dashboard(user);},
@@ -959,6 +975,17 @@ export async function executeAction(action,q,user){
     }
     case 'pessoaDocumentoExcluir': return deletePersonDocument(q,user);
     case 'pessoaDocumentoSubstituir': return replacePersonDocument(q,user);
+    case 'pessoaObservacaoAdicionar': return personNoteSave(q,user);
+    case 'pessoaObservacaoFixar': return personNotePin(q,user);
+    case 'agendaSalvar': return agendaSave(q,user);
+    case 'agendaExcluir': return agendaDelete(q,user);
+    case 'chatCriar': return chatCreate(q,user);
+    case 'chatEnviar': return chatSend(q,user);
+    case 'chatMarcarLido': return chatMarkRead(q,user);
+    case 'mensagemModeloSalvar': return messageTemplateSave(q,user);
+    case 'mensagemModeloExcluir': return messageTemplateDelete(q,user);
+    case 'mensagemModeloRenderizar': return messageTemplateRender(q,user);
+    case 'preferenciasUsuarioSalvar': return saveUserPreferences(q,user);
     case 'pessoaFinalizarCadastro': return finalizePerson(action,q,user);
     case 'pessoaInicialGerar':
     case 'minutaInicialGerar': return generateInitialOnly(action,q,user);
@@ -970,6 +997,7 @@ export async function executeAction(action,q,user){
     case 'tarefasDistribuicaoReconciliar': return reconcileTasks(q,user);
     case 'tarefaGeralCriar': return generalTaskCreate(q,user);
     case 'tarefaGeralReatribuir': return generalTaskAssign(q,user);
+    case 'tarefaGeralPrazoAtualizar': return generalTaskDeadlineUpdate(q,user);
     case 'tarefaGeralEncaminharEquipe': return generalTaskForwardTeam(q,user);
     case 'tarefaGeralConcluir': return generalTaskComplete(q,user);
     case 'tarefaGeralReabrir': return generalTaskReopen(q,user);

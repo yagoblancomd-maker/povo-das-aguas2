@@ -6308,6 +6308,49 @@ window.PDA_AUTH_BOOTSTRAP={
  funcoesComCodigo:[]
 };
 </script>
+<style id="pda-workspace-components">
+.pda-rich-editor{display:grid;gap:0;border:1px solid #cfdad6;border-radius:10px;overflow:hidden;background:#fff}
+.pda-rich-toolbar{display:flex;gap:3px;flex-wrap:wrap;padding:6px;border-bottom:1px solid #dce4e0;background:#f4f7f5}
+.pda-rich-toolbar button{display:grid!important;place-items:center!important;min-width:29px!important;height:28px!important;padding:3px 7px!important;border-radius:6px!important;font-size:8px!important}
+.pda-rich-body{min-height:110px;max-height:360px;overflow:auto;padding:10px 11px;color:#243f49;background:#fff;font-size:10px;line-height:1.55;outline:0}
+.pda-rich-body:empty::before{content:attr(data-placeholder);color:#8a9692;pointer-events:none}
+.pda-rich-body p{margin:0 0 .65em}.pda-rich-body ul,.pda-rich-body ol{padding-left:22px}
+.pda-rich-body blockquote{margin:6px 0;padding:5px 9px;border-left:3px solid var(--pda-sea,#0f7a84);background:#f2f7f5}
+html[data-pda-font="LEGIVEL"] body{font-family:Arial,Helvetica,sans-serif!important}
+html[data-pda-font="SERIF"] body{font-family:Georgia,"Times New Roman",serif!important}
+html[data-pda-size="PEQUENO"] body{font-size:90%}
+html[data-pda-size="GRANDE"] body{font-size:112%}
+html[data-pda-size="MUITO_GRANDE"] body{font-size:126%}
+html[data-pda-density="COMPACTA"] .card,
+html[data-pda-density="COMPACTA"] .pda-person-drawer-content{--pda-density-factor:.86}
+html[data-pda-density="COMPACTA"] button{min-height:29px!important}
+html[data-pda-theme="ESCURO"]{color-scheme:dark;--pda-paper:#15252b;--pda-ink:#eef5f3;--pda-line:#3a4f52}
+html[data-pda-theme="ESCURO"] body,
+html[data-pda-theme="ESCURO"] #app{background:#102027!important;color:#e7efed!important}
+html[data-pda-theme="ESCURO"] .card,
+html[data-pda-theme="ESCURO"] .pda-person-drawer,
+html[data-pda-theme="ESCURO"] .pda-person-tab-panel{background:#182a30!important;color:#e7efed!important;border-color:#3b5054!important}
+html[data-pda-theme="ESCURO"] input,
+html[data-pda-theme="ESCURO"] select,
+html[data-pda-theme="ESCURO"] textarea,
+html[data-pda-theme="ESCURO"] .pda-rich-body{background:#102127!important;color:#edf3f1!important;border-color:#43585b!important}
+html[data-pda-accent="AZUL"]{--pda-sea:#296fa8}
+html[data-pda-accent="VERDE"]{--pda-sea:#337a59}
+html[data-pda-accent="CORAL"]{--pda-sea:#b95e4f}
+html[data-pda-accent="GRAFITE"]{--pda-sea:#536267}
+html[data-pda-motion="REDUZIDO"] *,html[data-pda-motion="REDUZIDO"] *::before,html[data-pda-motion="REDUZIDO"] *::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+.pda-note-list{display:grid;gap:8px}
+.pda-note{padding:10px;border:1px solid #d9dfda;border-radius:10px;background:#fff}
+.pda-note.is-pinned{border-color:#d4b86e;background:#fffaf0}
+.pda-note-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.pda-note-head strong{font-size:8px}.pda-note-head small{font-size:7px;color:#75827f}
+.pda-note-body{font-size:9px;line-height:1.5}
+.pda-note-actions{display:flex;gap:5px;margin-top:6px}
+.pda-deadline-tools{display:grid;gap:6px;grid-column:1/-1;padding:8px;border:1px dashed #cbd6d2;border-radius:9px;background:#f7f9f7}
+.pda-deadline-presets{display:flex;gap:5px;flex-wrap:wrap}
+.pda-deadline-presets button{min-height:27px!important;padding:4px 7px!important;font-size:7px!important}
+.pda-deadline-mode{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+</style>
 </head>
 <body class="auth-pending">
   <section id="pda-auth-overlay" class="pda-auth-overlay pda-auth-v2" aria-label="Acesso ao Povo das Águas">
@@ -7039,6 +7082,84 @@ if(text!==undefined)n.textContent=text;
 if(cls)n.className=cls;
 return n;
 };
+
+ function richEditor(initial='',placeholder=''){
+  const root=el('div',undefined,'pda-rich-editor');
+  const toolbar=el('div',undefined,'pda-rich-toolbar');
+  const editor=el('div',undefined,'pda-rich-body');
+  editor.contentEditable='true';
+  editor.setAttribute('role','textbox');
+  editor.setAttribute('aria-multiline','true');
+  editor.dataset.placeholder=placeholder||'Escreva aqui…';
+  editor.innerHTML=String(initial||'');
+
+  const command_=(label,command,value)=>{
+    const b=button(
+      label,
+      ()=>{
+        editor.focus();
+        document.execCommand(command,false,value||null);
+      },
+      true
+    );
+    b.type='button';
+    return b;
+  };
+
+  toolbar.append(
+    command_('B','bold'),
+    command_('I','italic'),
+    command_('U','underline'),
+    command_('• Lista','insertUnorderedList'),
+    command_('1. Lista','insertOrderedList'),
+    command_('Citação','formatBlock','blockquote'),
+    command_('Limpar','removeFormat')
+  );
+
+  root.append(toolbar,editor);
+
+  return {
+    root,
+    editor,
+    getHtml:()=>editor.innerHTML.trim(),
+    getText:()=>editor.innerText.trim(),
+    setHtml:value=>{
+      editor.innerHTML=String(value||'');
+    },
+    focus:()=>editor.focus()
+  };
+ }
+
+ function applyUserPreferences_(preferences={}){
+  const doc=document.documentElement;
+  const source=preferences||{};
+  const font=String(source.fonte||'PADRAO').toUpperCase();
+  const size=String(source.tamanho||'NORMAL').toUpperCase();
+  const density=String(source.densidade||'CONFORTAVEL').toUpperCase();
+  const accent=String(source.corDestaque||source.cor_destaque||'MAR').toUpperCase();
+  const motion=
+    source.movimentoReduzido===true||
+    String(source.movimentoReduzido||source.movimento_reduzido||'').toLowerCase()==='true'
+      ?'REDUZIDO'
+      :'NORMAL';
+
+  let theme=String(source.tema||'CLARO').toUpperCase();
+  if(theme==='AUTO'){
+    theme=
+      window.matchMedia&&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+        ?'ESCURO'
+        :'CLARO';
+  }
+
+  doc.dataset.pdaFont=font;
+  doc.dataset.pdaSize=size;
+  doc.dataset.pdaTheme=theme;
+  doc.dataset.pdaDensity=density;
+  doc.dataset.pdaAccent=accent;
+  doc.dataset.pdaMotion=motion;
+ }
+
  const status=(text,error=false)=>{const n=document.getElementById('status');
 n.textContent=text||'';
 n.className='status '+(error?'error':'ok');
@@ -8949,6 +9070,24 @@ return d;
     subtitle:'Acompanhe suas atribuições, documentos e conversas com a equipe.',
     photo:'net'
   },
+  AGENDA:{
+    kicker:'AGENDA INSTITUCIONAL',
+    title:'Agenda e calendário',
+    subtitle:'Organize compromissos, prazos, audiências, feriados, calendário FURG e saídas de campo.',
+    photo:'port'
+  },
+  CHAT:{
+    kicker:'COMUNICAÇÃO INTERNA',
+    title:'Chat CIDIJUS',
+    subtitle:'Converse com a equipe, organize canais e mantenha a comunicação operacional dentro da plataforma.',
+    photo:'community'
+  },
+  MENSAGENS:{
+    kicker:'PADRÃO DE ATENDIMENTO',
+    title:'Mensagens institucionais',
+    subtitle:'Use respostas padronizadas com dados do assistido e encaminhamento opcional ao WhatsApp.',
+    photo:'channel'
+  },
   DIST:{
     kicker:'DISTRIBUIÇÃO',
     title:'Distribuição de tarefas',
@@ -9581,6 +9720,9 @@ f.insertBefore(file,f.firstChild);
   PAINEL:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7"></path><path d="M5.5 9.5V20h13V9.5"></path><path d="M9.5 20v-6h5v6"></path></svg>',
   PESS:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.5 2.6-5.3 5.5-5.3s4.8 1.8 5.5 5.3"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>',
   TAREFAS:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16H7z"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h3"></path><path d="M4 7v10"></path></svg>',
+  AGENDA:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5z"></path><path d="M8 3v4M16 3v4M5 9h14"></path><path d="M8 12h2M12 12h2M16 12h1M8 16h2M12 16h2"></path></svg>',
+  CHAT:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path><path d="M8 9h8M8 12h5"></path></svg>',
+  MENSAGENS:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"></path><path d="m5 7 7 6 7-6"></path></svg>',
   ACOMP:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.8"></circle><path d="m15 15 5 5"></path><path d="M8.5 10.5h4"></path><path d="M10.5 8.5v4"></path></svg>',
   DEFESO:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20H6z"></path><path d="M15 3.5V7h3"></path><path d="M8.7 11h6.5"></path><path d="M8.7 14h6.5"></path><path d="M8.7 17h4.2"></path></svg>',
   HIST:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path><path d="M5 4v4h4"></path></svg>',
@@ -9617,6 +9759,9 @@ f.insertBefore(file,f.firstChild);
   PAINEL:'Visão geral do trabalho, indicadores, cadastros recentes e atividade do sistema.',
   PESS:'Cadastre uma nova pessoa e organize a documentação inicial.',
   TAREFAS:'Acompanhe as tarefas atribuídas a você, anexos e conversas.',
+  AGENDA:'Organize agenda pessoal e da equipe, prazos, audiências, calendário FURG, feriados e saídas de campo.',
+  CHAT:'Converse internamente com os membros do CIDIJUS em canais da plataforma.',
+  MENSAGENS:'Use mensagens institucionais padronizadas e prepare respostas para WhatsApp.',
   ACOMP:'Localize pessoas, abra fichas e confira documentos.',
   DEFESO:'Consulte pagamentos do Seguro-Defeso 2025 pela base oficial.',
   HIST:'Consulte cadastros, atividades, documentos e processos anteriores.',
@@ -10572,6 +10717,100 @@ f.insertBefore(file,f.firstChild);
   due.type='date';
   due.name='prazo';
 
+  const deadlineMode=el('select');
+  deadlineMode.append(
+    new Option('Dias úteis','UTEIS'),
+    new Option('Dias corridos','CORRIDOS')
+  );
+
+  const deadlineInfo=
+    el(
+      'small',
+      'Escolha um atalho ou informe a data manualmente.',
+      'hint'
+    );
+
+  const deadlinePresets=
+    el(
+      'div',
+      undefined,
+      'pda-deadline-presets'
+    );
+
+  const deadlineTools=
+    el(
+      'div',
+      undefined,
+      'pda-deadline-tools'
+    );
+
+  let deadlineQuantity=0;
+  let deadlineStart='';
+
+  const localDate_=()=>{
+    const now=new Date();
+    const offset=now.getTimezoneOffset()*60000;
+    return new Date(now.getTime()-offset)
+      .toISOString()
+      .slice(0,10);
+  };
+
+  const calculateDeadline_=async quantity=>{
+    deadlineQuantity=Number(quantity||0);
+    deadlineStart=localDate_();
+    const result=
+      await call(
+        'prazoCalcular',
+        {
+          inicio:deadlineStart,
+          quantidade:deadlineQuantity,
+          modo:deadlineMode.value
+        },
+        false,
+        {noLoader:true}
+      );
+
+    due.value=result.vencimento||'';
+    deadlineInfo.textContent=
+      deadlineQuantity+
+      ' dia(s) '+
+      (deadlineMode.value==='UTEIS'?'úteis':'corridos')+
+      ' · vencimento calculado: '+
+      String(result.vencimento||'').split('-').reverse().join('/');
+  };
+
+  [3,5,10,15,30].forEach(days=>{
+    const preset=
+      button(
+        '+'+days+' dias',
+        ()=>calculateDeadline_(days),
+        true
+      );
+    preset.type='button';
+    deadlinePresets.append(preset);
+  });
+
+  deadlineMode.onchange=()=>{
+    if(deadlineQuantity){
+      calculateDeadline_(deadlineQuantity);
+    }
+  };
+
+  due.onchange=()=>{
+    if(due.value){
+      deadlineQuantity=0;
+      deadlineStart='';
+      deadlineInfo.textContent='Data informada manualmente.';
+    }
+  };
+
+  deadlineTools.append(
+    el('strong','Atalhos de prazo'),
+    deadlineMode,
+    deadlinePresets,
+    deadlineInfo
+  );
+
   const tags=el('div',undefined,'pda-task-tag-picker');
   const selectedTags=new Set();
   (options.tags||[]).forEach(tag=>{
@@ -10614,6 +10853,7 @@ f.insertBefore(file,f.firstChild);
 
   formNode.append(
     grid,
+    deadlineTools,
     descriptionField,
     el('span','Tags','pda-task-tag-label'),
     tags,
@@ -10648,6 +10888,10 @@ f.insertBefore(file,f.firstChild);
           destino:destination.value,
           prioridade:priority.value,
           prazo:due.value,
+          prazoTipo:'OPERACIONAL',
+          prazoQuantidade:deadlineQuantity||0,
+          prazoContagem:deadlineQuantity?deadlineMode.value:'',
+          prazoInicio:deadlineStart||'',
           pessoaId:person.id||'',
           tags:Array.from(selectedTags)
         },
@@ -11337,6 +11581,25 @@ f.insertBefore(file,f.firstChild);
     !can('gestao_distribuicao')&&
     !can('criar_tarefa_entidade');
 
+  const standardMessage=
+    button(
+      'Mensagem padrão',
+      ()=>{
+        closePersonDrawer_();
+        return go(
+          'MENSAGENS',
+          {
+            pessoaId:id
+          }
+        );
+      },
+      true
+    );
+
+  standardMessage.hidden=
+    !boot.modulos||
+    !boot.modulos.MENSAGENS;
+
   deleteButton=
     button(
       'Excluir',
@@ -11494,6 +11757,7 @@ f.insertBefore(file,f.firstChild);
 
   actions.append(
     createTask,
+    standardMessage,
     generateMenu,
     openFull,
     deleteButton
@@ -11956,6 +12220,7 @@ f.insertBefore(file,f.firstChild);
     const definitions=[
       ['resumo','Resumo'],
       ['dados','Dados'],
+      ['observacoes','Observações'],
       ['documentos','Documentos'],
       ['atendimentos','Atendimentos'],
       ['processos','Processos'],
@@ -12062,6 +12327,326 @@ f.insertBefore(file,f.firstChild);
 
               node.append(item);
             });
+
+        }else if(key==='observacoes'){
+          const wrap=
+            el(
+              'div',
+              undefined,
+              'pda-person-notes'
+            );
+
+          const formBox=
+            el(
+              'div',
+              undefined,
+              'pda-note-form'
+            );
+
+          const formHead=
+            el(
+              'div',
+              undefined,
+              'pda-person-section-head'
+            );
+
+          formHead.append(
+            el(
+              'strong',
+              'Nova observação'
+            ),
+            el(
+              'small',
+              'Cada registro fica preservado com autor e data.',
+              'hint'
+            )
+          );
+
+          const editor=
+            richEditor(
+              '',
+              'Registre contato, informação recebida, orientação ou providência.'
+            );
+
+          const noteOptions=
+            el(
+              'div',
+              undefined,
+              'pda-deadline-mode'
+            );
+
+          const visibility=
+            el(
+              'select'
+            );
+
+          visibility.append(
+            new Option(
+              'Interna — equipe autorizada',
+              'INTERNA'
+            ),
+            new Option(
+              'Restrita — autor/administração',
+              'RESTRITA'
+            )
+          );
+
+          const pinnedLabel=
+            el(
+              'label',
+              undefined,
+              'pda-task-tag-option'
+            );
+
+          const pinned=
+            el(
+              'input'
+            );
+
+          pinned.type='checkbox';
+
+          pinnedLabel.append(
+            pinned,
+            el(
+              'span',
+              'Fixar como importante'
+            )
+          );
+
+          const saveNote=
+            button(
+              'Adicionar observação',
+              ()=>{},
+              false
+            );
+
+          noteOptions.append(
+            visibility,
+            pinnedLabel,
+            saveNote
+          );
+
+          formBox.append(
+            formHead,
+            editor.root,
+            noteOptions
+          );
+
+          const list=
+            el(
+              'div',
+              undefined,
+              'pda-note-list'
+            );
+
+          const renderNotes_=rows=>{
+            list.replaceChildren();
+
+            if(!rows.length){
+              list.append(
+                el(
+                  'p',
+                  'Nenhuma observação registrada.',
+                  'hint'
+                )
+              );
+              return;
+            }
+
+            rows.forEach(note=>{
+              const card=
+                el(
+                  'article',
+                  undefined,
+                  'pda-note'+
+                  (
+                    note.fixada===true||
+                    note.fixada==='true'
+                      ?' is-pinned'
+                      :''
+                  )
+                );
+
+              const head=
+                el(
+                  'div',
+                  undefined,
+                  'pda-note-head'
+                );
+
+              const created=
+                new Date(
+                  note.criadoEm||
+                  note.alteradoEm||
+                  ''
+                );
+
+              head.append(
+                el(
+                  'strong',
+                  (
+                    note.fixada===true||
+                    note.fixada==='true'
+                      ?'★ '
+                      :''
+                  )+
+                  (
+                    note.autor||
+                    'Usuário'
+                  )
+                ),
+                el(
+                  'small',
+                  Number.isNaN(
+                    created.getTime()
+                  )
+                    ?String(
+                      note.criadoEm||
+                      ''
+                    )
+                    :created.toLocaleString(
+                      'pt-BR'
+                    )
+                )
+              );
+
+              const body=
+                el(
+                  'div',
+                  undefined,
+                  'pda-note-body'
+                );
+
+              body.innerHTML=
+                note.conteudo||
+                '';
+
+              const actions=
+                el(
+                  'div',
+                  undefined,
+                  'pda-note-actions'
+                );
+
+              const pin=
+                button(
+                  note.fixada===true||
+                  note.fixada==='true'
+                    ?'Desafixar'
+                    :'Fixar',
+                  async()=>{
+                    await call(
+                      'pessoaObservacaoFixar',
+                      {
+                        id:note.id,
+                        fixada:!(
+                          note.fixada===true||
+                          note.fixada==='true'
+                        )
+                      },
+                      true
+                    );
+
+                    await loadNotes_();
+                  },
+                  true
+                );
+
+              actions.append(pin);
+
+              card.append(
+                head,
+                body,
+                actions
+              );
+
+              list.append(card);
+            });
+          };
+
+          const loadNotes_=async()=>{
+            const data=
+              await call(
+                'pessoaObservacoes',
+                {
+                  pessoaId:id
+                },
+                false,
+                {
+                  noLoader:true
+                }
+              )||
+              {
+                observacoes:[]
+              };
+
+            if(
+              activePersonDrawer!==
+              overlay
+            ){
+              return;
+            }
+
+            renderNotes_(
+              data.observacoes||
+              []
+            );
+          };
+
+          saveNote.onclick=
+            async()=>{
+              if(
+                !editor.getText()
+                  .trim()
+              ){
+                status(
+                  'Escreva a observação.',
+                  true
+                );
+                return;
+              }
+
+              saveNote.disabled=true;
+
+              try{
+                const result=
+                  await call(
+                    'pessoaObservacaoAdicionar',
+                    {
+                      pessoaId:id,
+                      conteudo:
+                        editor.getHtml(),
+                      visibilidade:
+                        visibility.value,
+                      fixada:
+                        pinned.checked,
+                      tipo:'ATENDIMENTO'
+                    },
+                    true
+                  );
+
+                editor.setHtml('');
+                pinned.checked=false;
+
+                status(
+                  result.mensagem||
+                  'Observação registrada.'
+                );
+
+                await loadNotes_();
+              }finally{
+                saveNote.disabled=false;
+              }
+            };
+
+          wrap.append(
+            formBox,
+            list
+          );
+
+          node=wrap;
+
+          await loadNotes_();
 
         }else if(key==='documentos'){
           const first=
@@ -12922,9 +13507,15 @@ f.insertBefore(file,f.firstChild);
     'Novo Cadastro'
   );
 
-  appendDirect(
-    'TAREFAS',
-    'Tarefas'
+  appendGroup(
+    'Trabalho',
+    [
+      {code:'TAREFAS',label:'Tarefas'},
+      {code:'AGENDA',label:'Agenda'},
+      {code:'CHAT',label:'Chat CIDIJUS'},
+      {code:'MENSAGENS',label:'Mensagens padrão'}
+    ],
+    'TAREFAS'
   );
 
   appendGroup(
@@ -13001,6 +13592,7 @@ f.insertBefore(file,f.firstChild);
     }
 
     boot=await call('bootstrap');
+    applyUserPreferences_(boot.preferencias||{});
 
     ensureSessionCaches_();
 
@@ -13102,7 +13694,7 @@ f.insertBefore(file,f.firstChild);
   }
  }
 
- return {start,go,refreshCurrent:refreshCurrentModule_,softRefresh:softRefresh_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,beginWorkflowProcessing:beginWorkflowProcessing_,updateWorkflowProcessing:updateWorkflowProcessing_,endWorkflowProcessing:endWorkflowProcessing_,state:{get selection(){return selection;
+ return {start,go,refreshCurrent:refreshCurrentModule_,softRefresh:softRefresh_,openPersonDrawer:openPersonDrawer_,closePersonDrawer:closePersonDrawer_,openFileViewer:openFileViewer_,createTaskForPerson:createTaskForPerson_,deletePerson:deletePersonFromUi_,prefetchPersonSummary:prefetchPersonSummary_,el,card,details,form,table,link,button,call,alive,personFields,atendFields,searchUI,guidance,uploadForm,status,can,richEditor,applyUserPreferences:applyUserPreferences_,refreshTaskNotifications:refreshTaskNotifications_,isValidDateBR:isValidDateBR_,beginWorkflowProcessing:beginWorkflowProcessing_,updateWorkflowProcessing:updateWorkflowProcessing_,endWorkflowProcessing:endWorkflowProcessing_,state:{get selection(){return selection;
 },set selection(v){selection=v;
 },get boot(){return boot;
 },set boot(v){boot=v;

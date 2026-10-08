@@ -463,7 +463,8 @@ function taskSummary(task,maps,user){
     concluidaPor:completedEmail,
     concluidaPorNome:completedUser?.nome||completedUser?.email||completedEmail,
     situacao:task.situacao||TASK_ASSIGNED,prioridade:task.prioridade||(task.tipo===DISTRIBUTION_TASK_TYPE?'ALTA':'NORMAL'),
-    prazo:task.prazo||'',criadoEm:task.criadoEm||'',atribuidaEm:task.atribuidaEm||'',concluidaEm:task.concluidaEm||'',
+    prazo:task.prazo||'',prazoTipo:task.prazoTipo||'',prazoQuantidade:Number(task.prazoQuantidade||0),prazoContagem:task.prazoContagem||'',prazoInicio:task.prazoInicio||'',
+    criadoEm:task.criadoEm||'',atribuidaEm:task.atribuidaEm||'',concluidaEm:task.concluidaEm||'',
     alteradoEm:task.alteradoEm||'',processoId:task.processoId||'',tags:decorated,
     modoDistribuicao:task.modoDistribuicao||'MANUAL',origem:task.origem||(task.tipo===DISTRIBUTION_TASK_TYPE?'CADASTRO':'INTERNA'),
     mensagens:Number(maps.messageCounts.get(task.id)||0),anexos:Number(maps.attachmentCounts.get(task.id)||0),
@@ -644,6 +645,7 @@ export async function generalTaskDetail(q,user){
     permissoes:{
       gerenciar:creator||has(user,'gestao_distribuicao'),
       concluir:responsible||has(user,'gestao_distribuicao'),
+      alterarPrazo:task.situacao!==TASK_DONE&&(creator||responsible||has(user,'gestao_distribuicao')),
       encaminharEquipe:isColonyUser(user)&&task.situacao!==TASK_DONE&&!isTeamQueueTask(task)&&(creator||responsible),
       conversar:true,
       anexar:true
@@ -858,6 +860,10 @@ export async function generalTaskCreate(q,user){
       tipo:GENERAL_TASK_TYPE,pessoaId,responsavel:responsible,situacao:situation,jurisdicao:person?.jurisdicao||'',valorCausa:'',
       atribuidaEm:assignedAt,concluidaEm:'',processoId:String(q.processoId||''),observacoes:'',
       titulo:title,descricao:description,criadoPor:emailOf(user),prazo:safeDate(q.prazo),
+      prazoTipo:String(q.prazoTipo||'OPERACIONAL').toUpperCase(),
+      prazoQuantidade:Number(q.prazoQuantidade||0)||null,
+      prazoContagem:String(q.prazoContagem||'').toUpperCase(),
+      prazoInicio:safeDate(q.prazoInicio),
       prioridade:priority(q.prioridade),tags:selectedTags,modoDistribuicao:destination==='EQUIPE'?'FILA_EQUIPE':'MANUAL',
       origem:origin
     });
@@ -890,6 +896,50 @@ export async function generalTaskAssign(q,user){
     }
     const updated=await change(client,{email:user.email},'Tarefas',task.id,{...task,responsavel:target.email,situacao:TASK_ASSIGNED,atribuidaEm:now(),concluidaEm:'',modoDistribuicao:isTeamQueueTask(task)?'EQUIPE_MANUAL':task.modoDistribuicao},q.versao??task.versao);
     return {tarefa:updated,mensagem:'Tarefa reatribuída.'};
+  });
+}
+
+export async function generalTaskDeadlineUpdate(q,user){
+  return tx(async client=>{
+    const task=await get('Tarefas',required(q.id,'tarefa'),client);
+    await requireGeneralTask(task,user);
+
+    if(task.situacao===TASK_DONE){
+      throw httpError(400,'Reabra a tarefa antes de alterar o prazo.');
+    }
+
+    const email=emailOf(user);
+    const participant=
+      email===String(task.criadoPor||'').toLowerCase()||
+      email===String(task.responsavel||'').toLowerCase()||
+      has(user,'gestao_distribuicao');
+
+    if(!participant){
+      throw httpError(403,'Você não pode alterar o prazo desta tarefa.');
+    }
+
+    const updated=await change(
+      client,
+      {email:user.email},
+      'Tarefas',
+      task.id,
+      {
+        ...task,
+        prazo:safeDate(q.prazo),
+        prazoTipo:String(q.prazoTipo||task.prazoTipo||'OPERACIONAL').toUpperCase(),
+        prazoQuantidade:Number(q.prazoQuantidade||0)||null,
+        prazoContagem:String(q.prazoContagem||'').toUpperCase(),
+        prazoInicio:safeDate(q.prazoInicio)
+      },
+      q.versao??task.versao
+    );
+
+    return {
+      tarefa:updated,
+      mensagem:updated.prazo
+        ?'Prazo atualizado.'
+        :'Prazo removido.'
+    };
   });
 }
 
