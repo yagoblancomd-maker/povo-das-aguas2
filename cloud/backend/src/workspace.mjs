@@ -24,6 +24,12 @@ const rows_=rows=>rows.map(row_);
 
 function sanitizeRichHtml(value){
   let html=String(value||'').slice(0,30000);
+  const placeholders=[];
+  html=html.replace(/<<([A-Z0-9_]+)>>/gi,m=>{
+    const token='__PDA_PLACEHOLDER_'+placeholders.length+'__';
+    placeholders.push(m);
+    return token;
+  });
   html=html.replace(/<\s*(script|style|iframe|object|embed|form)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,'');
   html=html.replace(/\son\w+\s*=\s*(['"]).*?\1/gi,'');
   html=html.replace(/\son\w+\s*=\s*[^\s>]+/gi,'');
@@ -40,7 +46,11 @@ function sanitizeRichHtml(value){
     }
     return '<'+tag+'>';
   });
-  return html.trim();
+  html=html.trim();
+  placeholders.forEach((placeholder,index)=>{
+    html=html.replaceAll('__PDA_PLACEHOLDER_'+index+'__',placeholder);
+  });
+  return html;
 }
 function plain_(html){
   return String(html||'')
