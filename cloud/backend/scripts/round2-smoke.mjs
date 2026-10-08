@@ -121,7 +121,7 @@ try{
       nomeUsuario:prefix,
       fotoId:'',
       emailsAnteriores:[],
-      entidade
+      entidade:entity
     });
   }finally{client.release();}
   const colony=await get('Usuarios',userId);
