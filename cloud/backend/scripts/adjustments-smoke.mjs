@@ -135,7 +135,7 @@ try{
     const generated=await executeAction('modeloDocumentoGerar',{pessoaId:people[0].id,modeloId:modelId},admin);
     for(const doc of generated.documentos||[]){docIds.add(doc.id);objectRefs.add(doc.fileId);}
     if(generated.minuta){minutaIds.add(generated.minuta.id);objectRefs.add(generated.minuta.fileId);objectRefs.add(generated.minuta.pdfFileId);}
-    assert('hub_generation_pdf_docx',(generated.documentos||[]).some(d=>d.mime==='application/pdf')&&(generated.documentos||[]).some(d=>String(d.mime||'').includes('wordprocessingml')));
+    assert('hub_generation_pdf_only',(generated.documentos||[]).length>=1&&(generated.documentos||[]).every(d=>d.mime==='application/pdf')&&!(generated.documentos||[]).some(d=>String(d.mime||'').includes('wordprocessingml')));
   }
   const off=await executeAction('modeloDocumentoAtivar',{id:modelId,ativo:false},admin);
   assert('hub_model_deactivate',off.modelo?.ativo===false);

@@ -418,9 +418,22 @@ async function personRegistrationState(q,user){
   }
   const owner=personOwnerKey(person.id);
   const hasInitial=(await all('Documentos')).some(d=>d.atendimentoId===owner&&d.categoria==='INICIAL_SEGURO_DEFESO_2025'&&bool(d.vigente));
-  if(!hasInitial){
+  const systemModel=
+    (await listDocumentModels())
+      .find(
+        model=>
+          model.sistema
+      );
+
+  if(
+    !hasInitial&&
+    systemModel&&
+    systemModel.ativo!==false&&
+    systemModel.automatico===true
+  ){
     return {pessoaId:person.id,etapa:'GERANDO_MINUTA',ultimoErro:''};
   }
+
   return {pessoaId:person.id,etapa:'CONCLUIDO',ultimoErro:''};
 }
 
@@ -443,7 +456,6 @@ async function ensureDistributionTask(client,ctx,p){
 async function generateAutomaticModels_(client,ctx,p){
   const models=(await listDocumentModels(client))
     .filter(model=>
-      !model.sistema&&
       model.ativo!==false&&
       model.automatico===true&&
       modelAppliesToPerson_(model,p,{demanda:'Seguro-Defeso 2025'})
@@ -457,14 +469,29 @@ async function generateAutomaticModels_(client,ctx,p){
   const ignored=[];
 
   for(const model of models){
+    const templateKey=
+      String(
+        model.fileId||
+        'default'
+      );
+
     const already=existing.some(m=>
-      String(m.templateId||'')===String(model.fileId||'')
+      String(m.templateId||'')===templateKey
     );
+
     if(already){
       ignored.push({id:model.id,nome:model.nome,motivo:'já gerado nesta versão'});
       continue;
     }
-    generated.push(await generateFromDocumentModel(client,ctx,p,model.id));
+
+    generated.push(
+      await generateFromDocumentModel(
+        client,
+        ctx,
+        p,
+        model.id
+      )
+    );
   }
 
   return {gerados:generated,ignorados:ignored};
@@ -477,20 +504,41 @@ async function finalizePerson(action,q,user){
     if(!canWritePersonContent(user,p))throw httpError(403,'Você não possui permissão para concluir este cadastro.');
     const errors=await requiredDocumentErrors(p,client);
     if(errors.length)throw httpError(400,'O cadastro não pode ser finalizado sem todos os documentos obrigatórios:\n'+errors.join('\n'));
-    const minuta=await generateInitial(client,ctx,p);
-    const automaticos=await generateAutomaticModels_(client,ctx,p);
-    const task=await ensureDistributionTask(client,ctx,p);
-    const extra=automaticos.gerados.length;
+    const automaticos=
+      await generateAutomaticModels_(
+        client,
+        ctx,
+        p
+      );
+
+    const task=
+      await ensureDistributionTask(
+        client,
+        ctx,
+        p
+      );
+
+    const systemGenerated=
+      automaticos.gerados.find(
+        item=>
+          item?.modelo?.sistema
+      )||
+      null;
+
+    const total=
+      automaticos.gerados.length;
+
     return {
       pessoaId:p.id,
       folderId:'cloud',
       folderUrl:'',
-      minutaBase:minuta,
+      minutaBase:systemGenerated,
       modelosAutomaticos:automaticos,
       tarefaDistribuicao:task?.id||'',
-      mensagem:'Cadastro concluído. Petição inicial gerada'+
-        (extra?' e '+extra+' modelo(s) automático(s) adicional(is) gerado(s)':'')+
-        '. Tarefa de distribuição criada automaticamente.'
+      mensagem:
+        total
+          ?'Cadastro concluído. '+total+' documento(s) automático(s) gerado(s) em PDF. Tarefa de distribuição criada automaticamente.'
+          :'Cadastro concluído sem geração automática de minuta, pois não há modelo automático ativo e aplicável. Tarefa de distribuição criada automaticamente.'
     };
   });
 }
@@ -517,7 +565,6 @@ async function generateInitialOnly(action,q,user){
 }
 
 function modelAppliesToPerson_(model,p,context={}){
-  if(model.sistema)return true;
   const normalize=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
   const jurisdictions=(model.jurisdicoes||[]).map(normalize).filter(Boolean);
   const entities=(model.entidades||[]).map(normalize).filter(Boolean);

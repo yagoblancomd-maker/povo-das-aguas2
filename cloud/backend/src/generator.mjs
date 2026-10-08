@@ -181,7 +181,12 @@ export async function uploadModel(q,user,client,ctx){
   return {configurado:true,aprovado:true,nome:q.nome||'modelo.docx',mensagem:'Modelo DOCX enviado e ativado no Google Cloud.'};
 }
 const MODEL_CATALOG_KEY='modelosDocumentos';
-const SYSTEM_MODEL_ID='SISTEMA_INICIAL_SEGURO_DEFESO_2025';
+const SYSTEM_MODEL_CONFIG_KEY='modeloSistemaInicial';
+export const SYSTEM_MODEL_ID='SISTEMA_INICIAL_SEGURO_DEFESO_2025';
+const SYSTEM_DEFAULT_PLACEHOLDERS=Object.freeze([
+  'JURISDIÇÃO','NOME_COMPLETO','CPF','ENDEREÇO','CIDADE_UF','TELEFONE',
+  'ENTIDADE','PARCELAS_NAO_RECEBIDAS','VALOR_CAUSA','LOCAL_DATA'
+]);
 
 function extractPlaceholders(bytes){
   try{
@@ -223,35 +228,100 @@ function modelApplicable(model,p,context={}){
     (!demands.length||demands.includes(demand));
 }
 
+function systemModelFromConfig(c,status){
+  const raw=
+    c?.[SYSTEM_MODEL_CONFIG_KEY]&&
+    typeof c[SYSTEM_MODEL_CONFIG_KEY]==='object'&&
+    !Array.isArray(c[SYSTEM_MODEL_CONFIG_KEY])
+      ?c[SYSTEM_MODEL_CONFIG_KEY]
+      :{};
+
+  const configuredFile=
+    String(c?.templateId||'')
+      .startsWith('gcs:');
+
+  const placeholders=
+    normalizeList(raw.placeholders);
+
+  const automatic=
+    raw.automatico===undefined
+      ?true
+      :bool(raw.automatico);
+
+  return {
+    id:SYSTEM_MODEL_ID,
+    nome:String(
+      raw.nome||
+      'Petição inicial - Seguro-Defeso 2025'
+    ),
+    descricao:String(
+      raw.descricao||
+      'Modelo principal do sistema para a petição inicial do Seguro-Defeso 2025.'
+    ),
+    categoria:String(
+      raw.categoria||
+      'PETICAO_INICIAL'
+    ),
+    finalidade:String(
+      raw.finalidade||
+      'Petição inicial'
+    ),
+    jurisdicoes:normalizeList(raw.jurisdicoes),
+    entidades:normalizeList(raw.entidades),
+    origensCadastro:normalizeList(raw.origensCadastro),
+    parcelas:normalizeList(raw.parcelas),
+    demandas:normalizeList(
+      raw.demandas?.length
+        ?raw.demandas
+        :['Seguro-Defeso 2025']
+    ),
+    automatico:automatic,
+    gatilho:automatic
+      ?'CONCLUSAO_CADASTRO'
+      :'MANUAL',
+    ativo:raw.ativo===undefined
+      ?true
+      :bool(raw.ativo),
+    sistema:true,
+    principal:true,
+    versao:Math.max(
+      1,
+      Number(raw.versao||1)
+    ),
+    placeholders:placeholders.length
+      ?placeholders
+      :[...SYSTEM_DEFAULT_PLACEHOLDERS],
+    arquivoNome:String(
+      raw.arquivoNome||
+      status.nome||
+      'modelo.docx'
+    ),
+    origem:configuredFile
+      ?'Cloud Storage'
+      :status.origem,
+    fileId:configuredFile
+      ?String(c.templateId)
+      :'default',
+    criadoEm:raw.criadoEm||'',
+    criadoPor:raw.criadoPor||'',
+    alteradoEm:raw.alteradoEm||'',
+    alteradoPor:raw.alteradoPor||''
+  };
+}
+
 export async function listDocumentModels(client){
   const c=await config(client);
   const status=await modelStatus(client);
-  const system={
-    id:SYSTEM_MODEL_ID,
-    nome:'Petição inicial - Seguro-Defeso 2025',
-    descricao:'Modelo principal do sistema para a petição inicial do Seguro-Defeso 2025.',
-    categoria:'PETICAO_INICIAL',
-    finalidade:'Petição inicial',
-    jurisdicoes:[],
-    entidades:[],
-    origensCadastro:[],
-    parcelas:[],
-    demandas:['Seguro-Defeso 2025'],
-    automatico:true,
-    gatilho:'CONCLUSAO_CADASTRO',
-    ativo:true,
-    sistema:true,
-    versao:1,
-    placeholders:[
-      'JURISDIÇÃO','NOME_COMPLETO','CPF','ENDEREÇO','CIDADE_UF','TELEFONE',
-      'ENTIDADE','PARCELAS_NAO_RECEBIDAS','VALOR_CAUSA','LOCAL_DATA'
-    ],
-    arquivoNome:status.nome,
-    origem:status.origem
-  };
+  const system=
+    systemModelFromConfig(
+      c,
+      status
+    );
+
   const customs=catalogModels(c).map(model=>({
     ...model,
     sistema:false,
+    principal:model.principal===true,
     ativo:model.ativo!==false,
     automatico:model.automatico===true,
     gatilho:model.automatico===true?'CONCLUSAO_CADASTRO':'MANUAL',
@@ -262,6 +332,7 @@ export async function listDocumentModels(client){
     demandas:normalizeList(model.demandas),
     placeholders:normalizeList(model.placeholders)
   }));
+
   return [system,...customs];
 }
 
@@ -269,7 +340,279 @@ export async function saveDocumentModel(q,user,client,ctx){
   const c=await config(client);
   const models=catalogModels(c);
   const modelId=String(q.id||'').trim()||randomId('MOD');
-  if(modelId===SYSTEM_MODEL_ID)throw httpError(400,'O modelo do sistema deve ser atualizado pela configuração própria da petição inicial.');
+
+  if(modelId===SYSTEM_MODEL_ID){
+    const status=await modelStatus(client);
+    const prior=
+      systemModelFromConfig(
+        c,
+        status
+      );
+
+    const nome=
+      String(
+        q.nome||
+        prior.nome||
+        ''
+      ).trim();
+
+    if(!nome){
+      throw httpError(
+        400,
+        'Informe o nome do modelo.'
+      );
+    }
+
+    let fileId=
+      String(
+        prior.fileId||
+        'default'
+      );
+
+    let fileName=
+      String(
+        prior.arquivoNome||
+        'modelo.docx'
+      );
+
+    let placeholders=
+      normalizeList(
+        prior.placeholders
+      );
+
+    let version=
+      Math.max(
+        1,
+        Number(
+          prior.versao||
+          1
+        )
+      );
+
+    if(q.base64){
+      const mime=
+        String(
+          q.mime||
+          ''
+        );
+
+      if(
+        mime!==
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ){
+        throw httpError(
+          400,
+          'Envie um arquivo DOCX.'
+        );
+      }
+
+      const bytes=
+        Buffer.from(
+          String(
+            q.base64||
+            ''
+          ),
+          'base64'
+        );
+
+      if(
+        !bytes.length||
+        bytes.length>10*1024*1024
+      ){
+        throw httpError(
+          400,
+          'O modelo DOCX deve ter no máximo 10 MB.'
+        );
+      }
+
+      try{
+        new PizZip(bytes);
+      }catch{
+        throw httpError(
+          400,
+          'O arquivo não é um DOCX válido.'
+        );
+      }
+
+      placeholders=
+        extractPlaceholders(bytes);
+
+      if(!placeholders.length){
+        throw httpError(
+          400,
+          'O modelo não possui placeholders no formato <<CAMPO>>.'
+        );
+      }
+
+      version+=1;
+      fileName=
+        String(
+          q.arquivoNome||
+          q.nomeArquivo||
+          nome+'.docx'
+        ).slice(
+          0,
+          180
+        );
+
+      const object=
+        'templates/system/'+
+        SYSTEM_MODEL_ID+
+        '/v'+
+        version+
+        '-'+
+        Date.now()+
+        '.docx';
+
+      fileId=
+        await putObject(
+          object,
+          bytes,
+          mime,
+          {
+            modelId:
+              SYSTEM_MODEL_ID,
+            version:
+              String(version),
+            originalName:
+              fileName,
+            uploadedBy:
+              user.email
+          }
+        );
+
+      await setConfig(
+        client,
+        ctx,
+        'templateId',
+        fileId
+      );
+
+      await setConfig(
+        client,
+        ctx,
+        'templateAprovado',
+        true
+      );
+
+      modelStatusCache={
+        expiresAt:0,
+        value:null
+      };
+    }
+
+    const automatic=
+      q.automatico===undefined
+        ?prior.automatico===true
+        :bool(q.automatico);
+
+    const saved={
+      id:
+        SYSTEM_MODEL_ID,
+      nome,
+      descricao:
+        String(
+          q.descricao??
+          prior.descricao??
+          ''
+        )
+          .trim()
+          .slice(0,1500),
+      categoria:
+        String(
+          q.categoria||
+          prior.categoria||
+          'PETICAO_INICIAL'
+        )
+          .trim()
+          .toUpperCase()
+          .slice(0,80),
+      finalidade:
+        String(
+          q.finalidade||
+          prior.finalidade||
+          'Petição inicial'
+        )
+          .trim()
+          .slice(0,180),
+      jurisdicoes:
+        normalizeList(
+          q.jurisdicoes??
+          prior.jurisdicoes
+        ),
+      entidades:
+        normalizeList(
+          q.entidades??
+          prior.entidades
+        ),
+      origensCadastro:
+        normalizeList(
+          q.origensCadastro??
+          prior.origensCadastro
+        ),
+      parcelas:
+        normalizeList(
+          q.parcelas??
+          prior.parcelas
+        )
+          .filter(
+            value=>
+              ['1','2','3','4']
+                .includes(
+                  String(value)
+                )
+          ),
+      demandas:
+        normalizeList(
+          q.demandas??
+          prior.demandas
+        ),
+      automatico:
+        automatic,
+      gatilho:
+        automatic
+          ?'CONCLUSAO_CADASTRO'
+          :'MANUAL',
+      ativo:
+        q.ativo===undefined
+          ?prior.ativo!==false
+          :bool(q.ativo),
+      sistema:true,
+      principal:true,
+      fileId,
+      arquivoNome:
+        fileName,
+      placeholders,
+      versao:
+        version,
+      criadoEm:
+        prior.criadoEm||
+        now(),
+      criadoPor:
+        prior.criadoPor||
+        user.email,
+      alteradoEm:
+        now(),
+      alteradoPor:
+        user.email
+    };
+
+    await setConfig(
+      client,
+      ctx,
+      SYSTEM_MODEL_CONFIG_KEY,
+      saved
+    );
+
+    return {
+      modelo:saved,
+      mensagem:
+        q.base64
+          ?'Modelo principal atualizado e nova versão DOCX ativada.'
+          :'Configurações do modelo principal atualizadas.'
+    };
+  }
+
   const index=models.findIndex(m=>m.id===modelId);
   const prior=index>=0?models[index]:null;
   const nome=String(q.nome||prior?.nome||'').trim();
@@ -331,8 +674,46 @@ export async function saveDocumentModel(q,user,client,ctx){
 
 export async function setDocumentModelActive(q,user,client,ctx){
   const c=await config(client);
+  const modelId=
+    String(
+      q.id||
+      ''
+    );
+
+  if(modelId===SYSTEM_MODEL_ID){
+    const status=
+      await modelStatus(client);
+
+    const prior=
+      systemModelFromConfig(
+        c,
+        status
+      );
+
+    const saved={
+      ...prior,
+      ativo:bool(q.ativo),
+      alteradoEm:now(),
+      alteradoPor:user.email
+    };
+
+    await setConfig(
+      client,
+      ctx,
+      SYSTEM_MODEL_CONFIG_KEY,
+      saved
+    );
+
+    return {
+      modelo:saved,
+      mensagem:saved.ativo
+        ?'Modelo principal ativado.'
+        :'Modelo principal inativado. Ele não será usado na geração automática.'
+    };
+  }
+
   const models=catalogModels(c);
-  const index=models.findIndex(m=>m.id===String(q.id||''));
+  const index=models.findIndex(m=>m.id===modelId);
   if(index<0)throw httpError(404,'Modelo não localizado.');
   models[index]={...models[index],ativo:bool(q.ativo),alteradoEm:now(),alteradoPor:user.email};
   await setConfig(client,ctx,MODEL_CATALOG_KEY,models);
@@ -340,9 +721,22 @@ export async function setDocumentModelActive(q,user,client,ctx){
 }
 
 export async function deleteDocumentModel(q,user,client,ctx){
+  const modelId=
+    String(
+      q.id||
+      ''
+    );
+
+  if(modelId===SYSTEM_MODEL_ID){
+    throw httpError(
+      400,
+      'O modelo principal do sistema não pode ser excluído. Inative-o ou substitua o arquivo DOCX.'
+    );
+  }
+
   const c=await config(client);
   const models=catalogModels(c);
-  const index=models.findIndex(m=>m.id===String(q.id||''));
+  const index=models.findIndex(m=>m.id===modelId);
   if(index<0)throw httpError(404,'Modelo não localizado.');
   const [removed]=models.splice(index,1);
   await setConfig(client,ctx,MODEL_CATALOG_KEY,models);
@@ -353,12 +747,30 @@ export async function deleteDocumentModel(q,user,client,ctx){
 }
 
 export async function generateFromDocumentModel(client,ctx,p,modelId){
-  if(String(modelId||'')===SYSTEM_MODEL_ID)return generateInitial(client,ctx,p);
   const models=await listDocumentModels(client);
-  const model=models.find(m=>m.id===String(modelId||'')&&!m.sistema);
+  const model=
+    models.find(
+      item=>
+        item.id===
+        String(
+          modelId||
+          ''
+        )
+    );
+
   if(!model)throw httpError(404,'Modelo não localizado.');
   if(model.ativo===false)throw httpError(400,'Este modelo está desativado.');
   if(!modelApplicable(model,p))throw httpError(403,'Este modelo não se aplica à jurisdição ou entidade deste cadastro.');
+
+  if(model.sistema){
+    return generateInitial(
+      client,
+      ctx,
+      p,
+      model
+    );
+  }
+
   if(!String(model.fileId||'').startsWith('gcs:'))throw httpError(409,'O arquivo do modelo não está disponível no Cloud Storage.');
 
   const source=(await bucket.file(String(model.fileId).slice(4)).download())[0];
@@ -379,14 +791,6 @@ export async function generateFromDocumentModel(client,ctx,p,modelId){
     terceiro:false,conferido:false,declaracaoTerceiro:false,processoCompleto:false,anexoPresente:false,rogo:false,testemunhas:false,
     observacoes:'Gerado a partir do modelo "'+model.nome+'" (versão '+model.versao+').'
   });
-  const docxId=randomId('DOC');
-  const docxDoc=await change(client,ctx,'Documentos',docxId,{
-    atendimentoId:personOwnerKey(p.id),categoria:'MODELO_GERADO',fileId:docxRef,url:'/api/v1/files/'+docxId,
-    nome:base+'.docx',hash:sha(rendered),mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    substituiId:'',vigente:true,vencimento:'',terceiro:false,conferido:false,declaracaoTerceiro:false,processoCompleto:false,
-    anexoPresente:false,rogo:false,testemunhas:false,
-    observacoes:'Versão editável gerada a partir do modelo "'+model.nome+'" (versão '+model.versao+').'
-  });
   const mid=randomId('MIN');
   const minuta=await change(client,ctx,'Minutas',mid,{
     atendimentoId:personOwnerKey(p.id),fileId:docxRef,url:'',numero:'',situacao:'GERADA',
@@ -395,12 +799,12 @@ export async function generateFromDocumentModel(client,ctx,p,modelId){
   });
   return {
     modelo:model,
-    documentos:[pdfDoc,docxDoc],
+    documentos:[pdfDoc],
     documento:pdfDoc,
     minuta,
     docxFileId:docxRef,
     pdfFileId:pdfRef,
-    mensagem:'Documento gerado em DOCX e PDF e adicionado ao cadastro.'
+    mensagem:'PDF gerado e adicionado ao cadastro. A versão editável DOCX foi preservada apenas internamente na minuta.'
   };
 }
 
@@ -416,8 +820,39 @@ async function retireCategory(client,ctx,personId,category){
   const docs=(await all('Documentos',client)).filter(d=>d.atendimentoId===owner&&d.categoria===category&&bool(d.vigente));
   for(const d of docs)await change(client,ctx,'Documentos',d.id,{...d,vigente:false},d.versao);
 }
-export async function generateInitial(client,ctx,p){
+export async function generateInitial(client,ctx,p,modelOverride=null){
   if(!p.jurisdicao)throw httpError(400,'O município informado não possui jurisdição definida para a geração da petição.');
+
+  const systemModel=
+    modelOverride||
+    (await listDocumentModels(client))
+      .find(
+        model=>
+          model.id===
+          SYSTEM_MODEL_ID
+      );
+
+  if(!systemModel){
+    throw httpError(
+      409,
+      'O modelo principal da petição inicial não está configurado.'
+    );
+  }
+
+  if(systemModel.ativo===false){
+    throw httpError(
+      400,
+      'O modelo principal da petição inicial está inativo.'
+    );
+  }
+
+  if(!modelApplicable(systemModel,p)){
+    throw httpError(
+      403,
+      'O modelo principal não se aplica a este cadastro.'
+    );
+  }
+
   const source=await templateBytes(client);
   const rendered=renderTemplate(source,initialData(p));
   const base='INI.'+safeName(p.jurisdicao)+'.'+safeName(String(p.nome||'').toUpperCase());
@@ -441,7 +876,15 @@ export async function generateInitial(client,ctx,p){
     snapshot:JSON.stringify({pessoaId:p.id,geradoEm:now(),dados:initialData(p)}),templateId:(await config(client)).templateId||'default',
     templateModified:'',revisor:'',revisadaEm:'',pdfFileId:pdfRef,pdfUrl:'/api/v1/files/'+did
   });
-  return {documento:doc,minuta,docxFileId:docxRef,pdfFileId:pdfRef,mensagem:'Petição inicial gerada em DOCX e PDF e adicionada aos documentos da pessoa.'};
+  return {
+    modelo:systemModel,
+    documento:doc,
+    documentos:[doc],
+    minuta,
+    docxFileId:docxRef,
+    pdfFileId:pdfRef,
+    mensagem:'Petição inicial gerada em PDF e adicionada aos documentos da pessoa. A versão editável DOCX foi preservada apenas internamente na minuta.'
+  };
 }
 export async function generateSeguroReport(client,ctx,p,consulta){
   const pdf=await pdfReport(p,consulta),docx=docxReport(p,consulta);
