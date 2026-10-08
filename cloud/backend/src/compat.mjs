@@ -782,7 +782,7 @@ export async function generalTaskCreate(q,user){
     const destination=colony?String(q.destino||'ENTIDADE').trim().toUpperCase():'INTERNA';
     if(colony&&!['ENTIDADE','EQUIPE'].includes(destination))throw httpError(400,'Destino da tarefa inválido.');
 
-    let pessoaId=String(q.pessoaId||'').trim();
+    let pessoaId=String(q.pessoaId||'').trim()||null;
     let person=null;
     if(pessoaId){
       person=await get('Pessoas',pessoaId,client);
