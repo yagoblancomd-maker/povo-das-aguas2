@@ -117,7 +117,7 @@ try{
       senhaSalt:'',
       senhaAlgoritmo:'',
       sessionVersion:1,
-      ultimoLogin:'',
+      ultimoLogin:null,
       nomeUsuario:prefix,
       fotoId:'',
       emailsAnteriores:[],
