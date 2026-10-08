@@ -97,6 +97,58 @@ export function institutionalHolidays(year){
   ].sort((a,b)=>a.data.localeCompare(b.data));
 }
 
+/*
+ * Calendário Universitário FURG 2026/2027.
+ * Fonte institucional: Resolução COEPEA/FURG nº 309/2025.
+ * Mantemos aqui apenas marcos operacionais/acadêmicos e suspensões que
+ * precisam aparecer na agenda da equipe. Eventos locais do projeto, como
+ * saídas de campo, continuam sendo cadastrados pela própria equipe.
+ */
+export function furgAcademicCalendar(year){
+  year=Number(year);
+
+  if(year===2026){
+    return [
+      {data:'2026-02-02',titulo:'Nossa Senhora dos Navegantes — feriado municipal FURG',tipo:'FERIADO_FURG',local:'Rio Grande / São Lourenço do Sul / Santa Vitória do Palmar'},
+      {data:'2026-02-16',titulo:'Carnaval — ponto facultativo FURG',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2026-02-17',titulo:'Carnaval — ponto facultativo FURG',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2026-02-18',titulo:'Quarta-feira de Cinzas — ponto facultativo até 14h',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2026-03-02',titulo:'FURG — início do 1º semestre letivo',tipo:'FURG'},
+      {data:'2026-04-20',titulo:'FURG — ponto facultativo',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2026-06-05',titulo:'FURG — ponto facultativo',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2026-06-13',titulo:'Santo Antônio — feriado municipal do Campus SAP',tipo:'FERIADO_FURG',local:'Santo Antônio da Patrulha'},
+      {data:'2026-06-29',titulo:'São Pedro — feriado municipal em Rio Grande',tipo:'FERIADO_FURG',local:'Rio Grande'},
+      {data:'2026-07-03',titulo:'FURG — término do 1º semestre letivo presencial',tipo:'FURG'},
+      {inicio:'2026-07-06',fim:'2026-07-17',titulo:'FURG — período de exames do 1º semestre',tipo:'FURG'},
+      {data:'2026-07-17',titulo:'FURG — término do 1º semestre letivo EaD',tipo:'FURG'},
+      {data:'2026-08-03',titulo:'FURG — início do 2º semestre letivo',tipo:'FURG'},
+      {data:'2026-08-10',titulo:'São Lourenço — feriado municipal do Campus SLS',tipo:'FERIADO_FURG',local:'São Lourenço do Sul'},
+      {data:'2026-08-20',titulo:'Aniversário da FURG',tipo:'FURG'},
+      {data:'2026-10-28',titulo:'Dia do Servidor Público — ponto facultativo FURG',tipo:'PONTO_FACULTATIVO_FURG'},
+      {inicio:'2026-11-11',fim:'2026-11-13',titulo:'XXV Mostra da Produção Universitária — suspensão das aulas',tipo:'FURG'},
+      {data:'2026-12-05',titulo:'FURG — término do 2º semestre letivo presencial',tipo:'FURG'},
+      {inicio:'2026-12-07',fim:'2026-12-18',titulo:'FURG — período de exames do 2º semestre',tipo:'FURG'},
+      {data:'2026-12-18',titulo:'FURG — término do 2º semestre letivo EaD',tipo:'FURG'},
+      {inicio:'2026-12-23',fim:'2027-01-02',titulo:'FURG — suspensão das atividades acadêmicas',tipo:'RECESSO_FURG'}
+    ];
+  }
+
+  if(year===2027){
+    return [
+      {data:'2027-01-02',titulo:'FURG — fim da suspensão das atividades acadêmicas',tipo:'RECESSO_FURG'},
+      {data:'2027-01-04',titulo:'FURG — início do período letivo especial',tipo:'FURG'},
+      {data:'2027-02-02',titulo:'Nossa Senhora dos Navegantes — feriado municipal FURG',tipo:'FERIADO_FURG',local:'Rio Grande / São Lourenço do Sul / Santa Vitória do Palmar'},
+      {data:'2027-02-08',titulo:'Carnaval — ponto facultativo FURG',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2027-02-09',titulo:'Carnaval — ponto facultativo FURG',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2027-02-10',titulo:'Quarta-feira de Cinzas — ponto facultativo até 14h',tipo:'PONTO_FACULTATIVO_FURG'},
+      {data:'2027-02-12',titulo:'FURG — término do período letivo especial',tipo:'FURG'},
+      {data:'2027-03-01',titulo:'FURG — início do ano letivo de 2027',tipo:'FURG'}
+    ];
+  }
+
+  return [];
+}
+
 async function storedClosedDates_(years){
   const pool=await getPool();
   const min=Math.min(...years),max=Math.max(...years);
@@ -179,6 +231,25 @@ export async function agendaList(q,user){
         id:'HOLIDAY_'+h.data+'_'+h.tipo,titulo:h.titulo,inicio:h.data+'T12:00:00.000Z',
         fim:h.data+'T12:00:00.000Z',diaInteiro:true,tipo:h.tipo,fonte:'CALENDARIO_BRASIL',
         visibilidade:'INSTITUCIONAL',sintetico:true
+      });
+    }
+
+    for(const furg of furgAcademicCalendar(y)){
+      const start=furg.inicio||furg.data||'';
+      const end=furg.fim||furg.data||start;
+      if(!start||end<de||start>ate)continue;
+      events.push({
+        id:'FURG_'+start+'_'+String(furg.tipo||'FURG')+'_'+String(furg.titulo||'').slice(0,24),
+        titulo:furg.titulo,
+        descricao:'Calendário Universitário FURG 2026/2027 — Resolução COEPEA/FURG nº 309/2025.',
+        inicio:start+'T12:00:00.000Z',
+        fim:end+'T12:00:00.000Z',
+        diaInteiro:true,
+        tipo:furg.tipo||'FURG',
+        fonte:'FURG_COEPEA_309_2025',
+        local:furg.local||'FURG',
+        visibilidade:'INSTITUCIONAL',
+        sintetico:true
       });
     }
   }
