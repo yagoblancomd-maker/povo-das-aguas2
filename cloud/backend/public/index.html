@@ -4765,7 +4765,6 @@ body.pda-drawer-open{overflow:hidden}
   display:grid;
   gap:6px
 }
-.pda-person-task-row,
 .pda-person-history-row{
   display:grid;
   gap:2px;
@@ -4774,15 +4773,157 @@ body.pda-drawer-open{overflow:hidden}
   border-radius:9px;
   background:#faf8f3
 }
-.pda-person-task-row strong,
 .pda-person-history-row strong{
   color:#294a55;
   font-size:9px
 }
-.pda-person-task-row small,
 .pda-person-history-row small{
   color:#75817d;
   font-size:7.5px
+}
+.pda-person-task-row{
+  display:grid;
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid #d9ddd8;
+  border-radius:11px;
+  background:#fcfbf7;
+  box-shadow:0 2px 7px rgba(19,54,65,.03)
+}
+.pda-person-task-row.is-done{
+  border-color:#d8e2dc;
+  background:#f7faf7
+}
+.pda-person-task-row.is-unassigned{
+  border-color:#e4c993;
+  background:#fffaf0
+}
+.pda-person-task-row.due-vencida{
+  border-color:#d99a93;
+  background:#fff6f4
+}
+.pda-person-task-row.due-ate_24h,
+.pda-person-task-row.due-ate_96h{
+  border-color:#dfc58f
+}
+.pda-person-task-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px
+}
+.pda-person-task-title{
+  display:grid;
+  min-width:0;
+  gap:2px
+}
+.pda-person-task-title>strong{
+  overflow:hidden;
+  color:#173e4a;
+  font-size:10px;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-person-task-type{
+  color:#74817e!important;
+  font-size:7.5px!important
+}
+.pda-person-task-status{
+  flex:0 0 auto;
+  max-width:45%;
+  padding:4px 7px;
+  border:1px solid #c9dcda;
+  border-radius:999px;
+  color:#23636d;
+  background:#edf7f5;
+  font-size:6.9px;
+  font-weight:800;
+  line-height:1.1;
+  text-align:center;
+  text-transform:uppercase
+}
+.pda-person-task-row.is-done .pda-person-task-status{
+  border-color:#c8ddd1;
+  color:#2f6d52;
+  background:#eef8f1
+}
+.pda-person-task-row.is-unassigned .pda-person-task-status{
+  border-color:#e4cb9a;
+  color:#805e1f;
+  background:#fff4d8
+}
+.pda-person-task-row.due-vencida .pda-person-task-status{
+  border-color:#e3aaa4;
+  color:#9c4038;
+  background:#fff0ed
+}
+.pda-person-task-meta{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px
+}
+.pda-person-task-meta-item{
+  min-width:0;
+  padding:7px 8px;
+  border:1px solid #ece7de;
+  border-radius:8px;
+  background:#fff
+}
+.pda-person-task-meta-label{
+  display:block;
+  margin-bottom:2px;
+  color:#87908c;
+  font-size:6.5px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase
+}
+.pda-person-task-meta-value{
+  display:block;
+  overflow:hidden;
+  color:#294a55!important;
+  font-size:8px!important;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.pda-person-task-meta-item.is-warning{
+  border-color:#ecd8aa;
+  background:#fffaf0
+}
+.pda-person-task-meta-item.is-warning .pda-person-task-meta-value{
+  color:#805e1f!important
+}
+.pda-person-task-meta-item.is-danger{
+  border-color:#e5b5af;
+  background:#fff5f3
+}
+.pda-person-task-meta-item.is-danger .pda-person-task-meta-value{
+  color:#a0443d!important
+}
+.pda-person-task-meta-item.is-attention{
+  border-color:#e8d3a4;
+  background:#fffaf0
+}
+@media(max-width:700px){
+  .pda-person-task-head{
+    align-items:stretch;
+    flex-direction:column;
+    gap:6px
+  }
+  .pda-person-task-status{
+    align-self:flex-start;
+    max-width:100%
+  }
+  .pda-person-task-meta{
+    grid-template-columns:1fr 1fr
+  }
+}
+@media(max-width:460px){
+  .pda-person-task-meta{
+    grid-template-columns:1fr
+  }
 }
 .pda-person-task-history{margin-top:14px}
 .pda-drawer-table table{min-width:560px}
@@ -11347,6 +11488,147 @@ f.insertBefore(file,f.firstChild);
     deleteButton
   );
 
+  const taskDateTime_=value=>{
+    const text=String(value||'').trim();
+    if(!text)return '—';
+
+    const date=new Date(text);
+    if(Number.isNaN(date.getTime()))return text;
+
+    return date.toLocaleString(
+      'pt-BR',
+      {
+        day:'2-digit',
+        month:'2-digit',
+        year:'numeric',
+        hour:'2-digit',
+        minute:'2-digit'
+      }
+    );
+  };
+
+  const taskDate_=value=>{
+    const text=String(value||'').trim();
+    if(!text)return '';
+
+    const iso=text.slice(0,10);
+    const parts=iso.split('-');
+    if(parts.length===3){
+      return [
+        parts[2],
+        parts[1],
+        parts[0]
+      ].join('/');
+    }
+
+    return text;
+  };
+
+  const taskDuration_=(start,end)=>{
+    const from=new Date(start||'');
+    const to=end
+      ?new Date(end)
+      :new Date();
+
+    if(
+      Number.isNaN(from.getTime())||
+      Number.isNaN(to.getTime())||
+      to<from
+    ){
+      return '';
+    }
+
+    const minutes=
+      Math.max(
+        0,
+        Math.floor(
+          (to-from)/60000
+        )
+      );
+
+    if(minutes<60){
+      return minutes+
+        ' min';
+    }
+
+    const hours=
+      Math.floor(
+        minutes/60
+      );
+
+    if(hours<24){
+      return hours+
+        ' h';
+    }
+
+    const days=
+      Math.floor(
+        hours/24
+      );
+
+    const remainder=
+      hours%24;
+
+    return days+
+      ' d'+
+      (
+        remainder
+          ?' '+remainder+' h'
+          :''
+      );
+  };
+
+  const taskStatusLabel_=task=>{
+    const status=
+      String(task.situacao||'')
+        .toUpperCase();
+
+    const labels={
+      PENDENTE_ATRIBUICAO:
+        'Aguardando distribuição',
+      ATRIBUIDA:
+        'Atribuída',
+      EM_ANDAMENTO:
+        'Em andamento',
+      CONCLUIDA:
+        'Concluída'
+    };
+
+    return labels[status]||
+      status
+        .replace(/_/g,' ')
+        .toLowerCase()
+        .replace(
+          /^./,
+          c=>c.toUpperCase()
+        )||
+      'Aberta';
+  };
+
+  const taskMetaItem_=(label,value,extra='')=>{
+    const item=
+      el(
+        'div',
+        undefined,
+        'pda-person-task-meta-item '+extra
+      );
+
+    item.append(
+      el(
+        'span',
+        label,
+        'pda-person-task-meta-label'
+      ),
+      el(
+        'strong',
+        value||'—',
+        'pda-person-task-meta-value'
+      )
+    );
+
+    return item;
+  };
+
   const renderTasks_=(rows,cls='')=>{
     const list=
       el(
@@ -11366,14 +11648,54 @@ f.insertBefore(file,f.firstChild);
     }
 
     rows.forEach(task=>{
+      const done=
+        String(task.situacao||'')
+          .toUpperCase()==='CONCLUIDA';
+
+      const unassigned=
+        !String(
+          task.responsavel||
+          ''
+        ).trim();
+
       const row=
         el(
           'div',
           undefined,
-          'pda-person-task-row'
+          [
+            'pda-person-task-row',
+            done
+              ?'is-done'
+              :'is-open',
+            unassigned
+              ?'is-unassigned'
+              :'',
+            task.vencimentoEstado
+              ?'due-'+
+                String(
+                  task.vencimentoEstado
+                ).toLowerCase()
+              :''
+          ]
+            .filter(Boolean)
+            .join(' ')
         );
 
-      row.append(
+      const head=
+        el(
+          'div',
+          undefined,
+          'pda-person-task-head'
+        );
+
+      const title=
+        el(
+          'div',
+          undefined,
+          'pda-person-task-title'
+        );
+
+      title.append(
         el(
           'strong',
           task.titulo||
@@ -11382,21 +11704,136 @@ f.insertBefore(file,f.firstChild);
         ),
         el(
           'small',
-          [
-            task.tipoLabel,
-            task.responsavelNome||
-            task.responsavel,
-            task.prazo
-              ?'Prazo '+
-                String(task.prazo)
-                  .split('-')
-                  .reverse()
-                  .join('/')
-              :''
-          ]
-            .filter(Boolean)
-            .join(' · ')
+          task.tipoLabel||
+          'Tarefa',
+          'pda-person-task-type'
         )
+      );
+
+      const statusChip=
+        el(
+          'span',
+          taskStatusLabel_(task),
+          'pda-person-task-status'
+        );
+
+      head.append(
+        title,
+        statusChip
+      );
+
+      const meta=
+        el(
+          'div',
+          undefined,
+          'pda-person-task-meta'
+        );
+
+      meta.append(
+        taskMetaItem_(
+          'Responsável',
+          task.responsavelNome||
+          task.responsavel||
+          'Aguardando distribuição',
+          unassigned
+            ?'is-warning'
+            :''
+        ),
+        taskMetaItem_(
+          'Criada em',
+          taskDateTime_(
+            task.criadoEm
+          )
+        )
+      );
+
+      if(
+        task.criadoPorNome||
+        task.criadoPor
+      ){
+        meta.append(
+          taskMetaItem_(
+            'Criada por',
+            task.criadoPorNome||
+            task.criadoPor
+          )
+        );
+      }
+
+      if(done){
+        meta.append(
+          taskMetaItem_(
+            'Concluída em',
+            taskDateTime_(
+              task.concluidaEm
+            )
+          )
+        );
+
+        meta.append(
+          taskMetaItem_(
+            'Concluída por',
+            task.concluidaPorNome||
+            task.concluidaPor||
+            task.responsavelNome||
+            task.responsavel||
+            'Não identificado'
+          )
+        );
+
+        const duration=
+          taskDuration_(
+            task.criadoEm,
+            task.concluidaEm
+          );
+
+        if(duration){
+          meta.append(
+            taskMetaItem_(
+              'Tempo até conclusão',
+              duration
+            )
+          );
+        }
+
+      }else{
+        const age=
+          taskDuration_(
+            task.criadoEm
+          );
+
+        if(age){
+          meta.append(
+            taskMetaItem_(
+              'Em aberto há',
+              age
+            )
+          );
+        }
+
+        if(task.prazo){
+          meta.append(
+            taskMetaItem_(
+              'Prazo',
+              taskDate_(
+                task.prazo
+              ),
+              task.vencimentoEstado==='VENCIDA'
+                ?'is-danger'
+                :(
+                  task.vencimentoEstado==='ATE_24H'||
+                  task.vencimentoEstado==='ATE_96H'
+                    ?'is-attention'
+                    :''
+                )
+            )
+          );
+        }
+      }
+
+      row.append(
+        head,
+        meta
       );
 
       list.append(row);

@@ -394,12 +394,13 @@ function displayUser(email,usersByEmail){
 }
 
 async function taskMaps(user,light=false){
-  const [users,people,messages,attachments,reads,tags]=await Promise.all([
+  const [users,people,messages,attachments,reads,tags,histories]=await Promise.all([
     all('Usuarios'),all('Pessoas'),
     light?Promise.resolve([]):all('TarefaMensagens'),
     light?Promise.resolve([]):all('TarefaAnexos'),
     light?Promise.resolve([]):all('TarefaLeituras'),
-    taskTagCatalog()
+    taskTagCatalog(),
+    light?Promise.resolve([]):all('Historico')
   ]);
   const usersByEmail=new Map(users.map(u=>[emailOf(u),u]));
   const peopleById=new Map(people.map(p=>[p.id,p]));
@@ -418,13 +419,28 @@ async function taskMaps(user,light=false){
   const globalSeen=reads
     .filter(r=>emailOf({email:r.usuario})===emailOf(user)&&!r.tarefaId)
     .sort((a,b)=>String(b.ultimoVistoEm||'').localeCompare(String(a.ultimoVistoEm||'')))[0]?.ultimoVistoEm||'';
-  return {usersByEmail,peopleById,messageCounts,attachmentCounts,tagColors,last,readByTask,globalSeen};
+
+  const completedBy=new Map();
+  if(!light){
+    for(const h of histories){
+      if(String(h.entidade||'')!=='Tarefas'||!h.registroId)continue;
+      const after=h.depois&&typeof h.depois==='object'?h.depois:{};
+      const before=h.antes&&typeof h.antes==='object'?h.antes:{};
+      if(after.situacao===TASK_DONE&&before.situacao!==TASK_DONE){
+        completedBy.set(h.registroId,String(h.usuario||'').trim().toLowerCase());
+      }
+    }
+  }
+
+  return {usersByEmail,peopleById,messageCounts,attachmentCounts,tagColors,last,readByTask,globalSeen,completedBy};
 }
 
 function taskSummary(task,maps,user){
   const p=maps.peopleById.get(task.pessoaId);
   const responsible=maps.usersByEmail.get(String(task.responsavel||'').toLowerCase());
   const creator=maps.usersByEmail.get(String(task.criadoPor||'').toLowerCase());
+  const completedEmail=String(maps.completedBy?.get(task.id)||'').toLowerCase();
+  const completedUser=maps.usersByEmail.get(completedEmail);
   const due=dueState(task);
   const tagNames=task.tipo===DISTRIBUTION_TASK_TYPE
     ?(tagsParse(task.tags).length?tagsParse(task.tags):['PROCESSO'])
@@ -444,6 +460,8 @@ function taskSummary(task,maps,user){
     pessoaEntidade:p?.entidade||'',valorCausa:Number(task.valorCausa||causeValue(p?.parcelasNaoRecebidas)),
     responsavel:task.responsavel||'',responsavelNome:responsible?.nome||responsible?.email||task.responsavel||'',
     criadoPor:task.criadoPor||'',criadoPorNome:creator?.nome||creator?.email||task.criadoPor||'',
+    concluidaPor:completedEmail,
+    concluidaPorNome:completedUser?.nome||completedUser?.email||completedEmail,
     situacao:task.situacao||TASK_ASSIGNED,prioridade:task.prioridade||(task.tipo===DISTRIBUTION_TASK_TYPE?'ALTA':'NORMAL'),
     prazo:task.prazo||'',criadoEm:task.criadoEm||'',atribuidaEm:task.atribuidaEm||'',concluidaEm:task.concluidaEm||'',
     alteradoEm:task.alteradoEm||'',processoId:task.processoId||'',tags:decorated,
@@ -499,10 +517,29 @@ async function taskCollection(q,mode,user,{light=false}={}){
   }
 
   rows.sort((a,b)=>{
-    if(mode==='history')return String(b.concluidaEm||b.alteradoEm||'').localeCompare(String(a.concluidaEm||a.alteradoEm||''));
-    const weight={VENCIDA:0,ATE_24H:1,ATE_96H:2,NORMAL:3,SEM_PRAZO:4};
-    if((weight[a.vencimentoEstado]??5)!==(weight[b.vencimentoEstado]??5))return (weight[a.vencimentoEstado]??5)-(weight[b.vencimentoEstado]??5);
-    return String(a.prazo||'9999-12-31').localeCompare(String(b.prazo||'9999-12-31'));
+    if(mode==='history'){
+      return String(b.concluidaEm||b.alteradoEm||'')
+        .localeCompare(String(a.concluidaEm||a.alteradoEm||''));
+    }
+
+    const rank=task=>{
+      if(task.vencimentoEstado==='VENCIDA')return 0;
+      if(task.vencimentoEstado==='ATE_24H')return 1;
+      if(task.vencimentoEstado==='ATE_96H')return 2;
+      if(!String(task.responsavel||'').trim())return 3;
+      return 4;
+    };
+
+    const ar=rank(a),br=rank(b);
+    if(ar!==br)return ar-br;
+
+    if(ar<=2){
+      return String(a.prazo||'9999-12-31')
+        .localeCompare(String(b.prazo||'9999-12-31'));
+    }
+
+    return String(b.criadoEm||'')
+      .localeCompare(String(a.criadoEm||''));
   });
 
   const pg=page(rows,q,200);
