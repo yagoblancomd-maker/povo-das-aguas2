@@ -90,14 +90,31 @@ async function dossier(q,user,client){
   const p=await get('Pessoas',q.pessoaId,client);
   authorizePersonScope(user,p);
   const owner=personOwnerKey(p.id);
-  const [docs,processes,history]=await Promise.all([all('Documentos',client),all('Processos',client),all('Historico',client)]);
-  const personDocs=docs.filter(d=>d.atendimentoId===owner).map(d=>({...d,url:documentUrl(d)}));
+  const [docs,processes,history,attendances,minutas]=await Promise.all([
+    all('Documentos',client),
+    all('Processos',client),
+    all('Historico',client),
+    all('Atendimentos',client),
+    all('Minutas',client)
+  ]);
+  const personAttendances=attendances.filter(a=>a.pessoaId===p.id);
+  const attendanceIds=new Set(personAttendances.map(a=>a.id));
+  const personDocs=docs
+    .filter(d=>d.atendimentoId===owner||attendanceIds.has(d.atendimentoId))
+    .map(d=>({...d,url:documentUrl(d)}));
   const personProcesses=processes.filter(x=>x.pessoaId===p.id);
-  const related=[p.id,...personDocs.map(d=>d.id),...personProcesses.map(x=>x.id)];
+  const personMinutas=minutas.filter(m=>m.atendimentoId===owner||attendanceIds.has(m.atendimentoId));
+  const related=[
+    p.id,
+    ...personAttendances.map(a=>a.id),
+    ...personDocs.map(d=>d.id),
+    ...personProcesses.map(x=>x.id),
+    ...personMinutas.map(m=>m.id)
+  ];
   return {
     pessoa:p,podeRetificar:canRetify(user,p),podeGerenciarConteudo:canWritePersonContent(user,p),
     criador:p.criadoPor||p.usuario||'',documentos:personDocs,documentosPessoa:personDocs,processos:personProcesses,
-    historico:history.filter(h=>related.includes(h.registroId)),atendimentos:[],pendencias:[],minutas:[],aptidao:[]
+    historico:history.filter(h=>related.includes(h.registroId)),atendimentos:personAttendances,pendencias:[],minutas:personMinutas,aptidao:[]
   };
 }
 
@@ -286,7 +303,9 @@ async function deletePersonDocument(q,user){
     if(!canRetify(user,p))throw httpError(403,'Você não possui permissão para excluir documentos desta pessoa.');
     const doc=await get('Documentos',q.id,client);
     if(Number(doc.versao)!==Number(q.versao))throw httpError(409,'Documento alterado. Recarregue.');
-    if(doc.atendimentoId!==personOwnerKey(p.id))throw httpError(400,'Documento não pertence ao cadastro individual da pessoa.');
+    const attendances=await whereAll('Atendimentos','pessoa_id=$1',[p.id],client);
+    const owners=new Set([personOwnerKey(p.id),...attendances.map(a=>a.id)]);
+    if(!owners.has(doc.atendimentoId))throw httpError(400,'Documento não pertence a esta pessoa.');
     if(String(doc.fileId||'').startsWith('gcs:')){
       await bucket.file(String(doc.fileId).slice(4)).delete({ignoreNotFound:true});
     }
