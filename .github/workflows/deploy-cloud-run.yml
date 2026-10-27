@@ -1,12 +1,6 @@
 name: Deploy Povo das Águas to Cloud Run
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'cloud/backend/**'
-      - '.github/workflows/deploy-cloud-run.yml'
   workflow_dispatch:
 
 permissions:
