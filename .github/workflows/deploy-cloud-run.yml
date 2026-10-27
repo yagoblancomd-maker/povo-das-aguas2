@@ -1,0 +1,117 @@
+name: Deploy Povo das Águas to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cloud/backend/**'
+      - '.github/workflows/deploy-cloud-run.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: povo-das-aguas-2026-yago
+  REGION: southamerica-east1
+  SERVICE: povo-das-aguas-api
+  IMAGE_REPO: southamerica-east1-docker.pkg.dev/povo-das-aguas-2026-yago/povo-das-aguas/api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Google Cloud authentication
+        id: auth_mode
+        shell: bash
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          CREDS_A: ${{ secrets.GCP_CREDENTIALS }}
+          CREDS_B: ${{ secrets.GCP_SA_KEY }}
+          CREDS_C: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          if [[ -n "$WIF_PROVIDER" && -n "$WIF_SERVICE_ACCOUNT" ]]; then
+            echo "mode=wif" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$CREDS_A" || -n "$CREDS_B" || -n "$CREDS_C" ]]; then
+            echo "mode=json" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Google Cloud with Workload Identity
+        if: steps.auth_mode.outputs.mode == 'wif'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Select JSON credential
+        if: steps.auth_mode.outputs.mode == 'json'
+        id: json_creds
+        shell: bash
+        env:
+          CREDS_A: ${{ secrets.GCP_CREDENTIALS }}
+          CREDS_B: ${{ secrets.GCP_SA_KEY }}
+          CREDS_C: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          if [[ -n "$CREDS_A" ]]; then
+            printf '%s' "$CREDS_A" > "${RUNNER_TEMP}/gcp-creds.json"
+          elif [[ -n "$CREDS_B" ]]; then
+            printf '%s' "$CREDS_B" > "${RUNNER_TEMP}/gcp-creds.json"
+          else
+            printf '%s' "$CREDS_C" > "${RUNNER_TEMP}/gcp-creds.json"
+          fi
+
+      - name: Authenticate to Google Cloud with JSON credential
+        if: steps.auth_mode.outputs.mode == 'json'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ steps.json_creds.outputs.unused || '' }}
+          create_credentials_file: false
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-creds.json
+
+      - name: Authenticate JSON credential with gcloud
+        if: steps.auth_mode.outputs.mode == 'json'
+        shell: bash
+        run: |
+          gcloud auth activate-service-account --key-file="${RUNNER_TEMP}/gcp-creds.json"
+
+      - name: Stop if GitHub has no Google Cloud credential
+        if: steps.auth_mode.outputs.mode == 'none'
+        shell: bash
+        run: |
+          echo "::error::Nenhuma credencial do Google Cloud foi encontrada nos GitHub Secrets."
+          echo "Configure GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT, ou GCP_CREDENTIALS/GCP_SA_KEY/GOOGLE_CREDENTIALS."
+          exit 1
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Validate source
+        working-directory: cloud/backend
+        run: |
+          npm ci --ignore-scripts
+          node --check src/server.mjs
+          node --check src/actions.mjs
+          node --check src/generator.mjs
+
+      - name: Build image
+        run: |
+          gcloud builds submit cloud/backend             --project "$PROJECT_ID"             --tag "$IMAGE_REPO:${GITHUB_SHA}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --image "$IMAGE_REPO:${GITHUB_SHA}"             --quiet
+
+      - name: Show production URL
+        run: |
+          gcloud run services describe "$SERVICE"             --project "$PROJECT_ID"             --region "$REGION"             --format='value(status.url)'
