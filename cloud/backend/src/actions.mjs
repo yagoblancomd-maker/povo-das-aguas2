@@ -835,22 +835,80 @@ async function seguroDefeso(q){
   required(q.codigo,'CPF/NIS');
   const codigo=String(q.codigo).replace(/\D/g,'');
   if(!/^\d{11}$/.test(codigo))throw httpError(400,'Informe um CPF/NIS com 11 dígitos.');
+
+  const periodoInicio=String(q.periodoInicio||'2025-01-01').slice(0,10);
+  const periodoFim=String(q.periodoFim||'2025-12-31').slice(0,10);
+  const isoDate=/^\d{4}-\d{2}-\d{2}$/;
+  if(!isoDate.test(periodoInicio)||!isoDate.test(periodoFim)){
+    throw httpError(400,'Informe o período da consulta com datas válidas.');
+  }
+
+  const inicio=new Date(periodoInicio+'T00:00:00.000Z');
+  const fim=new Date(periodoFim+'T00:00:00.000Z');
+  if(Number.isNaN(inicio.getTime())||Number.isNaN(fim.getTime())){
+    throw httpError(400,'Informe o período da consulta com datas válidas.');
+  }
+  if(fim<inicio){
+    throw httpError(400,'A data final da consulta não pode ser anterior à data inicial.');
+  }
+
+  const limite=new Date(inicio);
+  limite.setUTCFullYear(limite.getUTCFullYear()+1);
+  limite.setUTCDate(limite.getUTCDate()-1);
+  if(fim>limite){
+    throw httpError(400,'O período da consulta do Seguro-Defeso pode ter no máximo 12 meses.');
+  }
+
   const key=await getSecret(SECRET_IDS.portal,{required:true,label:'API do Portal da Transparência'});
   const endpoint='https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo';
   const received=[];
+  let paginasConsultadas=0;
+
   for(let page=1;page<=100;page++){
-    const r=await fetch(endpoint+'?codigo='+encodeURIComponent(codigo)+'&pagina='+page,{headers:{accept:'application/json','chave-api-dados':key}});
+    paginasConsultadas=page;
+    const r=await fetch(
+      endpoint+'?codigo='+encodeURIComponent(codigo)+'&pagina='+page,
+      {headers:{accept:'application/json','chave-api-dados':key}}
+    );
     if(r.status===401)throw httpError(502,'A API do Portal da Transparência recusou a autenticação.');
+    if(r.status===403)throw httpError(502,'A API do Portal da Transparência recusou o acesso da chave configurada.');
+    if(r.status===429)throw httpError(503,'O Portal da Transparência atingiu o limite temporário de consultas. Tente novamente em instantes.');
     if(!r.ok)throw httpError(502,'Falha no Portal da Transparência. HTTP '+r.status+'.');
-    const rows=await r.json();if(!Array.isArray(rows)||!rows.length)break;received.push(...rows);
-    if(rows.length<15)break;
+    const rows=await r.json();
+    if(!Array.isArray(rows)||!rows.length)break;
+    received.push(...rows);
   }
+
   const flat=row=>{const p=row?.pessoaSeguroDefeso||{},m=row?.municipio||{},uf=m.uf||{};return {
     id:String(row?.id??''),cpfFormatado:String(p.cpfFormatado||''),nis:String(p.nis||''),nome:String(p.nome||''),
     codigoIBGE:String(m.codigoIBGE||''),nomeIBGE:String(m.nomeIBGE||''),codigoRegiao:String(m.codigoRegiao||''),nomeRegiao:String(m.nomeRegiao||''),pais:String(m.pais||''),ufSigla:String(uf.sigla||''),ufNome:String(uf.nome||''),portaria:String(row?.portaria||''),dataMesReferencia:String(row?.dataMesReferencia||''),dataSaque:String(row?.dataSaque||''),dataEmissaoParcela:String(row?.dataEmissaoParcela||''),situacao:String(row?.situacao||''),rgp:String(row?.rgp||''),parcela:String(row?.parcela||''),valor:Number(row?.valor||0)
   };};
-  const period=received.filter(r=>{const ref=String(r?.dataMesReferencia||'').slice(0,10);return ref>='2025-01-01'&&ref<='2025-12-31';}).map(flat).sort((a,b)=>String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia))||String(a.parcela).localeCompare(String(b.parcela),'pt-BR',{numeric:true}));
-  return {fonte:'Portal da Transparência do Governo Federal — Controladoria-Geral da União',endpoint,codigoConsultado:codigo,consultadoEm:now(),periodoInicio:'2025-01-01',periodoFim:'2025-12-31',paginasConsultadas:Math.ceil(received.length/15),registrosRecebidos:received.length,registrosForaPeriodo:received.length-period.length,quantidade:period.length,valorTotal:period.reduce((s,r)=>s+r.valor,0),registros:period};
+
+  const period=received
+    .filter(row=>{
+      const ref=String(row?.dataMesReferencia||'').slice(0,10);
+      return ref>=periodoInicio&&ref<=periodoFim;
+    })
+    .map(flat)
+    .sort((a,b)=>
+      String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia))||
+      String(a.parcela).localeCompare(String(b.parcela),'pt-BR',{numeric:true})
+    );
+
+  return {
+    fonte:'Portal da Transparência do Governo Federal — Controladoria-Geral da União',
+    endpoint,
+    codigoConsultado:codigo,
+    consultadoEm:now(),
+    periodoInicio,
+    periodoFim,
+    paginasConsultadas,
+    registrosRecebidos:received.length,
+    registrosForaPeriodo:received.length-period.length,
+    quantidade:period.length,
+    valorTotal:period.reduce((s,r)=>s+r.valor,0),
+    registros:period
+  };
 }
 
 async function generateSeguroReportAction(q,user){
@@ -859,7 +917,11 @@ async function generateSeguroReportAction(q,user){
     required(q.pessoaId,'pessoa');
     const p=await get('Pessoas',q.pessoaId,client);
     if(!canWritePersonContent(user,p))throw httpError(403,'Você não possui permissão para gerar documentos desta pessoa.');
-    const consulta=await seguroDefeso({codigo:p.cpf});
+    const consulta=await seguroDefeso({
+      codigo:p.cpf,
+      periodoInicio:q.periodoInicio,
+      periodoFim:q.periodoFim
+    });
     return generateSeguroReport(client,ctx,p,consulta);
   });
 }
