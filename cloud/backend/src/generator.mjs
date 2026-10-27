@@ -93,11 +93,24 @@ function docxParagraph(text,{bold=false}={}){
   const runProps=bold?'<w:rPr><w:b/></w:rPr>':'';
   return '<w:p><w:r>'+runProps+'<w:t xml:space="preserve">'+xmlEscape(text)+'</w:t></w:r></w:p>';
 }
+function reportPeriodText(consulta){
+  const br=value=>{
+    const s=String(value||'').slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s)
+      ?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4)
+      :s||'—';
+  };
+  return br(consulta.periodoInicio)+' a '+br(consulta.periodoFim);
+}
+function reportPeriodSlug(consulta){
+  const clean=value=>String(value||'').slice(0,10).replace(/\D/g,'');
+  return [clean(consulta.periodoInicio),clean(consulta.periodoFim)].filter(Boolean).join('_A_')||'PERIODO';
+}
 function docxReport(p,consulta){
   const rows=consulta.registros||[];
   const paragraphs=[
     docxParagraph('POVO DAS ÁGUAS',{bold:true}),
-    docxParagraph('Relatório Seguro-Defeso 2025',{bold:true}),
+    docxParagraph('Relatório Seguro-Defeso — '+reportPeriodText(consulta),{bold:true}),
     docxParagraph('Pessoa: '+(p.nome||'-')),
     docxParagraph('CPF: '+cpfMask(p.cpf)),
     docxParagraph('Município: '+[p.cidade,p.uf].filter(Boolean).join(' / ')),
@@ -121,11 +134,11 @@ function docxReport(p,consulta){
 }
 async function pdfReport(p,consulta){
   return new Promise((resolve,reject)=>{
-    const doc=new PDFDocument({size:'A4',margins:{top:45,bottom:45,left:45,right:45},info:{Title:'Relatório Seguro-Defeso 2025 - '+p.nome}});
+    const doc=new PDFDocument({size:'A4',margins:{top:45,bottom:45,left:45,right:45},info:{Title:'Relatório Seguro-Defeso - '+reportPeriodText(consulta)+' - '+p.nome}});
     const chunks=[];doc.on('data',c=>chunks.push(c));doc.on('end',()=>resolve(Buffer.concat(chunks)));doc.on('error',reject);
     const line=(label,value)=>{doc.font('Helvetica-Bold').text(label+': ',{continued:true});doc.font('Helvetica').text(String(value||'—'));};
     doc.font('Helvetica-Bold').fontSize(16).text('POVO DAS ÁGUAS',{align:'center'});
-    doc.fontSize(13).text('Relatório Seguro-Defeso 2025',{align:'center'}).moveDown();
+    doc.fontSize(13).text('Relatório Seguro-Defeso — '+reportPeriodText(consulta),{align:'center'}).moveDown();
     doc.fontSize(10);line('Pessoa',p.nome);line('CPF',cpfMask(p.cpf));line('Município',p.cidade+' / '+p.uf);line('Consulta',new Date(consulta.consultadoEm||Date.now()).toLocaleString('pt-BR'));line('Fonte',consulta.fonte);
     doc.moveDown().font('Helvetica-Bold').text('Registros localizados: '+consulta.quantidade+' · Valor total: R$ '+moneyBR(consulta.valorTotal)).moveDown(.5);
     const rows=consulta.registros||[];
@@ -888,7 +901,7 @@ export async function generateInitial(client,ctx,p,modelOverride=null){
 }
 export async function generateSeguroReport(client,ctx,p,consulta){
   const pdf=await pdfReport(p,consulta),docx=docxReport(p,consulta);
-  const base='RELATORIO.SEGURO_DEFESO_2025.'+safeName(String(p.nome||'').toUpperCase());
+  const base='RELATORIO.SEGURO_DEFESO.'+reportPeriodSlug(consulta)+'.'+safeName(String(p.nome||'').toUpperCase());
   const stamp=Date.now();
   const pdfObject='pessoas/'+p.id+'/gerados/'+base+'.'+stamp+'.pdf';
   const docxObject='pessoas/'+p.id+'/gerados/'+base+'.'+stamp+'.docx';
