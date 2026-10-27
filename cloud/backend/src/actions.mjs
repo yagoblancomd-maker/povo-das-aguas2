@@ -831,11 +831,9 @@ async function deleteUser(q,user){
   });
 }
 
-async function seguroDefeso(q){
-  required(q.codigo,'CPF/NIS');
-  const codigo=String(q.codigo).replace(/\D/g,'');
-  if(!/^\d{11}$/.test(codigo))throw httpError(400,'Informe um CPF/NIS com 11 dígitos.');
+const defesoMunicipiosCache={rows:null,validUntil:0};
 
+function seguroDefesoPeriodo(q){
   const periodoInicio=String(q.periodoInicio||'2025-01-01').slice(0,10);
   const periodoFim=String(q.periodoFim||'2025-12-31').slice(0,10);
   const isoDate=/^\d{4}-\d{2}-\d{2}$/;
@@ -859,6 +857,185 @@ async function seguroDefeso(q){
     throw httpError(400,'O período da consulta do Seguro-Defeso pode ter no máximo 12 meses.');
   }
 
+  return {periodoInicio,periodoFim};
+
+}
+
+function seguroDefesoFlat(row){
+  const p=row?.pessoaSeguroDefeso||{};
+  const m=row?.municipio||{};
+  const uf=m.uf||{};
+  return {
+    id:String(row?.id??''),
+    cpfFormatado:String(p.cpfFormatado||''),
+    nis:String(p.nis||''),
+    nome:String(p.nome||''),
+    codigoIBGE:String(m.codigoIBGE||''),
+    nomeIBGE:String(m.nomeIBGE||''),
+    codigoRegiao:String(m.codigoRegiao||''),
+    nomeRegiao:String(m.nomeRegiao||''),
+    pais:String(m.pais||''),
+    ufSigla:String(uf.sigla||''),
+    ufNome:String(uf.nome||''),
+    portaria:String(row?.portaria||''),
+    dataMesReferencia:String(row?.dataMesReferencia||''),
+    dataSaque:String(row?.dataSaque||''),
+    dataEmissaoParcela:String(row?.dataEmissaoParcela||''),
+    situacao:String(row?.situacao||''),
+    rgp:String(row?.rgp||''),
+    parcela:String(row?.parcela||''),
+    valor:Number(row?.valor||0)
+  };
+}
+
+function defesoNormalizeName(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+async function seguroDefesoMunicipiosBuscar(q){
+  const termo=defesoNormalizeName(q.busca||'');
+  if(termo.length<3)throw httpError(400,'Digite pelo menos 3 letras do município.');
+  if(!defesoMunicipiosCache.rows||Date.now()>defesoMunicipiosCache.validUntil){
+    let response;
+    try{
+      response=await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios',{
+        signal:AbortSignal.timeout(15000),headers:{accept:'application/json'}
+      });
+    }catch{
+      throw httpError(503,'Não foi possível carregar municípios do IBGE. Tente novamente.');
+    }
+    if(!response.ok)throw httpError(503,'O IBGE está temporariamente indisponível.');
+    const rows=await response.json();
+    if(!Array.isArray(rows))throw httpError(502,'Resposta inválida do serviço de municípios do IBGE.');
+    defesoMunicipiosCache.rows=rows.map(item=>({
+      id:String(item.id||''),
+      nome:String(item.nome||''),
+      uf:String(
+        item.microrregiao?.mesorregiao?.UF?.sigla||
+        item['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla||''
+      )
+    })).filter(item=>/^\d{7}$/.test(item.id));
+    defesoMunicipiosCache.validUntil=Date.now()+24*60*60*1000;
+  }
+  const results=defesoMunicipiosCache.rows.filter(item=>
+    defesoNormalizeName(item.nome+' '+item.uf).includes(termo)||
+    defesoNormalizeName(item.nome).includes(termo)
+  ).slice(0,40);
+  return {municipios:results};
+}
+
+async function seguroDefesoNome(q){
+  const nome=defesoNormalizeName(q.nome||'');
+  if(nome.length<5)throw httpError(400,'Informe pelo menos 5 caracteres do nome.');
+  const codigoIbge=String(q.codigoIbge||'').replace(/\D/g,'');
+  if(!/^\d{7}$/.test(codigoIbge))throw httpError(400,'Selecione um município válido da lista do IBGE.');
+  const {periodoInicio,periodoFim}=seguroDefesoPeriodo(q);
+  const key=await getSecret(SECRET_IDS.portal,{required:true,label:'API do Portal da Transparência'});
+  const endpoint='https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-beneficiario-por-municipio';
+  const candidatos=new Map();
+  const seenRecords=new Set();
+  const start=Date.now();
+  let paginasConsultadas=0;
+  const month=new Date(periodoInicio+'T00:00:00.000Z');
+  month.setUTCDate(1);
+  const finish=periodoFim.slice(0,7);
+
+  while(month.toISOString().slice(0,7)<=finish){
+    const mesAno=month.toISOString().slice(0,7).replace('-','');
+    let previousPageSignature='';
+    for(let pagina=1;pagina<=35;pagina++){
+      if(paginasConsultadas>=220||Date.now()-start>90000){
+        throw httpError(422,'Consulta por nome muito ampla para este município. Reduza o período e tente novamente.');
+      }
+      const url=endpoint+'?mesAno='+mesAno+'&codigoIbge='+codigoIbge+'&pagina='+pagina;
+      let response;
+      try{
+        response=await fetch(url,{
+          headers:{accept:'application/json','chave-api-dados':key},
+          signal:AbortSignal.timeout(15000)
+        });
+      }catch{
+        throw httpError(503,'A consulta por nome ao Portal da Transparência demorou ou falhou. Tente novamente.');
+      }
+      paginasConsultadas++;
+      if(response.status===401||response.status===403)
+        throw httpError(502,'O Portal da Transparência recusou a chave de acesso.');
+      if(response.status===429)
+        throw httpError(503,'O Portal da Transparência atingiu o limite temporário de consultas. Tente mais tarde.');
+      if(!response.ok)
+        throw httpError(502,'Falha na consulta municipal ao Portal da Transparência. HTTP '+response.status+'.');
+
+      let rows;
+      try{rows=await response.json();}catch{
+        throw httpError(502,'O Portal da Transparência retornou dados inválidos.');
+      }
+      if(!Array.isArray(rows))throw httpError(502,'O Portal retornou formato de dados inesperado.');
+      if(!rows.length)break;
+      if(pagina===35)
+        throw httpError(422,'Este município possui muitos registros. Reduza o período da busca por nome.');
+      const signature=rows.map(row=>String(row?.id??'')).join(',');
+      if(signature===previousPageSignature)
+        throw httpError(502,'O Portal repetiu uma página de resultados. A consulta não foi concluída.');
+      previousPageSignature=signature;
+
+      for(const raw of rows){
+        const ref=String(raw?.dataMesReferencia||'').slice(0,10);
+        if(ref<periodoInicio||ref>periodoFim)continue;
+        const record=seguroDefesoFlat(raw);
+        if(!defesoNormalizeName(record.nome).includes(nome))continue;
+        const rid=record.id||[
+          record.nis,record.cpfFormatado,record.dataMesReferencia,
+          record.parcela,record.valor,record.rgp
+        ].join('|');
+        if(seenRecords.has(rid))continue;
+        seenRecords.add(rid);
+        const fullNis=/^\d{11}$/.test(record.nis.replace(/\D/g,''));
+        const identity=fullNis
+          ?'NIS:'+record.nis.replace(/\D/g,'')
+          :[record.nome,record.cpfFormatado,record.nomeIBGE,record.rgp].join('|');
+        if(!candidatos.has(identity)){
+          if(candidatos.size>=60)
+            throw httpError(422,'Muitos beneficiários correspondentes. Informe um nome mais completo.');
+          candidatos.set(identity,{
+            nome:record.nome,
+            cpfFormatado:record.cpfFormatado,
+            nis:fullNis?record.nis:'',
+            municipio:record.nomeIBGE,
+            uf:record.ufSigla,
+            registros:[]
+          });
+        }
+        candidatos.get(identity).registros.push(record);
+      }
+    }
+    month.setUTCMonth(month.getUTCMonth()+1);
+  }
+  const pessoas=[...candidatos.values()].map(item=>{
+    item.registros.sort((a,b)=>String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia)));
+    return {...item,quantidade:item.registros.length,valorTotal:item.registros.reduce((s,r)=>s+r.valor,0)};
+  }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
+  return {
+    fonte:'Portal da Transparência do Governo Federal — Controladoria-Geral da União',
+    modalidade:'nome',
+    periodoInicio,periodoFim,
+    consultadoEm:now(),
+    paginasConsultadas,
+    codigoIbge,
+    nomePesquisado:String(q.nome||'').trim(),
+    quantidadePessoas:pessoas.length,
+    candidatos:pessoas,
+    aviso:'Busca por nome restrita ao município selecionado. Homônimos são possíveis; confirme CPF/NIS antes de atribuir registros a uma pessoa.'
+  };
+}
+
+async function seguroDefeso(q){
+  required(q.codigo,'CPF/NIS');
+  const codigo=String(q.codigo).replace(/\D/g,'');
+  if(!/^\d{11}$/.test(codigo))throw httpError(400,'Informe um CPF/NIS com 11 dígitos.');
+
+  const {periodoInicio,periodoFim}=seguroDefesoPeriodo(q);
+
   const key=await getSecret(SECRET_IDS.portal,{required:true,label:'API do Portal da Transparência'});
   const endpoint='https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo';
   const received=[];
@@ -879,17 +1056,12 @@ async function seguroDefeso(q){
     received.push(...rows);
   }
 
-  const flat=row=>{const p=row?.pessoaSeguroDefeso||{},m=row?.municipio||{},uf=m.uf||{};return {
-    id:String(row?.id??''),cpfFormatado:String(p.cpfFormatado||''),nis:String(p.nis||''),nome:String(p.nome||''),
-    codigoIBGE:String(m.codigoIBGE||''),nomeIBGE:String(m.nomeIBGE||''),codigoRegiao:String(m.codigoRegiao||''),nomeRegiao:String(m.nomeRegiao||''),pais:String(m.pais||''),ufSigla:String(uf.sigla||''),ufNome:String(uf.nome||''),portaria:String(row?.portaria||''),dataMesReferencia:String(row?.dataMesReferencia||''),dataSaque:String(row?.dataSaque||''),dataEmissaoParcela:String(row?.dataEmissaoParcela||''),situacao:String(row?.situacao||''),rgp:String(row?.rgp||''),parcela:String(row?.parcela||''),valor:Number(row?.valor||0)
-  };};
-
   const period=received
     .filter(row=>{
       const ref=String(row?.dataMesReferencia||'').slice(0,10);
       return ref>=periodoInicio&&ref<=periodoFim;
     })
-    .map(flat)
+    .map(seguroDefesoFlat)
     .sort((a,b)=>
       String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia))||
       String(a.parcela).localeCompare(String(b.parcela),'pt-BR',{numeric:true})
@@ -1019,6 +1191,8 @@ export async function executeAction(action,q,user){
     imagemSistemaConteudo:async()=>{requirePermission(user,'consulta');return visualContent(q);},
     imagemSistemaAleatoria:async()=>{requirePermission(user,'consulta');return randomVisual(q);},
     seguroDefesoConsultar:async()=>{requirePermission(user,'consulta');return seguroDefeso(q);},
+    seguroDefesoMunicipiosBuscar:async()=>{requirePermission(user,'consulta');return seguroDefesoMunicipiosBuscar(q);},
+    seguroDefesoBuscarNome:async()=>{requirePermission(user,'consulta');return seguroDefesoNome(q);},
     modelosDocumentosListar:async()=>documentModelsList(q,user),
     cepConsultar:async()=>{const cep=String(q.cep||'').replace(/\D/g,'');if(!/^\d{8}$/.test(cep))throw httpError(400,'CEP inválido.');const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');const b=await r.json();if(b.erro)throw httpError(404,'CEP não localizado.');return {cep,logradouro:b.logradouro||'',bairro:b.bairro||'',cidade:b.localidade||'',uf:b.uf||'',fonte:'ViaCEP'};},
     documentosImportar:async()=>{requirePermission(user,'cadastro');return importDocuments(q);}
