@@ -1035,25 +1035,51 @@ async function seguroDefeso(q){
   if(!/^\d{11}$/.test(codigo))throw httpError(400,'Informe um CPF/NIS com 11 dígitos.');
 
   const {periodoInicio,periodoFim}=seguroDefesoPeriodo(q);
-
   const key=await getSecret(SECRET_IDS.portal,{required:true,label:'API do Portal da Transparência'});
   const endpoint='https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo';
   const received=[];
   let paginasConsultadas=0;
+  let respostaOrigem='SEM_RESPOSTA';
+  let previousSignature='';
 
   for(let page=1;page<=100;page++){
-    paginasConsultadas=page;
-    const r=await fetch(
-      endpoint+'?codigo='+encodeURIComponent(codigo)+'&pagina='+page,
-      {headers:{accept:'application/json','chave-api-dados':key}}
-    );
-    if(r.status===401)throw httpError(502,'A API do Portal da Transparência recusou a autenticação.');
-    if(r.status===403)throw httpError(502,'A API do Portal da Transparência recusou o acesso da chave configurada.');
-    if(r.status===429)throw httpError(503,'O Portal da Transparência atingiu o limite temporário de consultas. Tente novamente em instantes.');
-    if(!r.ok)throw httpError(502,'Falha no Portal da Transparência. HTTP '+r.status+'.');
-    const rows=await r.json();
-    if(!Array.isArray(rows)||!rows.length)break;
+    let response;
+    const url=endpoint+'?codigo='+encodeURIComponent(codigo)+'&pagina='+page;
+    try{
+      response=await fetch(url,{
+        headers:{accept:'application/json','chave-api-dados':key},
+        signal:AbortSignal.timeout(15000)
+      });
+    }catch{
+      throw httpError(503,'Não foi possível concluir a consulta ao Portal da Transparência. O servidor externo não respondeu no prazo.');
+    }
+    paginasConsultadas++;
+    if(response.status===401)throw httpError(502,'A API do Portal da Transparência recusou a autenticação.');
+    if(response.status===403)throw httpError(502,'A API do Portal da Transparência recusou o acesso da chave configurada.');
+    if(response.status===429)throw httpError(503,'O Portal da Transparência atingiu o limite temporário de consultas. Tente novamente mais tarde.');
+    if(!response.ok)throw httpError(502,'Falha no Portal da Transparência. HTTP '+response.status+'.');
+
+    let rows;
+    try{rows=await response.json();}catch{
+      throw httpError(502,'A API do Portal da Transparência retornou um JSON inválido.');
+    }
+    if(!Array.isArray(rows)){
+      throw httpError(502,'A API do Portal da Transparência retornou uma estrutura inesperada. A consulta não foi concluída.');
+    }
+    if(!rows.length){
+      respostaOrigem=received.length?'PAGINACAO_CONCLUIDA':'LISTA_VAZIA';
+      break;
+    }
+    const signature=rows.map(row=>String(row?.id??'')).join('|');
+    if(signature===previousSignature){
+      throw httpError(502,'A API do Portal da Transparência repetiu registros de uma página anterior. A consulta não foi concluída.');
+    }
+    previousSignature=signature;
     received.push(...rows);
+    respostaOrigem='COM_REGISTROS';
+    if(page===100){
+      throw httpError(502,'A consulta do Seguro-Defeso ultrapassou o limite de páginas. Os dados não foram considerados completos.');
+    }
   }
 
   const period=received
@@ -1066,7 +1092,20 @@ async function seguroDefeso(q){
       String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia))||
       String(a.parcela).localeCompare(String(b.parcela),'pt-BR',{numeric:true})
     );
+  const situacao=received.length===0
+    ?'NENHUM_REGISTRO_NA_FONTE'
+    :period.length===0
+      ?'SEM_REGISTROS_NO_PERIODO'
+      :'REGISTROS_ENCONTRADOS';
 
+  // Informações operacionais mínimas, sem registrar CPF, NIS nem chave de API.
+  console.info('[SEGURO_DEFESO_CONSULTA]',JSON.stringify({
+    paginasConsultadas,
+    registrosRecebidos:received.length,
+    registrosPeriodo:period.length,
+    respostaOrigem,
+    situacao
+  }));
   return {
     fonte:'Portal da Transparência do Governo Federal — Controladoria-Geral da União',
     endpoint,
@@ -1075,6 +1114,8 @@ async function seguroDefeso(q){
     periodoInicio,
     periodoFim,
     paginasConsultadas,
+    respostaOrigem,
+    situacao,
     registrosRecebidos:received.length,
     registrosForaPeriodo:received.length-period.length,
     quantidade:period.length,
