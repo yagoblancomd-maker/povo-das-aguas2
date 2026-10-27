@@ -2,7 +2,7 @@ export const MODULES=Object.freeze({
   PAINEL:'Início',
   PESS:'Novo Cadastro',
   ACOMP:'Consultar Cadastros',
-  DEFESO:'Consultar Defeso 2025',
+  DEFESO:'Consultar Seguro-Defeso',
   HIST:'Histórico',
   TAREFAS:'Tarefas',
   AGENDA:'Agenda',
