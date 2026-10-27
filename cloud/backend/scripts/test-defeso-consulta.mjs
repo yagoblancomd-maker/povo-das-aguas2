@@ -20,14 +20,14 @@ const sample=(date='2025-03-01',id=1)=>({
   municipio:{nomeIBGE:'Pelotas',uf:{sigla:'RS'}},
   dataMesReferencia:date,valor:1518,parcela:'1'
 });
-const test=async(pages,q={codigo:'00000000000'},expectError=null)=>{
+const test=async(pages,q={codigo:'00000000000'},expectError=null,tracked=[])=>{
   let page=0;
   const context={
     required(v,k){if(!v)throw Error('Ausente: '+k);},
     httpError(statusCode,message){return Object.assign(new Error(message),{statusCode});},
     SECRET_IDS:{portal:'povo-portal-api-key'},
     async getSecret(){return 'mock-secret';},
-    fetch:async()=>({status:200,ok:true,async json(){return pages[page++]??[];}}),
+    fetch:async(url)=>{tracked.push(url);return {status:200,ok:true,async json(){return pages[page++]??[];}};},
     AbortSignal, console:{info(){}},now:()=> '2026-10-27T00:00:00Z'
   };
   vm.createContext(context);
@@ -56,4 +56,9 @@ assert.equal(outside.situacao,'SEM_REGISTROS_NO_PERIODO');
 await test([{unexpected:'object'}],{codigo:'00000000000'},502);
 await test([[sample()]],{codigo:'00000000000',periodoInicio:'2025-01-01',periodoFim:'2026-01-01'},400);
 await test([[sample()]],{codigo:'00000000000',periodoInicio:'2025-12-31',periodoFim:'2025-01-01'},400);
-console.log('SEGURO_DEFESO_TESTS_OK: 7 cenarios');
+const requested=[];
+const leadingZero=await test([[sample('2025-03-01')],[]],{codigo:'01234567890'},null,requested);
+assert.equal(leadingZero.quantidade,1);
+assert.equal(requested[0],'https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo?codigo=01234567890&pagina=1');
+assert.equal(requested[1],'https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo?codigo=01234567890&pagina=2');
+console.log('SEGURO_DEFESO_TESTS_OK: 8 cenarios, CPF com zero inicial preservado');
