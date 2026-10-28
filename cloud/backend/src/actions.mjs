@@ -893,6 +893,23 @@ function defesoNormalizeName(value){
     .toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 }
 
+// A CGU divulga CPF mascarado: compatibilidade não prova identidade completa.
+function defesoConferirCpfMascarado(cpfCompleto,cpfPublicado){
+  const cpf=String(cpfCompleto||'').replace(/\D/g,'');
+  if(!cpf)return 'NAO_INFORMADO';
+  if(!/^\d{11}$/.test(cpf))throw httpError(400,'Informe um CPF de referência com 11 dígitos.');
+  const mascara=String(cpfPublicado||'').replace(/[^0-9*]/g,'');
+  if(mascara.length!==11)return 'NAO_VERIFICAVEL';
+  let visiveis=0;
+  for(let i=0;i<11;i++){
+    if(mascara[i]==='*')continue;
+    visiveis++;
+    if(mascara[i]!==cpf[i])return 'INCOMPATIVEL';
+  }
+  if(visiveis===11)return 'CPF_INTEGRAL_COMPATIVEL';
+  return visiveis>=3?'MASCARA_COMPATIVEL':'NAO_VERIFICAVEL';
+}
+
 async function seguroDefesoMunicipiosBuscar(q){
   const termo=defesoNormalizeName(q.busca||'');
   if(termo.length<3)throw httpError(400,'Digite pelo menos 3 letras do município.');
@@ -927,6 +944,8 @@ async function seguroDefesoMunicipiosBuscar(q){
 
 async function seguroDefesoNome(q){
   const nome=defesoNormalizeName(q.nome||'');
+  const cpfReferencia=String(q.cpfReferencia||'').replace(/\D/g,'');
+  if(cpfReferencia&&!/^\d{11}$/.test(cpfReferencia))throw httpError(400,'CPF de referência inválido.');
   if(nome.length<5)throw httpError(400,'Informe pelo menos 5 caracteres do nome.');
   const codigoIbge=String(q.codigoIbge||'').replace(/\D/g,'');
   if(!/^\d{7}$/.test(codigoIbge))throw httpError(400,'Selecione um município válido da lista do IBGE.');
@@ -1013,8 +1032,19 @@ async function seguroDefesoNome(q){
   }
   const pessoas=[...candidatos.values()].map(item=>{
     item.registros.sort((a,b)=>String(a.dataMesReferencia).localeCompare(String(b.dataMesReferencia)));
-    return {...item,quantidade:item.registros.length,valorTotal:item.registros.reduce((s,r)=>s+r.valor,0)};
-  }).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
+    return {
+      ...item,
+      cpfConferencia:defesoConferirCpfMascarado(cpfReferencia,item.cpfFormatado),
+      nomeExato:defesoNormalizeName(item.nome)===nome,
+      quantidade:item.registros.length,
+      valorTotal:item.registros.reduce((s,r)=>s+r.valor,0)
+    };
+  }).sort((a,b)=>{
+    const order={CPF_INTEGRAL_COMPATIVEL:0,MASCARA_COMPATIVEL:1,NAO_VERIFICAVEL:2,NAO_INFORMADO:3,INCOMPATIVEL:4};
+    return (order[a.cpfConferencia]??5)-(order[b.cpfConferencia]??5)||
+      Number(b.nomeExato)-Number(a.nomeExato)||
+      a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'});
+  });
   return {
     fonte:'Portal da Transparência do Governo Federal — Controladoria-Geral da União',
     modalidade:'nome',
@@ -1025,7 +1055,9 @@ async function seguroDefesoNome(q){
     nomePesquisado:String(q.nome||'').trim(),
     quantidadePessoas:pessoas.length,
     candidatos:pessoas,
-    aviso:'Busca por nome restrita ao município selecionado. Homônimos são possíveis; confirme CPF/NIS antes de atribuir registros a uma pessoa.'
+    aviso:cpfReferencia
+      ?'Os dígitos visíveis do CPF publicado foram comparados com o CPF de referência. Compatibilidade parcial não confirma identidade; verifique também nome, município e NIS.'
+      :'Busca por nome restrita ao município selecionado. Homônimos são possíveis; confirme CPF/NIS antes de atribuir registros a uma pessoa.'
   };
 }
 
