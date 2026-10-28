@@ -61,4 +61,19 @@ const leadingZero=await test([[sample('2025-03-01')],[]],{codigo:'01234567890'},
 assert.equal(leadingZero.quantidade,1);
 assert.equal(requested[0],'https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo?codigo=01234567890&pagina=1');
 assert.equal(requested[1],'https://api.portaldatransparencia.gov.br/api-de-dados/seguro-defeso-codigo?codigo=01234567890&pagina=2');
+
+// CPF divulgado pela CGU costuma conter somente os dígitos centrais.
+// O cruzamento parcial deve conservar seu caráter inconclusivo.
+const maskSource=between('function defesoConferirCpfMascarado(','\nasync function seguroDefesoMunicipiosBuscar');
+const maskContext={httpError:(statusCode,message)=>Object.assign(new Error(message),{statusCode})};
+vm.createContext(maskContext);
+vm.runInContext('function defesoConferirCpfMascarado('+maskSource+'this.check=defesoConferirCpfMascarado;',maskContext);
+assert.equal(maskContext.check('00012345600','***.123.456-**'),'MASCARA_COMPATIVEL');
+assert.equal(maskContext.check('00012345600','***.123.457-**'),'INCOMPATIVEL');
+assert.equal(maskContext.check('00012345600','000.123.456-00'),'CPF_INTEGRAL_COMPATIVEL');
+assert.equal(maskContext.check('00012345600','***.***.***-**'),'NAO_VERIFICAVEL');
+assert.equal(maskContext.check('','***.123.456-**'),'NAO_INFORMADO');
+await assert.rejects(async()=>maskContext.check('123','***.123.456-**'),{statusCode:400});
+console.log('CPF_MASK_CHECKS_OK: 6 cenarios; identidade parcial continua nao comprovada');
+
 console.log('SEGURO_DEFESO_TESTS_OK: 8 cenarios, CPF com zero inicial preservado');
