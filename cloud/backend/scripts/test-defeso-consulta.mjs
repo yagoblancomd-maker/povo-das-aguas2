@@ -67,7 +67,7 @@ assert.equal(requested[1],'https://api.portaldatransparencia.gov.br/api-de-dados
 const maskSource=between('function defesoConferirCpfMascarado(','\nasync function seguroDefesoMunicipiosBuscar');
 const maskContext={httpError:(statusCode,message)=>Object.assign(new Error(message),{statusCode})};
 vm.createContext(maskContext);
-vm.runInContext('function defesoConferirCpfMascarado('+maskSource+'this.check=defesoConferirCpfMascarado;',maskContext);
+vm.runInContext(maskSource+'\nthis.check=defesoConferirCpfMascarado;',maskContext);
 assert.equal(maskContext.check('00012345600','***.123.456-**'),'MASCARA_COMPATIVEL');
 assert.equal(maskContext.check('00012345600','***.123.457-**'),'INCOMPATIVEL');
 assert.equal(maskContext.check('00012345600','000.123.456-00'),'CPF_INTEGRAL_COMPATIVEL');
