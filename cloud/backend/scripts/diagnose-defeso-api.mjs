@@ -45,5 +45,29 @@ if(positive){
 }
 const docExample=await fetchMeta('/seguro-defeso-codigo',{codigo:'10859427215',pagina:1});
 results.push({route:'codigo-documented-example',status:docExample.status,format:docExample.format,count:docExample.count});
+
+// Caso focal: valor informado somente na configuracao temporaria do Job.
+// Nao registrar identificadores, URLs completas ou payloads individuais.
+const targetCpf=String(process.env.PDA_TEST_CPF||'').replace(/\D/g,'');
+if(targetCpf){
+  if(!/^\d{11}$/.test(targetCpf))throw Error('PDA_TEST_CPF nao possui 11 digitos.');
+  const plain=await fetchMeta('/seguro-defeso-codigo',{codigo:targetCpf,pagina:1});
+  const formatted=targetCpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');
+  const punctuated=await fetchMeta('/seguro-defeso-codigo',{codigo:formatted,pagina:1});
+  results.push({
+    route:'cpf-alvo-sem-pontuacao',status:plain.status,format:plain.format,count:plain.count,
+    returnedNis:plain.rows?.some(x=>!!x.pessoaSeguroDefeso?.nis)??false
+  });
+  results.push({
+    route:'cpf-alvo-com-pontuacao',status:punctuated.status,format:punctuated.format,count:punctuated.count
+  });
+}
+if(positive){
+  const matched=await fetchMeta('/seguro-defeso-codigo',{codigo:positive,pagina:1});
+  const sameNis=matched.rows?.filter(x=>String(x.pessoaSeguroDefeso?.nis||'').replace(/\D/g,'')===positive).length||0;
+  const distinctNis=new Set((matched.rows||[]).map(x=>String(x.pessoaSeguroDefeso?.nis||'').replace(/\D/g,'')).filter(Boolean)).size;
+  results.push({route:'nis-controle-confere-identidade',status:matched.status,count:matched.count,
+    mesmosNis:sameNis,nisDistintos:distinctNis});
+}
 console.log('SEGURO_DEFESO_API_DIAGNOSTIC='+JSON.stringify(results));
 if(results.some(x=>x.status===401||x.status===403||x.status===429||x.status==='NETWORK_ERROR'))process.exitCode=2;
